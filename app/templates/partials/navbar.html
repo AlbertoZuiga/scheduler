@@ -10,7 +10,7 @@
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto">
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('main.dashboard') }}" aria-label="Ir al panel de control">Panel de control</a>
+            <a class="nav-link" href="{{ url_for('groups.index') }}" aria-label="Ir al panel de control">Panel de control</a>
           </li>
           {% if current_user.is_authenticated %}
             <li class="nav-item">

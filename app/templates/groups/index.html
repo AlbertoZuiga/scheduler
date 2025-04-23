@@ -3,16 +3,14 @@
 {% block content %}
 <div class="container mt-5">
   <h2>Mis Grupos</h2>
-  <a href="{{ url_for('group.create_group') }}" class="btn btn-success mb-3">Crear nuevo grupo</a>
+  <a href="{{ url_for('groups.create') }}" class="btn btn-success mb-3">Crear nuevo grupo</a>
   <ul class="list-group">
     {% for group in groups %}
     <li class="list-group-item d-flex flex-column align-items-start">
       <div class="d-flex justify-content-between align-items-center w-100">
         <span>{{ group.name }}</span>
         <div class="btn-group" role="group" aria-label="Group actions">
-          <a href="{{ url_for('group.group_members', group_id=group.id) }}" class="btn btn-info btn-sm">Miembros</a>
-          <a href="{{ url_for('group.group_availability', group_id=group.id) }}" class="btn btn-outline-primary btn-sm">Editar disponibilidad</a>
-          <a href="{{ url_for('group.show', id=group.id) }}" class="btn btn-outline-secondary btn-sm">Ver grupo</a>
+          <a href="{{ url_for('groups.show', id=group.id) }}" class="btn btn-outline-secondary btn-sm">Ver grupo</a>
         </div>
       </div>
       {% if group.owner_id == current_user.id %}
@@ -20,7 +18,7 @@
         <div class="card-body">
           <label for="inviteLink-{{ group.id }}" class="form-label mb-1 fw-bold">Link de invitación:</label>
           <div class="input-group">
-            <input type="text" class="form-control" value="{{ url_for('group.join_group', token=group.join_token, _external=True) }}" id="inviteLink-{{ group.id }}" readonly>
+            <input type="text" class="form-control" value="{{ url_for('groups.join', token=group.join_token, _external=True) }}" id="inviteLink-{{ group.id }}" readonly>
             <button class="btn btn-outline-secondary" onclick="copyToClipboard('{{ group.id }}')">Copiar</button>
           </div>
         </div>

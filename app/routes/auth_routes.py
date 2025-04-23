@@ -55,9 +55,10 @@ def callback():
     user = User.get_or_create_from_oauth(id_info)
     if user:
         login_user(user)
-        next_page = request.args.get("next")
+        
+        next_page = session.pop('next_page', None)
         if not next_page or not is_safe_url(next_page):
-            next_page = url_for("main.dashboard")
+            next_page = url_for("groups.index")
         return redirect(next_page)
     else:
         return "No se pudo autenticar el usuario", 400
@@ -66,5 +67,4 @@ def callback():
 @login_required
 def logout():
     logout_user()
-    print('Sesión cerrada')
-    return redirect(url_for('auth.login'))
+    return redirect(url_for('main.index'))

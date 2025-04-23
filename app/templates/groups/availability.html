@@ -1,14 +1,15 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container mt-5">
+<div class="container mt-5 d-flex justify-content-center">
+  <div style="min-width: 50%;">
   <h2>Mi disponibilidad para el grupo</h2>
   <form method="POST">
-    <table class="table table-bordered text-center">
+    <table class="table table-bordered text-center mx-auto w-100" style="min-width: 50%; table-layout: auto;">
       <thead>
         <tr>
           <th>Hora / Día</th>
-          {% for d in ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] %}
+          {% for d in ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'] %}
             <th>{{ d }}</th>
           {% endfor %}
         </tr>
@@ -17,16 +18,21 @@
         {% for block_index, block_time in blocks %}
         <tr>
           <td>{{ block_time }}</td>
-          {% for day in range(7) %}
-            <td>
-              <input type="checkbox" name="day_{{ day }}_hour_{{ block_index }}" {% if (day, block_index) in selected %}checked{% endif %}>
+          {% for day in range(5) %}
+            <td class="p-0">
+              <input type="checkbox" class="btn-check" id="cb_{{ day }}_{{ block_index }}" name="day_{{ day }}_hour_{{ block_index }}" autocomplete="off" {% if (day, block_index) in selected %}checked{% endif %}>
+              <label class="btn btn-outline-success w-100 h-100 m-0 py-4" for="cb_{{ day }}_{{ block_index }}"></label>
             </td>
           {% endfor %}
         </tr>
         {% endfor %}
       </tbody>
     </table>
-    <button type="submit" class="btn btn-primary">Guardar disponibilidad</button>
+    <div class="d-flex justify-content-between mt-4">
+      <a href="{{ url_for('groups.show', id=group_id) }}" class="btn btn-outline-secondary px-5">Cancelar</a>
+      <button type="submit" class="btn btn-success px-5">Guardar disponibilidad</button>
+    </div>
   </form>
-</div>
+    </div>
+  </div>
 {% endblock %}

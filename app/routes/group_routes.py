@@ -11,7 +11,7 @@ from app.models.user_availability import UserAvailability
 import uuid
 from sqlalchemy.orm import joinedload
 
-group_bp = Blueprint('group', __name__, url_prefix='/group')
+group_bp = Blueprint('groups', __name__, url_prefix='/group')
 
 def convert_hour_to_integer(hour):
     """Convert a time string in 'HH:MM' format to a float representing hours."""
@@ -58,10 +58,17 @@ def get_availability_data(group_id):
         data[availability_id]['users'].append(user_id)
         data[availability_id]['count_users'] += 1
 
-    # Sort data by number of users (descending)
+
     sorted_data = dict(sorted(data.items(), key=lambda item: item[1]['count_users'], reverse=True))
 
     return sorted_data
+
+@group_bp.route('/', methods=['GET'])
+@login_required
+def index():
+    groups = Group.query.join(GroupMember).filter(GroupMember.user_id == current_user.id).all()
+
+    return render_template('groups/index.html', groups=groups)
 
 @group_bp.route('/<int:id>', methods=['GET'])
 @login_required
@@ -112,7 +119,7 @@ def show(id):
 
 @group_bp.route('/create', methods=['GET', 'POST'])
 @login_required
-def create_group():
+def create():
     if request.method == 'POST':
         group_name = request.form['group_name']
         
@@ -128,18 +135,18 @@ def create_group():
         scheduler_db.session.add(group_member)
         scheduler_db.session.commit()
 
-        flash('Grupo creado con éxito. El link para unirse es: /group/join/{}'.format(join_token))
-        return redirect(url_for('main.dashboard'))
-    return render_template('groups/create_group.html')
+        flash('Grupo creado con éxito. El link para unirse es: {}'.format(request.url_root + 'group/join/{}'.format(join_token)), 'success')
+        return redirect(url_for('groups.show', id=new_group.id))
+    return render_template('groups/create.html')
 
 @group_bp.route('/join/<token>', methods=['GET'])
 @login_required
-def join_group(token):
+def join(token):
     group = Group.query.filter_by(join_token=token).first()
 
     if not group:
         flash('Grupo no encontrado o token inválido.', 'danger')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('groups.index'))
 
     user_id = current_user.id
 
@@ -147,7 +154,7 @@ def join_group(token):
     
     if GroupMember.query.filter_by(group_id=group.id, user_id=user_id).first():
         flash('Ya estás en este grupo.', 'info')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('groups.show', id=group.id))
 
     
     new_member = GroupMember(group_id=group.id, user_id=user_id)
@@ -155,18 +162,18 @@ def join_group(token):
     scheduler_db.session.commit()
 
     flash('Te has unido al grupo con éxito.', 'success')
-    return redirect(url_for('main.dashboard'))
+    return redirect(url_for('groups.show', id=group.id))
 
 @group_bp.route('/<int:group_id>/members', methods=['GET'])
 @login_required
-def group_members(group_id):
+def members(group_id):
     group = Group.query.get_or_404(group_id)
     members = GroupMember.query.filter_by(group_id=group.id).all()
-    return render_template('groups/group_members.html', group=group, members=members)
+    return render_template('groups/members.html', group=group, members=members)
 
 @group_bp.route('/<int:group_id>/availability', methods=['GET', 'POST'])
 @login_required
-def group_availability(group_id):
+def availability(group_id):
     STARTING_HOUR = 8
     ENDING_HOUR = 19
     
@@ -177,7 +184,7 @@ def group_availability(group_id):
     BLOCK_COUNT = len(blocks)
     
     if request.method == 'POST':
-        # Delete UserAvailability entries for current user and group availabilities
+
         user_avails = scheduler_db.session.query(UserAvailability).join(Availability).filter(UserAvailability.user_id == current_user.id, Availability.group_id == group_id).all()
         for ua in user_avails:
             scheduler_db.session.delete(ua)
@@ -210,7 +217,7 @@ def group_availability(group_id):
             return render_template('groups/availability.html', group_id=group_id, selected={}, blocks=blocks)
         else:
             flash(f'Disponibilidad actualizada con éxito. ({saved_count} bloques guardados)', 'success')
-            return redirect(url_for('main.dashboard'))
+            return redirect(url_for('groups.show', id=group_id))
 
     user_availability = scheduler_db.session.query(UserAvailability.user_id, Availability.weekday, Availability.hour).join(Availability).join(Group).filter(UserAvailability.user_id == current_user.id, Availability.group_id == group_id).all()
     selected = set()
@@ -220,3 +227,46 @@ def group_availability(group_id):
             selected.add((weekday, block_index))
         print(f"Selected availability: {selected}")
     return render_template('groups/availability.html', group_id=group_id, selected=selected, blocks=blocks)
+ 
+@group_bp.route('/<int:group_id>/delete', methods=['POST'])
+@login_required
+def delete(group_id):
+    group = Group.query.get_or_404(group_id)
+
+    if group.owner_id != current_user.id:
+        flash("No tienes permiso para eliminar este grupo.", "danger")
+        return redirect(url_for('groups.show', id=group_id))
+
+    availability_ids = [a.id for a in Availability.query.filter_by(group_id=group_id).all()]
+    if availability_ids:
+        UserAvailability.query.filter(UserAvailability.availability_id.in_(availability_ids)).delete(synchronize_session=False)
+
+    Availability.query.filter_by(group_id=group_id).delete()
+    GroupMember.query.filter_by(group_id=group_id).delete()
+
+
+    scheduler_db.session.delete(group)
+    scheduler_db.session.commit()
+
+    flash("Grupo eliminado exitosamente.", "success")
+    return redirect(url_for('groups.index'))
+ 
+@group_bp.route('/<int:group_id>/leave', methods=['POST'])
+@login_required
+def leave(group_id):
+    ua_ids = scheduler_db.session.query(UserAvailability.id).join(Availability).filter(
+        UserAvailability.user_id == current_user.id,
+        Availability.group_id == group_id
+    ).all()
+    ua_ids = [id for (id,) in ua_ids]
+    if ua_ids:
+        scheduler_db.session.query(UserAvailability).filter(UserAvailability.id.in_(ua_ids)).delete(synchronize_session=False)
+
+    membership = GroupMember.query.filter_by(user_id=current_user.id, group_id=group_id).first()
+    if membership:
+        scheduler_db.session.delete(membership)
+
+    scheduler_db.session.commit()
+
+    flash("Grupo abandonado exitosamente.", "success")
+    return redirect(url_for('groups.index'))

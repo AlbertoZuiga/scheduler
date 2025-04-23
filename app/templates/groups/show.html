@@ -3,7 +3,20 @@
 {% block content %}    
 <h1 class="mb-4">Grupo: {{ group.name }}</h1>
 
-{% set weekdays = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"] %}
+{% if current_user.id == group.owner_id %}
+<div class="d-flex mb-3">
+  <a href="{{ url_for('groups.members', group_id=group.id) }}" class="btn btn-info me-2">👥 Miembros</a>
+  <form method="POST" action="{{ url_for('groups.delete', group_id=group.id) }}" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este grupo?');">
+    <button type="submit" class="btn btn-danger">🗑️ Eliminar grupo</button>
+  </form>
+</div>
+  {% else %}
+  <form method="POST" action="{{ url_for('groups.leave', group_id=group.id) }}" onsubmit="return confirm('¿Estás seguro de que deseas abandonar este grupo?');" class="mb-4">
+    <button type="submit" class="btn btn-danger">🗑️ Salir del grupo</button>
+  </form>
+{% endif %}
+
+{% set weekdays = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"] %}
 
 <div class="table-responsive mt-4">
   <table class="table table-bordered text-center align-middle table-striped table-hover">
@@ -51,7 +64,7 @@
                         <div class="accordion-item">
                           <h2 class="accordion-header" id="heading{{ loop.index }}">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" aria-expanded="false" aria-controls="collapse{{ loop.index }}">
-                              {{ weekdays[data.availability.weekday] }} {{ convert_float_to_time_string(data.availability.hour) }} — {{ data.count_users }} disponible/s
+                              {{ weekdays[data.availability.weekday] }} {{ convert_float_to_time_string(data.availability.hour) }} — {{ data.count_users }} {{ "personas disponibles" if data.count_users > 1 else "persona disponible" }}:
                             </button>
                           </h2>
                           <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" aria-labelledby="heading{{ loop.index }}" data-bs-parent="#partialAvailabilityAccordion">
@@ -75,11 +88,13 @@
           </div>
         {% endif %}
 
+        <a href="{{ url_for('groups.availability', group_id=group.id) }}" class="btn btn-outline-primary my-4">📝 Editar disponibilidad</a>
+
         {% for block in blocks %}
         {% set block_index = loop.index0 %}
         <tr>
           <td>{{ block }}</td>
-          {% for day_index in range(0, 7) %}
+          {% for day_index in range(0, 5) %}
             <td>
               {% if current_user.id == group.owner_id %}
                 {% for user_id, weekday, hour in availability %}
