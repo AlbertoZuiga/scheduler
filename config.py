@@ -17,5 +17,7 @@ class Config:
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = os.getenv("SECRET_KEY", os.urandom(24))
+    
+    URL=os.getenv("URL")
 
     DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")

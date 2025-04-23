@@ -25,7 +25,7 @@ def login():
     flow = Flow.from_client_secrets_file(
         client_secrets_file=client_secrets_file,
         scopes=["https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email", "openid"],
-        redirect_uri=f"http://{Config.APP_HOST}:{Config.APP_PORT}/auth/google/callback"
+        redirect_uri=f"{Config.URL}/auth/google/callback"
     )
 
     authorization_url, state = flow.authorization_url()
@@ -38,7 +38,7 @@ def callback():
     flow = Flow.from_client_secrets_file(
         client_secrets_file=client_secrets_file,
         scopes=["https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email", "openid"],
-        redirect_uri=f"http://{Config.APP_HOST}:{Config.APP_PORT}/auth/google/callback"
+        redirect_uri=f"{Config.URL}/auth/google/callback"
     )
 
     flow.fetch_token(authorization_response=request.url)
