@@ -1,0 +1,70 @@
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app
+from flask_login import login_user, logout_user, login_required
+from app.models.user import User
+from app import scheduler_db
+from google_auth_oauthlib.flow import Flow
+import google.auth.transport.requests
+import os
+import pathlib
+import google.oauth2.id_token
+from config import Config
+from urllib.parse import urlparse, urljoin
+
+auth_bp = Blueprint('auth', __name__)
+
+def is_safe_url(target):
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return test_url.scheme in ("http", "https") and ref_url.netloc == test_url.netloc
+
+@auth_bp.route('/login')
+def login():
+    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+    client_secrets_file = os.path.join(pathlib.Path(__file__).parent.parent.parent, "client_secret.json")
+
+    flow = Flow.from_client_secrets_file(
+        client_secrets_file=client_secrets_file,
+        scopes=["https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email", "openid"],
+        redirect_uri=f"http://{Config.APP_HOST}:{Config.APP_PORT}/auth/google/callback"
+    )
+
+    authorization_url, state = flow.authorization_url()
+    session["state"] = state
+    return redirect(authorization_url)
+
+@auth_bp.route('/auth/google/callback')
+def callback():
+    client_secrets_file = os.path.join(pathlib.Path(__file__).parent.parent.parent, "client_secret.json")
+    flow = Flow.from_client_secrets_file(
+        client_secrets_file=client_secrets_file,
+        scopes=["https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email", "openid"],
+        redirect_uri=f"http://{Config.APP_HOST}:{Config.APP_PORT}/auth/google/callback"
+    )
+
+    flow.fetch_token(authorization_response=request.url)
+
+    if session["state"] != request.args["state"]:
+        return "Estado inválido", 500
+
+    credentials = flow.credentials
+    request_session = google.auth.transport.requests.Request()
+    id_info = google.oauth2.id_token.verify_oauth2_token(
+        credentials._id_token, request_session, flow.client_config["client_id"]
+    )
+
+    user = User.get_or_create_from_oauth(id_info)
+    if user:
+        login_user(user)
+        next_page = request.args.get("next")
+        if not next_page or not is_safe_url(next_page):
+            next_page = url_for("main.dashboard")
+        return redirect(next_page)
+    else:
+        return "No se pudo autenticar el usuario", 400
+
+@auth_bp.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    print('Sesión cerrada')
+    return redirect(url_for('auth.login'))

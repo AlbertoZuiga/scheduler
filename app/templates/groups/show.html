@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block content %}    
+<h1 class="mb-4">Grupo: {{ group.name }}</h1>
+
+{% set weekdays = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"] %}
+
+<div class="table-responsive mt-4">
+  <table class="table table-bordered text-center align-middle table-striped table-hover">
+    <thead class="table-light">
+      <tr>
+        <th>Bloque</th>
+        {% for day in weekdays %}
+          <th>{{ day }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+        {% if current_user.id == group.owner_id and availability_data %}
+          <div class="accordion mb-4" id="availabilityAccordion">
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="headingCanAll">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCanAll" aria-expanded="true" aria-controls="collapseCanAll">
+                  Horarios en los que pueden todos
+                </button>
+              </h2>
+              <div id="collapseCanAll" class="accordion-collapse collapse show" aria-labelledby="headingCanAll" data-bs-parent="#availabilityAccordion">
+                <div class="accordion-body">
+                  <ul class="list-group list-group-flush">
+                    {% for availability_id, data in availability_data.items() %}
+                      {% if data.count_users == user_info_map|length %}
+                        <li class="list-group-item">{{ weekdays[data.availability.weekday] }} {{ convert_float_to_time_string(data.availability.hour) }}</li>
+                      {% endif %}
+                    {% endfor %}
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="headingCannotAll">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCannotAll" aria-expanded="false" aria-controls="collapseCannotAll">
+                  Horarios en los que no pueden todos
+                </button>
+              </h2>
+              <div id="collapseCannotAll" class="accordion-collapse collapse" aria-labelledby="headingCannotAll" data-bs-parent="#availabilityAccordion">
+                <div class="accordion-body">
+                  <div class="accordion" id="partialAvailabilityAccordion">
+                    {% for availability_id, data in availability_data.items() %}
+                      {% if data.count_users < user_info_map|length %}
+                        <div class="accordion-item">
+                          <h2 class="accordion-header" id="heading{{ loop.index }}">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" aria-expanded="false" aria-controls="collapse{{ loop.index }}">
+                              {{ weekdays[data.availability.weekday] }} {{ convert_float_to_time_string(data.availability.hour) }} — {{ data.count_users }} disponible/s
+                            </button>
+                          </h2>
+                          <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" aria-labelledby="heading{{ loop.index }}" data-bs-parent="#partialAvailabilityAccordion">
+                            <div class="accordion-body">
+                              <ul class="list-group list-group-flush">
+                                {% for user_id in data.users %}
+                                  <li class="list-group-item">
+                                    <span class="badge {{ color_map[user_id] }} d-block mb-1">{{ user_info_map[user_id].name }} {{ user_info_map[user_id].email }}</span>
+                                  </li>
+                                {% endfor %}
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+
+        {% for block in blocks %}
+        {% set block_index = loop.index0 %}
+        <tr>
+          <td>{{ block }}</td>
+          {% for day_index in range(0, 7) %}
+            <td>
+              {% if current_user.id == group.owner_id %}
+                {% for user_id, weekday, hour in availability %}
+                  {% if (weekday, blocks[hour|int - 8]) == (day_index, blocks[block_index]) %}
+                    {% set user_name = user_info_map[user_id].name %}
+                    {% set color = color_map[user_id] %}
+                    <span class="badge {{ color }} d-block mb-1">{{ user_name }}</span>
+                  {% endif %}
+                {% endfor %}
+              {% else %}
+                {% if (day_index, block) in selected %}
+                  <span class="badge bg-primary">Disponible</span>
+                {% endif %}
+              {% endif %}
+            </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

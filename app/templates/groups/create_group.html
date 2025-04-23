@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2>Crear Grupo</h2>
+  <form method="POST">
+    <div class="mb-3">
+      <label for="group_name" class="form-label">Nombre del Grupo</label>
+      <input type="text" class="form-control" id="group_name" name="group_name" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Crear</button>
+  </form>
+</div>
+{% endblock %}

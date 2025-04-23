@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2>Mi disponibilidad para el grupo</h2>
+  <form method="POST">
+    <table class="table table-bordered text-center">
+      <thead>
+        <tr>
+          <th>Hora / Día</th>
+          {% for d in ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] %}
+            <th>{{ d }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for block_index, block_time in blocks %}
+        <tr>
+          <td>{{ block_time }}</td>
+          {% for day in range(7) %}
+            <td>
+              <input type="checkbox" name="day_{{ day }}_hour_{{ block_index }}" {% if (day, block_index) in selected %}checked{% endif %}>
+            </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button type="submit" class="btn btn-primary">Guardar disponibilidad</button>
+  </form>
+</div>
+{% endblock %}

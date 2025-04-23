@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2>Miembros del Grupo: {{ group.name }}</h2>
+  <ul class="list-group mb-3">
+    {% for member in members %}
+    <li class="list-group-item">{{ member.user.email }}</li>
+    {% else %}
+    <li class="list-group-item text-muted">Este grupo no tiene miembros.</li>
+    {% endfor %}
+  </ul>
+  <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Volver</a>
+</div>
+{% endblock %}

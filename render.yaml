@@ -1,0 +1,18 @@
+databases:
+  - name: scheduler-db
+    databaseName: scheduler_db
+    user: scheduler
+    plan: free
+
+services:
+  - type: web
+    name: scheduler-app
+    env: python
+    buildCommand: "./render-build.sh"
+    startCommand: "gunicorn run:app"
+    plan: free
+    envVars:
+        - key: DATABASE_URL
+          fromDatabase:
+            name: scheduler-db
+            property: connectionString
