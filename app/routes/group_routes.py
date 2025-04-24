@@ -4,10 +4,7 @@ def assign_colors_to_members(members):
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session
 from flask_login import login_required, current_user
 from app import scheduler_db
-from app.models.group import Group
-from app.models.group_member import GroupMember
-from app.models.availability import Availability
-from app.models.user_availability import UserAvailability
+from app.models import Group, GroupMember, Availability, UserAvailability, RoleEnum
 import uuid
 from sqlalchemy.orm import joinedload
 
@@ -82,7 +79,10 @@ def show(id):
     color_map = assign_colors_to_members(members)
     user_info_map = {member.user.id: {'name': member.user.name, 'email': member.user.email} for member in members}
     
-    if group.owner_id == current_user.id:
+    membership = GroupMember.query.filter_by(group_id=group.id, user_id=current_user.id).first()
+    is_admin = membership and membership.role == RoleEnum.ADMIN
+    
+    if group.owner_id == current_user.id or is_admin:
         availability = (
             scheduler_db.session.query(UserAvailability.user_id, Availability.weekday, Availability.hour)
             .join(Availability, UserAvailability.availability_id == Availability.id)
@@ -114,7 +114,8 @@ def show(id):
         convert_float_to_time_string=convert_float_to_time_string,
         availability_data=availability_data,
         color_map=color_map,
-        user_info_map=user_info_map
+        user_info_map=user_info_map,
+        is_admin=is_admin
     )
 
 @group_bp.route('/create', methods=['GET', 'POST'])
@@ -131,7 +132,7 @@ def create():
         scheduler_db.session.commit()
 
         
-        group_member = GroupMember(group_id=new_group.id, user_id=user_id)
+        group_member = GroupMember(group_id=new_group.id, user_id=user_id, role=RoleEnum.ADMIN)
         scheduler_db.session.add(group_member)
         scheduler_db.session.commit()
 
@@ -157,7 +158,7 @@ def join(token):
         return redirect(url_for('groups.show', id=group.id))
 
     
-    new_member = GroupMember(group_id=group.id, user_id=user_id)
+    new_member = GroupMember(group_id=group.id, user_id=user_id, role=RoleEnum.MEMBER)
     scheduler_db.session.add(new_member)
     scheduler_db.session.commit()
 
@@ -305,3 +306,26 @@ def remove(group_id, user_id):
 
     flash("Miembro eliminado exitosamente.", "success")
     return redirect(url_for('groups.show', id=group_id))
+
+
+@group_bp.route('/<int:group_id>/update_role/<int:user_id>', methods=['POST'])
+@login_required
+def update_role(group_id, user_id):
+    group = Group.query.get_or_404(group_id)
+
+    if group.owner_id != current_user.id:
+        flash("No tienes permiso para modificar los roles.", "danger")
+        return redirect(url_for('groups.show', id=group_id))
+
+    role_str = request.form.get('role')
+    if role_str not in RoleEnum.__members__:
+        flash("Rol inválido.", "danger")
+        return redirect(url_for('groups.show', id=group_id))
+
+    member = GroupMember.query.filter_by(group_id=group_id, user_id=user_id).first_or_404()
+    member.role = RoleEnum[role_str]
+    scheduler_db.session.commit()
+
+    flash("Rol actualizado con éxito.", "success")
+    return redirect(url_for('groups.show', id=group_id))
+
