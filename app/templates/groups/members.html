@@ -5,7 +5,18 @@
   <h2>Miembros del Grupo: {{ group.name }}</h2>
   <ul class="list-group mb-3">
     {% for member in members %}
-    <li class="list-group-item">{{ member.user.email }}</li>
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      {{ member.user.email }}
+      {% if member.user == current_user %}
+        <form method="POST" action="{{ url_for('groups.leave', group_id=group.id) }}" onsubmit="return confirm('¿Estás seguro de que deseas abandonar este grupo?');" class="mb-4">
+          <button type="submit" class="btn btn-danger btn-sm">Salir del grupo</button>
+        </form>  
+      {% else %}
+        <form method="POST" action="{{ url_for('groups.remove', group_id=group.id, user_id=member.user.id) }}" class="mb-0">
+          <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+        </form>  
+      {% endif %}
+    </li>
     {% else %}
     <li class="list-group-item text-muted">Este grupo no tiene miembros.</li>
     {% endfor %}

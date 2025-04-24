@@ -227,7 +227,7 @@ def availability(group_id):
             selected.add((weekday, block_index))
         print(f"Selected availability: {selected}")
     return render_template('groups/availability.html', group_id=group_id, selected=selected, blocks=blocks)
- 
+
 @group_bp.route('/<int:group_id>/delete', methods=['POST'])
 @login_required
 def delete(group_id):
@@ -250,7 +250,7 @@ def delete(group_id):
 
     flash("Grupo eliminado exitosamente.", "success")
     return redirect(url_for('groups.index'))
- 
+
 @group_bp.route('/<int:group_id>/leave', methods=['POST'])
 @login_required
 def leave(group_id):
@@ -266,7 +266,42 @@ def leave(group_id):
     if membership:
         scheduler_db.session.delete(membership)
 
+    group = Group.query.get_or_404(group_id)
+
+    if group.owner_id == current_user.id:
+        remaining_members = GroupMember.query.filter_by(group_id=group_id).all()
+        if remaining_members:
+            group.owner_id = remaining_members[0].user_id
+        else:
+            # Delete all related availability and the group
+            availability_ids = [a.id for a in Availability.query.filter_by(group_id=group_id).all()]
+            if availability_ids:
+                UserAvailability.query.filter(UserAvailability.availability_id.in_(availability_ids)).delete(synchronize_session=False)
+            Availability.query.filter_by(group_id=group_id).delete()
+            scheduler_db.session.delete(group)
+
     scheduler_db.session.commit()
 
     flash("Grupo abandonado exitosamente.", "success")
     return redirect(url_for('groups.index'))
+
+
+@group_bp.route('/<int:group_id>/remove/<int:user_id>', methods=['POST'])
+@login_required
+def remove(group_id, user_id):
+    ua_ids = scheduler_db.session.query(UserAvailability.id).join(Availability).filter(
+        UserAvailability.user_id == user_id,
+        Availability.group_id == group_id
+    ).all()
+    ua_ids = [id for (id,) in ua_ids]
+    if ua_ids:
+        scheduler_db.session.query(UserAvailability).filter(UserAvailability.id.in_(ua_ids)).delete(synchronize_session=False)
+
+    membership = GroupMember.query.filter_by(user_id=user_id, group_id=group_id).first()
+    if membership:
+        scheduler_db.session.delete(membership)
+
+    scheduler_db.session.commit()
+
+    flash("Miembro eliminado exitosamente.", "success")
+    return redirect(url_for('groups.show', id=group_id))
