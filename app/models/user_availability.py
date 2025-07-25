@@ -1,7 +1,7 @@
 from app.extensions import scheduler_db
 
 
-class UserAvailability(scheduler_db.Model):
+class UserAvailability(scheduler_db.Model):    # pylint: disable=too-few-public-methods
     __tablename__ = "user_availability"
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     user_id = scheduler_db.Column(

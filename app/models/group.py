@@ -1,7 +1,7 @@
 from app.extensions import scheduler_db
 
 
-class Group(scheduler_db.Model):
+class Group(scheduler_db.Model):    # pylint: disable=too-few-public-methods
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     name = scheduler_db.Column(scheduler_db.String(150), nullable=False)
     join_token = scheduler_db.Column(scheduler_db.String(64), unique=True, nullable=False)

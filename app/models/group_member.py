@@ -8,7 +8,7 @@ class RoleEnum(enum.IntEnum):
     ADMIN = 1
 
 
-class GroupMember(scheduler_db.Model):
+class GroupMember(scheduler_db.Model):    # pylint: disable=too-few-public-methods
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     group_id = scheduler_db.Column(
         scheduler_db.Integer, scheduler_db.ForeignKey("group.id"), nullable=False
