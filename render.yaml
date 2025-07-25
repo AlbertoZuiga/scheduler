@@ -9,7 +9,7 @@ services:
     name: scheduler-app
     env: python
     buildCommand: "./render-build.sh"
-    startCommand: "gunicorn run:app"
+    startCommand: "gunicorn run:scheduler_app"
     plan: free
     envVars:
         - key: DATABASE_URL
