@@ -1,5 +1,7 @@
 from flask_login import UserMixin
+
 from app import scheduler_db
+
 
 class User(UserMixin, scheduler_db.Model):
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)

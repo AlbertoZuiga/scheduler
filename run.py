@@ -4,5 +4,5 @@ from config import Config
 with app.app_context():
     scheduler_db.create_all()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run()
