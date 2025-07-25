@@ -76,8 +76,8 @@ def callback():
         if not next_page or not is_safe_url(next_page):
             next_page = url_for("groups.index")
         return redirect(next_page)
-    else:
-        return "No se pudo autenticar el usuario", 400
+
+    return "No se pudo autenticar el usuario", 400
 
 
 @auth_bp.route("/logout")
