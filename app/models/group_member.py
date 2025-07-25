@@ -1,6 +1,6 @@
 import enum
 
-from app import scheduler_db
+from app.extensions import scheduler_db
 
 
 class RoleEnum(enum.IntEnum):

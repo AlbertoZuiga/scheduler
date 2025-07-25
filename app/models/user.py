@@ -1,6 +1,6 @@
 from flask_login import UserMixin
 
-from app import scheduler_db
+from app.extensions import scheduler_db
 
 
 class User(UserMixin, scheduler_db.Model):

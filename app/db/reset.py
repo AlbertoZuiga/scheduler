@@ -1,5 +1,5 @@
-from app import app, scheduler_db
-
+from app import app
+from app.extensions import scheduler_db
 
 def reset_database():
     with app.app_context():

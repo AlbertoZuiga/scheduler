@@ -16,11 +16,10 @@ def assign_colors_to_members(members):
 
 import uuid
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy.orm import joinedload
 
-from app import scheduler_db
+from app.extensions import scheduler_db
 from app.models import Availability, Group, GroupMember, RoleEnum, UserAvailability
 
 group_bp = Blueprint("groups", __name__, url_prefix="/group")
@@ -125,7 +124,7 @@ def show(id):
             .all()
         )
     selected = set()
-    for user_id, weekday, hour in availability:
+    for _, weekday, hour in availability:
         block_index = int(hour - STARTING_HOUR)
         if 0 <= block_index < len(blocks):
             selected.add((weekday, blocks[block_index]))

@@ -1,5 +1,6 @@
-from app import app, scheduler_db
-from config import Config
+from app import app
+from app.extensions import scheduler_db
+
 
 with app.app_context():
     scheduler_db.create_all()

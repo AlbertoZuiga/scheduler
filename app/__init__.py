@@ -1,11 +1,8 @@
 from flask import Flask
-from flask_login import LoginManager
-from flask_sqlalchemy import SQLAlchemy
 
 from config import Config
 
-scheduler_db = SQLAlchemy()
-login_manager = LoginManager()
+from app.extensions import scheduler_db, login_manager
 
 
 def create_app():

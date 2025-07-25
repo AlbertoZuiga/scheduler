@@ -1,4 +1,4 @@
-from app import scheduler_db
+from app.extensions import scheduler_db
 
 
 class Group(scheduler_db.Model):
