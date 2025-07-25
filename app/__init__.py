@@ -1,8 +1,11 @@
-from flask import Flask
+from flask import Flask, flash, redirect, request, session, url_for
+from flask_login import current_user
 
 from config import Config
 
+from app.routes import blueprints
 from app.extensions import scheduler_db, login_manager
+from app.models.user import User
 
 
 def create_app():
@@ -14,10 +17,6 @@ def create_app():
 
     @login_manager.unauthorized_handler
     def custom_unauthorized():
-        from flask import flash, redirect, request, session, url_for
-        from flask_login import current_user
-
-        # Solo mostrar el mensaje si el usuario es anónimo de verdad
         if current_user.is_anonymous:
             flash("Necesitas iniciar sesión para acceder a esta página.", "warning")
 
@@ -26,11 +25,7 @@ def create_app():
 
     @login_manager.user_loader
     def load_user(user_id):
-        from app.models.user import User
-
         return User.query.get(int(user_id))
-
-    from app.routes import blueprints
 
     for bp in blueprints:
         app.register_blueprint(bp)
@@ -38,4 +33,4 @@ def create_app():
     return app
 
 
-app = create_app()
+scheduler_app = create_app()

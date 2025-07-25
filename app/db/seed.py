@@ -1,4 +1,4 @@
-from app import app
+from app import scheduler_app
 
 
 def seed_database():
@@ -8,5 +8,5 @@ def seed_database():
 
 
 if __name__ == "__main__":
-    with app.app_context():
+    with scheduler_app.app_context():
         seed_database()

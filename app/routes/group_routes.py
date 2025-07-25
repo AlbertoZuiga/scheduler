@@ -263,12 +263,12 @@ def availability(group_id):
             return render_template(
                 "groups/availability.html", group_id=group_id, selected={}, blocks=blocks
             )
-        else:
-            flash(
-                f"Disponibilidad actualizada con éxito. ({saved_count} bloques guardados)",
-                "success",
-            )
-            return redirect(url_for("groups.show", id=group_id))
+
+        flash(
+            f"Disponibilidad actualizada con éxito. ({saved_count} bloques guardados)",
+            "success",
+        )
+        return redirect(url_for("groups.show", id=group_id))
 
     user_availability = (
         scheduler_db.session.query(
