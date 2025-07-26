@@ -1,11 +1,10 @@
 from flask import Flask, flash, redirect, request, session, url_for
 from flask_login import current_user
 
-from config import Config
-
-from app.routes import blueprints
 from app.extensions import scheduler_db, login_manager
 from app.models.user import User
+from app.routes import blueprints
+from config import Config
 
 
 def create_app():
