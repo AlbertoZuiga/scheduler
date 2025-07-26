@@ -8,12 +8,14 @@ class Group(scheduler_db.Model):    # pylint: disable=too-few-public-methods
     owner_id = scheduler_db.Column(
         scheduler_db.Integer, scheduler_db.ForeignKey("user.id"), nullable=False
     )
-    owner = scheduler_db.relationship("User", backref="groups")
+    owner = scheduler_db.relationship("User", backref="groups", nullable=False)
+    members = scheduler_db.relationship(
+        "GroupMember", back_populates="group", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
-        return f"""
-            <Group id={self.id}
-            name={self.name}
-            owner={self.owner.name}
-            member_count={len(self.members)}>
-        """
+        return (
+            f"<Group id={self.id} name={self.name} "
+            f"owner={self.owner.name} "
+            f"member_count={len(self.members)}>"
+        )

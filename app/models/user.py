@@ -8,6 +8,12 @@ class User(UserMixin, scheduler_db.Model):
     email = scheduler_db.Column(scheduler_db.String(150), unique=True, nullable=False)
     name = scheduler_db.Column(scheduler_db.String(150), nullable=False)
 
+    memberships = scheduler_db.relationship(
+        "GroupMember",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
     @classmethod
     def get_or_create_from_oauth(cls, user_info):
         email = user_info.get("email")

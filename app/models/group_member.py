@@ -19,5 +19,5 @@ class GroupMember(scheduler_db.Model):    # pylint: disable=too-few-public-metho
 
     role = scheduler_db.Column(scheduler_db.Enum(RoleEnum), nullable=False, default=RoleEnum.MEMBER)
 
-    group = scheduler_db.relationship("Group", backref="members")
-    user = scheduler_db.relationship("User", backref="memberships")
+    group = scheduler_db.relationship("Group", back_populates="members")
+    user = scheduler_db.relationship("User", back_populates="memberships")
