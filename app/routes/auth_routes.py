@@ -63,9 +63,10 @@ def callback():
         return "Estado inválido", 500
 
     credentials = flow.credentials
+
     request_session = google.auth.transport.requests.Request()
     id_info = google.oauth2.id_token.verify_oauth2_token(
-        credentials._id_token, request_session, flow.client_config["client_id"]
+        credentials.id_token, request_session, flow.client_config["client_id"]
     )
 
     user = User.get_or_create_from_oauth(id_info)
