@@ -8,7 +8,7 @@ class Group(scheduler_db.Model):    # pylint: disable=too-few-public-methods
     owner_id = scheduler_db.Column(
         scheduler_db.Integer, scheduler_db.ForeignKey("user.id"), nullable=False
     )
-    owner = scheduler_db.relationship("User", backref="groups", nullable=False)
+    owner = scheduler_db.relationship("User", backref="groups")
     members = scheduler_db.relationship(
         "GroupMember", back_populates="group", cascade="all, delete-orphan"
     )
