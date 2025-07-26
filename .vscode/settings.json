@@ -1,7 +1,0 @@
-{
-  "python.linting.pylintArgs": [
-    "--disable=C0114,C0115,C0116"
-  ],
-  "python.defaultInterpreterPath": "./venv/bin/python",
-  "python.analysis.extraPaths": ["./venv/lib/python3.11/site-packages"],
-}
