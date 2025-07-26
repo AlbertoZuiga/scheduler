@@ -10,7 +10,7 @@
       <div class="d-flex justify-content-between align-items-center w-100">
         <span>{{ group.name }}</span>
         <div class="btn-group" role="group" aria-label="Group actions">
-          <a href="{{ url_for('groups.show', id=group.id) }}" class="btn btn-outline-secondary btn-sm">Ver grupo</a>
+          <a href="{{ url_for('groups.show', group_id=group.id) }}" class="btn btn-outline-secondary btn-sm">Ver grupo</a>
         </div>
       </div>
       {% if group.owner_id == current_user.id %}

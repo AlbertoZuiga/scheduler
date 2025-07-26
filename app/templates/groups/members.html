@@ -31,6 +31,6 @@
     <li class="list-group-item text-muted">Este grupo no tiene miembros.</li>
     {% endfor %}
   </ul>
-  <a href="{{ url_for('groups.show', id=group.id) }}" class="btn btn-secondary">Volver</a>
+  <a href="{{ url_for('groups.show', group_id=group.id) }}" class="btn btn-secondary">Volver</a>
 </div>
 {% endblock %}
