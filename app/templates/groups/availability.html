@@ -20,8 +20,14 @@
           <td>{{ block_time }}</td>
           {% for day in range(5) %}
             <td class="p-0">
-              <input type="checkbox" class="btn-check" id="cb_{{ day }}_{{ block_index }}" name="day_{{ day }}_hour_{{ block_index }}" autocomplete="off" {% if (day, block_index) in selected %}checked{% endif %}>
-              <label class="btn btn-outline-success w-100 h-100 m-0 py-4" for="cb_{{ day }}_{{ block_index }}"></label>
+            <input type="checkbox"
+                  class="btn-check"
+                  id="cb_{{ day }}_{{ block_index }}"
+                  name="day_{{ day }}_hour_{{ block_index }}"
+                  autocomplete="off"
+                  aria-label="Disponible el {{ d }} a las {{ block_time }}"
+                  {% if (day, block_index) in selected %}checked{% endif %}>
+            <label class="btn btn-outline-success w-100 h-100 m-0 py-4" for="cb_{{ day }}_{{ block_index }}"></label>
             </td>
           {% endfor %}
         </tr>
