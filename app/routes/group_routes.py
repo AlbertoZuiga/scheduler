@@ -60,7 +60,6 @@ COLORS = [
     "bg-danger",
     "bg-info",
     "bg-dark",
-    "bg-light",
     "bg-secondary",
     "bg-pink",
     "bg-teal",
