@@ -6,3 +6,4 @@ __pycache__
 .flaskenv
 client_secret.json
 .vscode
+.python-version
