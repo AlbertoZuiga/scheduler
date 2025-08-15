@@ -102,7 +102,7 @@
         {% set block_index = loop.index0 %}
         <tr>
           <td>{{ block }}</td>
-          {% for day_index in range(0, 5) %}
+          {% for day_index in range(0, 7) %}
             <td>
               {% if current_user.id == group.owner_id or is_admin %}
                 {% for user_id, weekday, hour in availability %}
