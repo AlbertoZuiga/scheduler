@@ -9,7 +9,7 @@
       <thead>
         <tr>
           <th>Hora / Día</th>
-          {% for d in ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'] %}
+          {% for d in ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] %}
             <th>{{ d }}</th>
           {% endfor %}
         </tr>
@@ -18,7 +18,7 @@
         {% for block_index, block_time in blocks %}
         <tr>
           <td>{{ block_time }}</td>
-          {% for day in range(5) %}
+          {% for day in range(0, 7) %}
             <td class="p-0">
             <input type="checkbox"
                   class="btn-check"
