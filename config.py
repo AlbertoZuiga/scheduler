@@ -17,7 +17,8 @@ class Config:  # pylint: disable=too-few-public-methods
     DB_HOST = os.getenv("DB_HOST", "")
 
     SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL", f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
+        "DATABASE_URI",
+        os.getenv("DATABASE_URL", f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}")
     )
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False

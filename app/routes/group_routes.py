@@ -1,10 +1,16 @@
 import uuid
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, redirect, render_template, request, url_for, abort
 from flask_login import current_user, login_required
 
 from app.extensions import scheduler_db
 from app.models import Availability, Group, GroupMember, RoleEnum, UserAvailability
+from app.authz import (
+    require_group_member,
+    require_group_admin_or_owner,
+    require_group_owner,
+    safe_remove_member,
+)
 
 group_bp = Blueprint("groups", __name__, url_prefix="/group")
 
@@ -138,7 +144,7 @@ def index():
 def show(group_id):
     blocks = [f"{hour:02}:30 - {(hour + 1):02}:20" for hour in range(STARTING_HOUR, ENDING_HOUR)]
 
-    group = Group.query.get_or_404(group_id)
+    group, membership = require_group_member(group_id)
     group_members = GroupMember.query.filter_by(group_id=group.id).all()
     color_map = assign_colors_to_members(group_members)
     user_info_map = {
@@ -147,8 +153,6 @@ def show(group_id):
             "email": member.user.email
         } for member in group_members
     }
-
-    membership = GroupMember.query.filter_by(group_id=group.id, user_id=current_user.id).first()
     is_admin = membership and membership.role == RoleEnum.ADMIN
 
     if group.owner_id == current_user.id or is_admin:
@@ -246,7 +250,7 @@ def join(token):
 @group_bp.route("/<int:group_id>/members", methods=["GET"])
 @login_required
 def members(group_id):
-    group = Group.query.get_or_404(group_id)
+    group, _ = require_group_member(group_id)
     group_members = GroupMember.query.filter_by(group_id=group.id).all()
     return render_template("groups/members.html", group=group, members=group_members)
 
@@ -255,6 +259,9 @@ def members(group_id):
 @login_required
 def availability(group_id):
     blocks = _generate_time_blocks()
+
+    # Debe ser miembro para ver o editar disponibilidad
+    group, _ = require_group_member(group_id)
 
     if request.method == "POST":
         _clear_existing_availability(group_id, current_user.id)
@@ -277,7 +284,6 @@ def availability(group_id):
             UserAvailability.user_id, Availability.weekday, Availability.hour
         )
         .join(Availability)
-        .join(Group)
         .filter(UserAvailability.user_id == current_user.id, Availability.group_id == group_id)
         .all()
     )
@@ -295,11 +301,7 @@ def availability(group_id):
 @group_bp.route("/<int:group_id>/delete", methods=["POST"])
 @login_required
 def delete(group_id):
-    group = Group.query.get_or_404(group_id)
-
-    if group.owner_id != current_user.id:
-        flash("No tienes permiso para eliminar este grupo.", "danger")
-        return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
+    group, _ = require_group_owner(group_id)
 
     availability_ids = [a.id for a in Availability.query.filter_by(group_id=group_id).all()]
     if availability_ids:
@@ -320,6 +322,11 @@ def delete(group_id):
 @group_bp.route("/<int:group_id>/leave", methods=["POST"])
 @login_required
 def leave(group_id):
+    group = Group.query.get_or_404(group_id)
+    membership = GroupMember.query.filter_by(user_id=current_user.id, group_id=group_id).first()
+    if not membership:
+        flash("No perteneces a este grupo.", "warning")
+        return redirect(url_for(GROUP_INDEX_URL))
     ua_ids = (
         scheduler_db.session.query(UserAvailability.id)
         .join(Availability)
@@ -332,9 +339,8 @@ def leave(group_id):
             synchronize_session=False
         )
 
-    membership = GroupMember.query.filter_by(user_id=current_user.id, group_id=group_id).first()
-    if membership:
-        scheduler_db.session.delete(membership)
+    # Borramos la membresía del usuario actual
+    scheduler_db.session.delete(membership)
 
     group = Group.query.get_or_404(group_id)
 
@@ -361,6 +367,14 @@ def leave(group_id):
 @group_bp.route("/<int:group_id>/remove/<int:user_id>", methods=["POST"])
 @login_required
 def remove(group_id, user_id):
+    if current_user.id == user_id:
+        flash("Usa la opción de abandonar para salir del grupo.", "info")
+        return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
+
+    # Ejecuta comprobaciones y elimina
+    safe_remove_member(group_id, user_id)
+
+    # Limpiamos disponibilidad asociada sólo si el miembro existía
     ua_ids = (
         scheduler_db.session.query(UserAvailability.id)
         .join(Availability)
@@ -373,12 +387,7 @@ def remove(group_id, user_id):
             synchronize_session=False
         )
 
-    membership = GroupMember.query.filter_by(user_id=user_id, group_id=group_id).first()
-    if membership:
-        scheduler_db.session.delete(membership)
-
     scheduler_db.session.commit()
-
     flash("Miembro eliminado exitosamente.", "success")
     return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
@@ -386,11 +395,7 @@ def remove(group_id, user_id):
 @group_bp.route("/<int:group_id>/update_role/<int:user_id>", methods=["POST"])
 @login_required
 def update_role(group_id, user_id):
-    group = Group.query.get_or_404(group_id)
-
-    if group.owner_id != current_user.id:
-        flash("No tienes permiso para modificar los roles.", "danger")
-        return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
+    group, _ = require_group_owner(group_id)
 
     role_str = request.form.get("role")
     if role_str not in RoleEnum.__members__:
@@ -398,6 +403,9 @@ def update_role(group_id, user_id):
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
     member = GroupMember.query.filter_by(group_id=group_id, user_id=user_id).first_or_404()
+    if group.owner_id == user_id:
+        flash("No puedes cambiar el rol del propietario.", "danger")
+        return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
     member.role = RoleEnum[role_str]
     scheduler_db.session.commit()
 
