@@ -3,22 +3,27 @@
 {% block content %}    
 <h1 class="mb-4">Grupo: {{ group.name }}</h1>
 
-<div class="d-flex mb-3 align-items-start">
-  <a href="{{ url_for('groups.index') }}" class="btn btn-outline-secondary me-2">🔙 Volver</a>  
+<div class="d-flex mb-3 align-items-start flex-wrap">
+  <a href="{{ url_for('groups.index') }}" class="btn btn-outline-secondary me-2 mb-2">🔙 Volver</a>  
   {% if current_user.id == group.owner_id %}
-    <a href="{{ url_for('groups.members', group_id=group.id) }}" class="btn btn-info me-2">👥 Miembros</a>
+    <a href="{{ url_for('groups.members', group_id=group.id) }}" class="btn btn-info me-2 mb-2">👥 Miembros</a>
+    <a href="{{ url_for('subgroups.new', group_id=group.id) }}" class="btn btn-success me-2 mb-2">🎯 División Automática</a>
+    <a href="{{ url_for('subgroups.index', group_id=group.id) }}" class="btn btn-outline-success me-2 mb-2">📋 Ver Subgrupos</a>
     <form method="POST" action="{{ url_for('groups.delete', group_id=group.id) }}"
           onsubmit="return confirm('¿Estás seguro de que deseas eliminar este grupo?');"
-          class="d-inline-block me-2">
+          class="d-inline-block me-2 mb-2">
       <button type="submit" class="btn btn-danger">🗑️ Eliminar grupo</button>
     </form>
   {% elif is_admin %}
-    <a href="{{ url_for('groups.members', group_id=group.id) }}" class="btn btn-info me-2">👥 Miembros</a>
-    <form method="POST" action="{{ url_for('groups.leave', group_id=group.id) }}" onsubmit="return confirm('¿Estás seguro de que deseas abandonar este grupo?');" class="d-inline-block me-2">
+    <a href="{{ url_for('groups.members', group_id=group.id) }}" class="btn btn-info me-2 mb-2">👥 Miembros</a>
+    <a href="{{ url_for('subgroups.new', group_id=group.id) }}" class="btn btn-success me-2 mb-2">🎯 División Automática</a>
+    <a href="{{ url_for('subgroups.index', group_id=group.id) }}" class="btn btn-outline-success me-2 mb-2">📋 Ver Subgrupos</a>
+    <form method="POST" action="{{ url_for('groups.leave', group_id=group.id) }}" onsubmit="return confirm('¿Estás seguro de que deseas abandonar este grupo?');" class="d-inline-block me-2 mb-2">
       <button type="submit" class="btn btn-danger">🗑️ Salir del grupo</button>
     </form>
   {% else %}
-    <form method="POST" action="{{ url_for('groups.leave', group_id=group.id) }}" onsubmit="return confirm('¿Estás seguro de que deseas abandonar este grupo?');" class="d-inline-block me-2">
+    <a href="{{ url_for('subgroups.index', group_id=group.id) }}" class="btn btn-outline-success me-2 mb-2">📋 Ver Subgrupos</a>
+    <form method="POST" action="{{ url_for('groups.leave', group_id=group.id) }}" onsubmit="return confirm('¿Estás seguro de que deseas abandonar este grupo?');" class="d-inline-block me-2 mb-2">
       <button type="submit" class="btn btn-danger">🗑️ Salir del grupo</button>
     </form>
   {% endif %}

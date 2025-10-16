@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+
+{% block title %}Dividir Grupo - {{ group.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .rule-builder {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background-color: #f8f9fa;
+  }
+  
+  .condition-group {
+    background-color: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .preview-card {
+    border: 2px solid #0d6efd;
+    background-color: #f8f9ff;
+  }
+  
+  .compatibility-bar {
+    height: 24px;
+    border-radius: 4px;
+    background: linear-gradient(to right, #dc3545, #ffc107, #198754);
+    position: relative;
+  }
+  
+  .compatibility-indicator {
+    position: absolute;
+    height: 100%;
+    width: 4px;
+    background-color: #000;
+    border-radius: 2px;
+  }
+  
+  .rule-status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+  }
+  
+  .rule-fulfilled {
+    background-color: #d1e7dd;
+    color: #0f5132;
+  }
+  
+  .rule-unfulfilled {
+    background-color: #f8d7da;
+    color: #842029;
+  }
+  
+  #loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+  }
+  
+  .spinner-border {
+    width: 3rem;
+    height: 3rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h2><i class="bi bi-diagram-3"></i> Dividir Grupo: {{ group.name }}</h2>
+        <p class="text-muted">Genera subgrupos optimizados basados en compatibilidad horaria y categorías</p>
+      </div>
+      <a href="{{ url_for('groups.show', group_id=group.id) }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Volver al Grupo
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <!-- Panel de Configuración -->
+  <div class="col-lg-6 mb-4">
+    <div class="card shadow-sm">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-sliders"></i> Configuración de División</h5>
+      </div>
+      <div class="card-body">
+        <form id="division-form">
+          <!-- Configuración Básica -->
+          <div class="mb-3">
+            <label for="num_groups" class="form-label fw-bold">
+              <i class="bi bi-collection"></i> Número de Subgrupos
+            </label>
+            <input type="number" class="form-control" id="num_groups" min="2" max="20" value="3" required>
+            <small class="text-muted">Total de miembros activos: {{ member_count }}</small>
+          </div>
+
+          <div class="mb-3">
+            <label for="max_group_size" class="form-label fw-bold">
+              <i class="bi bi-people"></i> Tamaño Máximo por Subgrupo
+            </label>
+            <input type="number" class="form-control" id="max_group_size" min="1" value="{{ (member_count // 3) + 1 }}" placeholder="Sin límite">
+            <small class="text-muted">Dejar vacío para sin límite</small>
+          </div>
+
+          <div class="mb-3">
+            <label for="compatibility_threshold" class="form-label fw-bold">
+              <i class="bi bi-speedometer2"></i> Umbral de Compatibilidad
+            </label>
+            <input type="range" class="form-range" id="compatibility_threshold" min="0" max="100" value="50" step="5">
+            <div class="d-flex justify-content-between">
+              <small>0%</small>
+              <small id="threshold_display" class="fw-bold">50%</small>
+              <small>100%</small>
+            </div>
+            <small class="text-muted">Mínimo solapamiento de horarios requerido</small>
+          </div>
+
+          <div class="mb-3">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="allow_multiple_membership">
+              <label class="form-check-label" for="allow_multiple_membership">
+                <i class="bi bi-shuffle"></i> Permitir Membresía Múltiple
+              </label>
+            </div>
+            <small class="text-muted">Un miembro puede pertenecer a varios subgrupos</small>
+          </div>
+
+          <div class="mb-3">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="require_all_members" checked>
+              <label class="form-check-label" for="require_all_members">
+                <i class="bi bi-check-all"></i> Todos los miembros deben estar en al menos un grupo
+              </label>
+            </div>
+            <small class="text-muted">Garantiza que ningún miembro quede sin asignar</small>
+          </div>
+
+          <!-- Reglas de Categorías -->
+          <hr class="my-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0"><i class="bi bi-tags"></i> Reglas de Categorías</h6>
+            <button type="button" class="btn btn-sm btn-success" id="add-rule-btn">
+              <i class="bi bi-plus-circle"></i> Agregar Regla
+            </button>
+          </div>
+
+          <div id="rules-builder">
+            <!-- Las reglas se agregarán dinámicamente aquí -->
+            <p class="text-muted" id="no-rules-msg">No hay reglas configuradas. Haz clic en "Agregar Regla" para comenzar.</p>
+          </div>
+
+          <!-- Botones de Acción -->
+          <div class="d-grid gap-2 mt-4">
+            <button type="submit" class="btn btn-primary btn-lg" id="generate-btn">
+              <i class="bi bi-play-circle"></i> Generar Subgrupos
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel de Preview -->
+  <div class="col-lg-6">
+    <div class="card shadow-sm" id="preview-panel" style="display: none;">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-eye"></i> Vista Previa de Subgrupos</h5>
+      </div>
+      <div class="card-body" id="preview-content">
+        <!-- El preview se renderizará aquí dinámicamente -->
+      </div>
+      <div class="card-footer">
+        <div class="d-flex gap-2 flex-wrap">
+          <button type="button" class="btn btn-success" id="confirm-btn">
+            <i class="bi bi-check-circle"></i> Confirmar División
+          </button>
+          <button type="button" class="btn btn-secondary" id="redo-btn">
+            <i class="bi bi-arrow-clockwise"></i> Rehacer
+          </button>
+          <button type="button" class="btn btn-info" id="export-btn">
+            <i class="bi bi-download"></i> Exportar CSV
+          </button>
+          <button type="button" class="btn btn-warning" id="undo-btn">
+            <i class="bi bi-arrow-counterclockwise"></i> Deshacer Última División
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Información de Ayuda -->
+    <div class="card shadow-sm mt-3">
+      <div class="card-header bg-info text-white">
+        <h6 class="mb-0"><i class="bi bi-info-circle"></i> Ayuda</h6>
+      </div>
+      <div class="card-body">
+        <h6>¿Cómo funciona?</h6>
+        <ul class="small">
+          <li><strong>Compatibilidad:</strong> Se calcula según el solapamiento de horarios disponibles entre miembros.</li>
+          <li><strong>Reglas AND:</strong> El miembro debe tener TODAS las categorías especificadas.</li>
+          <li><strong>Reglas OR:</strong> El miembro debe tener AL MENOS una de las categorías.</li>
+          <li><strong>Mín/Máx:</strong> Cantidad requerida de miembros que cumplan la regla por subgrupo.</li>
+        </ul>
+        
+        <h6>Categorías Disponibles:</h6>
+        <div class="d-flex flex-wrap gap-1 mt-2">
+          {% for category in categories %}
+          <span class="badge bg-secondary">{{ category.name }}</span>
+          {% endfor %}
+        </div>
+        
+        {% if not categories %}
+        <p class="text-muted small">No hay categorías configuradas en este grupo.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay">
+  <div class="text-center text-white">
+    <div class="spinner-border" role="status">
+      <span class="visually-hidden">Generando...</span>
+    </div>
+    <p class="mt-3 fs-5">Generando subgrupos optimizados...</p>
+  </div>
+</div>
+
+<!-- Template para Reglas (oculto) -->
+<template id="rule-template">
+  <div class="rule-builder" data-rule-index="">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h6 class="mb-0">Regla <span class="rule-number"></span></h6>
+      <button type="button" class="btn btn-sm btn-danger remove-rule-btn">
+        <i class="bi bi-trash"></i>
+      </button>
+    </div>
+
+    <div class="conditions-container">
+      <!-- Las condiciones se agregarán aquí -->
+    </div>
+
+    <button type="button" class="btn btn-sm btn-outline-primary add-condition-btn mb-2">
+      <i class="bi bi-plus"></i> Agregar Condición
+    </button>
+  </div>
+</template>
+
+<!-- Template para Condiciones (oculto) -->
+<template id="condition-template">
+  <div class="condition-group border rounded p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <strong class="text-primary">Condición</strong>
+      <button type="button" class="btn btn-sm btn-outline-danger remove-condition-btn">
+        <i class="bi bi-x"></i> Eliminar
+      </button>
+    </div>
+
+    <div class="mb-2">
+      <label class="form-label small fw-bold">Categorías</label>
+      <select class="form-select form-select-sm condition-categories" multiple required>
+        {% for category in categories %}
+        <option value="{{ category.name }}">{{ category.name }}</option>
+        {% endfor %}
+      </select>
+      <small class="text-muted">Mantén Ctrl/Cmd para seleccionar múltiples</small>
+    </div>
+
+    <div class="mb-2">
+      <label class="form-label small fw-bold">Operador</label>
+      <select class="form-select form-select-sm condition-operator">
+        <option value="AND">AND (todas las categorías)</option>
+        <option value="OR">OR (al menos una categoría)</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <div class="col-6">
+        <label class="form-label small fw-bold">Mínimo</label>
+        <input type="number" class="form-control form-control-sm condition-min" min="0" value="1">
+      </div>
+      <div class="col-6">
+        <label class="form-label small fw-bold">Máximo (opcional)</label>
+        <input type="number" class="form-control form-control-sm condition-max" min="0" placeholder="Sin límite">
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+  // Pasar datos del servidor a JavaScript
+  window.GROUP_ID = {{ group.id }};
+  window.CATEGORIES = {{ categories_json|tojson }};
+</script>
+
+<script src="{{ url_for('static', filename='js/subgroups.js') }}"></script>
+{% endblock %}

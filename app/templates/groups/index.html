@@ -48,10 +48,15 @@
               </div>
             </div>
             
-            <div class="d-grid">
+            <div class="d-grid gap-2">
               <a href="{{ url_for('groups.show', group_id=group.id) }}" class="btn btn-outline-primary">
                 <i class="bi bi-eye me-2"></i>Ver Grupo
               </a>
+              {% if group.owner_id == current_user.id or (current_user in group.members and group.members[current_user].role == 'admin') %}
+              <a href="{{ url_for('subgroups.new', group_id=group.id) }}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-diagram-3 me-2"></i>División Automática
+              </a>
+              {% endif %}
             </div>
           </div>
           

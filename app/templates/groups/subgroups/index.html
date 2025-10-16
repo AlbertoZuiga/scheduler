@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Subgrupos - {{ group.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h2><i class="bi bi-diagram-3"></i> Subgrupos de {{ group.name }}</h2>
+        <p class="text-muted">Vista de todos los subgrupos creados automáticamente</p>
+      </div>
+      <div class="btn-group">
+        <a href="{{ url_for('subgroups.new', group_id=group.id) }}" class="btn btn-primary">
+          <i class="bi bi-plus-circle"></i> Nueva División
+        </a>
+        <a href="{{ url_for('groups.show', group_id=group.id) }}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left"></i> Volver
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if subgroups %}
+<div class="row">
+  {% for subgroup in subgroups %}
+  <div class="col-lg-4 col-md-6 mb-4">
+    <div class="card h-100 shadow-sm">
+      <div class="card-header {% if subgroup.auto_generated %}bg-info text-white{% else %}bg-secondary text-white{% endif %}">
+        <h5 class="mb-0">
+          <i class="bi bi-people-fill"></i> {{ subgroup.name }}
+          {% if subgroup.auto_generated %}
+          <span class="badge bg-light text-dark float-end" title="Generado automáticamente">
+            <i class="bi bi-magic"></i>
+          </span>
+          {% endif %}
+        </h5>
+      </div>
+      <div class="card-body">
+        <!-- Información básica -->
+        <div class="mb-3">
+          <p class="mb-1">
+            <strong><i class="bi bi-people"></i> Miembros:</strong> 
+            {{ subgroup.members|length }}
+          </p>
+          <p class="mb-1">
+            <strong><i class="bi bi-calendar-event"></i> Creado:</strong> 
+            {{ subgroup.created_at.strftime('%d/%m/%Y %H:%M') if subgroup.created_at else 'N/A' }}
+          </p>
+        </div>
+
+        <!-- Métricas (si está disponible en meta) -->
+        {% if subgroup.meta %}
+        <div class="mb-3">
+          {% if subgroup.meta.get('compatibility_avg') %}
+          <div class="mb-2">
+            <small class="text-muted d-block">Compatibilidad Promedio</small>
+            <div class="progress">
+              <div class="progress-bar bg-success" role="progressbar" 
+                   style="width: {{ (subgroup.meta.compatibility_avg * 100)|int }}%"
+                   aria-valuenow="{{ (subgroup.meta.compatibility_avg * 100)|int }}" 
+                   aria-valuemin="0" aria-valuemax="100">
+                {{ (subgroup.meta.compatibility_avg * 100)|int }}%
+              </div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Lista de miembros -->
+        <div class="mb-2">
+          <small class="text-muted d-block mb-2"><strong>Miembros:</strong></small>
+          <div class="list-group list-group-flush" style="max-height: 200px; overflow-y: auto;">
+            {% for member in subgroup.members %}
+            <div class="list-group-item px-0 py-1 small">
+              <i class="bi bi-person-circle"></i> {{ member.user.name if member.user else 'Usuario desconocido' }}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="card-footer">
+        <small class="text-muted">
+          <i class="bi bi-info-circle"></i> 
+          ID: {{ subgroup.id }}
+        </small>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="row">
+  <div class="col-12">
+    <div class="alert alert-info text-center">
+      <h5><i class="bi bi-info-circle"></i> No hay subgrupos creados</h5>
+      <p class="mb-3">Aún no se han creado subgrupos para este grupo.</p>
+      <a href="{{ url_for('subgroups.new', group_id=group.id) }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Crear Primera División
+      </a>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
