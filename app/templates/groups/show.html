@@ -127,4 +127,322 @@
   </table>
 </div>
 
+
+<div class="mt-5">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h3>Categorías</h3>
+    {% if can_manage %}
+    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#bulkAssignModal">Asignar en bloque</button>
+    {% endif %}
+  </div>
+  {% if can_manage %}
+  <form id="createCategoryForm" class="row g-2 mb-3" autocomplete="off" novalidate>
+    <div class="col-12 col-md-6">
+      <input type="text" id="newCategoryName" class="form-control" placeholder="Nueva categoría (p. ej. Backend, Diseño)" required>
+      <div id="nameFeedback" class="form-text"></div>
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-primary" id="createCategoryBtn" disabled>
+        <i class="bi bi-plus-circle me-1"></i>Crear categoría
+      </button>
+    </div>
+  </form>
+  {% endif %}
+  <div id="categoriesList" class="row g-3"></div>
+</div>
+
+{% if can_manage %}
+<!-- Modal Asignación en bloque -->
+<div class="modal fade" id="bulkAssignModal" tabindex="-1" aria-labelledby="bulkAssignModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="bulkAssignModalLabel">Asignar categorías a miembros</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-12 col-md-6">
+            <h6 class="mb-2">Miembros</h6>
+            <div id="bulkMembers" class="list-group border rounded" style="max-height: 300px; overflow:auto;"></div>
+          </div>
+          <div class="col-12 col-md-6">
+            <h6 class="mb-2">Categorías</h6>
+            <div id="bulkCategories" class="list-group border rounded" style="max-height: 300px; overflow:auto;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer d-flex justify-content-between">
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary" id="selectAllMembers">Todos miembros</button>
+          <button type="button" class="btn btn-outline-secondary" id="selectAllCategories">Todas categorías</button>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-danger" id="unassignSelected">Desasignar</button>
+          <button type="button" class="btn btn-primary" id="assignSelected">Asignar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% block script %}
+{{ super() }}
+{% set members_data = [] %}
+{% for m in group.members %}
+  {% set member_name = m.user.name if m.user.name else m.user.email %}
+  {% set _ = members_data.append({
+    'group_member_id': m.id,
+    'user_id': m.user.id,
+    'name': member_name,
+    'email': m.user.email
+  }) %}
+{% endfor %}
+{% set embed_data = {
+  'group_id': group.id,
+  'can_manage': True if can_manage else False,
+  'members': members_data
+} %}
+<script type="application/json" id="embed-data">{{ embed_data | tojson }}</script>
+
+<script>
+  const __EMBED__ = JSON.parse(document.getElementById('embed-data').textContent || '{}');
+  const GROUP_ID = __EMBED__.group_id;
+  const CAN_MANAGE = !!__EMBED__.can_manage;
+  const __GROUP_MEMBERS__ = __EMBED__.members || [];
+
+  function showInlineAlert(message, type = 'success') {
+    const container = document.querySelector('main');
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>`;
+    container.prepend(wrapper.firstElementChild);
+  }
+
+  // Helper to resolve group_member id to display name
+  function memberNameByGmId(gmId) {
+    const m = (globalThis.__GROUP_MEMBERS__ || []).find(x => x.group_member_id === gmId);
+    return m ? (m.name || m.email) : `Miembro ${gmId}`;
+  }
+
+  // Render categories list with member badges
+  async function loadCategories() {
+    const list = document.getElementById('categoriesList');
+    list.innerHTML = '<div class="text-muted">Cargando categorías…</div>';
+    try {
+      const res = await fetch(`/categories/group/${GROUP_ID}`, { headers: { 'Accept': 'application/json' } });
+      if (!res.ok) throw new Error('Error al cargar categorías');
+      const data = await res.json();
+      if (!Array.isArray(data)) { list.innerHTML = '<span class="text-muted">Sin datos</span>'; return; }
+      if (data.length === 0) { list.innerHTML = '<span class="text-muted">No hay categorías aún.</span>'; return; }
+      list.innerHTML = '';
+      for (const c of data) {
+        const col = document.createElement('div');
+        col.className = 'col-12 col-md-6 col-lg-4';
+        const count = Array.isArray(c.member_ids) ? c.member_ids.length : (c.count || 0);
+        const membersHtml = (c.member_ids || []).map(gmId => `<span class="badge bg-light text-dark border me-1 mb-1">${memberNameByGmId(gmId)}</span>`).join(' ');
+        
+        const card = document.createElement('div');
+        card.className = 'card h-100';
+        card.innerHTML = `
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="card-title mb-0">${c.name}</h6>
+              <div class="d-flex gap-1 align-items-center">
+                <span class="badge bg-secondary">${count}</span>
+                ${CAN_MANAGE ? '<button class="btn btn-sm btn-outline-danger delete-category-btn"><i class="bi bi-trash"></i></button>' : ''}
+              </div>
+            </div>
+            <div>${membersHtml || '<span class="text-muted">Sin miembros asignados</span>'}</div>
+          </div>`;
+        
+        // Add event listener to delete button if user can manage
+        if (CAN_MANAGE) {
+          const deleteBtn = card.querySelector('.delete-category-btn');
+          if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => deleteCategory(c.id, c.name));
+          }
+        }
+        
+        col.appendChild(card);
+        list.appendChild(col);
+      }
+    } catch (err) {
+      console.error('Error loading categories:', err);
+      list.innerHTML = '<span class="text-danger">Error al cargar categorías</span>';
+    }
+  }
+
+  // Delete category
+  async function deleteCategory(catId, catName) {
+    if (!confirm(`¿Eliminar la categoría "${catName}"? Se desasociarán todos los miembros.`)) return;
+    try {
+      const res = await fetch(`/categories/group/${GROUP_ID}/${catId}`, { 
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+      if (res.ok) {
+        showInlineAlert(`Categoría "${catName}" eliminada.`, 'success');
+        await loadCategories();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showInlineAlert(data.message || 'No se pudo eliminar la categoría.', 'danger');
+      }
+    } catch (err) {
+      console.error('Error deleting category:', err);
+      showInlineAlert('Error al eliminar la categoría.', 'danger');
+    }
+  }
+
+  // Real-time validation for category name
+  let checkTimer = null;
+  function setupCategoryCreate() {
+    if (!CAN_MANAGE) return;
+    const input = document.getElementById('newCategoryName');
+    const feedback = document.getElementById('nameFeedback');
+    const btn = document.getElementById('createCategoryBtn');
+    const form = document.getElementById('createCategoryForm');
+    const updateBtn = (enabled) => { btn.disabled = !enabled; };
+    const validate = async () => {
+      const name = (input.value || '').trim();
+      if (!name) { feedback.textContent = ''; updateBtn(false); return; }
+      const res = await fetch(`/categories/group/${GROUP_ID}/check?name=${encodeURIComponent(name)}`);
+      const data = await res.json();
+      if (data.available) {
+        feedback.textContent = 'Disponible';
+        feedback.className = 'form-text text-success';
+        updateBtn(true);
+      } else {
+        feedback.textContent = data.message || 'No disponible';
+        feedback.className = 'form-text text-danger';
+        updateBtn(false);
+      }
+    };
+    input?.addEventListener('input', () => {
+      clearTimeout(checkTimer);
+      checkTimer = setTimeout(validate, 300);
+    });
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+        console.log('Form submit triggered');
+      const name = (input.value || '').trim();
+      if (!name) { return; }
+        console.log('Creating category:', name);
+      const res = await fetch(`/categories/group/${GROUP_ID}` , {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+        console.log('Response status:', res.status);
+      if (res.ok) {
+        input.value = '';
+        feedback.textContent = '';
+        updateBtn(false);
+        showInlineAlert('Categoría creada correctamente.','success');
+        await loadCategories();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showInlineAlert(data.message || 'No se pudo crear la categoría.','danger');
+      }
+    });
+  }
+
+  // Bulk assign modal
+  function setupBulkAssign() {
+      console.log('setupBulkAssign called, CAN_MANAGE:', CAN_MANAGE);
+    if (!CAN_MANAGE) return;
+    const membersContainer = document.getElementById('bulkMembers');
+    const categoriesContainer = document.getElementById('bulkCategories');
+    const btnAssign = document.getElementById('assignSelected');
+    const btnUnassign = document.getElementById('unassignSelected');
+    const btnAllMembers = document.getElementById('selectAllMembers');
+    const btnAllCategories = document.getElementById('selectAllCategories');
+
+    const modal = document.getElementById('bulkAssignModal');
+    modal?.addEventListener('show.bs.modal', async () => {
+      // Load members from DOM info in availability table (we have user_info_map server-side but not ids here)
+      // Fetch members via a simple endpoint using existing members page would be heavy; instead, reuse DOM from server via a hidden dataset.
+      // We'll request categories JSON and members list from a minimal endpoint in group show context: members are not exposed here, so we derive from table variables is not trivial.
+      // Use a lightweight approach: call the members page JSON by scraping is not ideal; instead, we will request categories and build members by calling a small inline JSON endpoint using group members on server side is not present. As a workaround, we embed member list in a script tag below.
+  const members = globalThis.__GROUP_MEMBERS__ || [];
+      const categoriesRes = await fetch(`/categories/group/${GROUP_ID}`, { headers: { 'Accept': 'application/json' } });
+      const categories = await categoriesRes.json();
+
+      membersContainer.innerHTML = '';
+      for (const m of members) {
+        const item = document.createElement('label');
+        item.className = 'list-group-item d-flex align-items-center gap-2';
+        item.innerHTML = `<input type="checkbox" class="form-check-input me-2" value="${m.group_member_id}"> <span>${m.name} <small class="text-muted">${m.email}</small></span>`;
+        membersContainer.appendChild(item);
+      }
+      categoriesContainer.innerHTML = '';
+      for (const c of categories) {
+        const item = document.createElement('label');
+        item.className = 'list-group-item d-flex align-items-center gap-2';
+        item.innerHTML = `<input type="checkbox" class="form-check-input me-2" value="${c.id}"> <span>${c.name}</span>`;
+        categoriesContainer.appendChild(item);
+      }
+    });
+
+  const getCheckedValues = (container) => Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(i => Number.parseInt(i.value));
+
+    btnAllMembers?.addEventListener('click', () => {
+      const inputs = membersContainer.querySelectorAll('input[type="checkbox"]');
+      const allChecked = Array.from(inputs).every(i => i.checked);
+      for (const i of inputs) { i.checked = !allChecked; }
+    });
+    btnAllCategories?.addEventListener('click', () => {
+      const inputs = categoriesContainer.querySelectorAll('input[type="checkbox"]');
+      const allChecked = Array.from(inputs).every(i => i.checked);
+      for (const i of inputs) { i.checked = !allChecked; }
+    });
+
+    async function submitBulk(action) {
+      const member_ids = getCheckedValues(membersContainer);
+      const category_ids = getCheckedValues(categoriesContainer);
+        console.log('submitBulk action:', action, { member_ids, category_ids });
+      if (member_ids.length === 0 || category_ids.length === 0) {
+        showInlineAlert('Selecciona al menos un miembro y una categoría.', 'warning');
+        return;
+      }
+      try {
+        const res = await fetch('/categories/bulk_assign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ group_id: GROUP_ID, member_ids, category_ids, action })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) {
+          showInlineAlert(action === 'assign' ? 'Asignación completada.' : 'Desasignación completada.', 'success');
+          await loadCategories();
+          // Close modal
+          const modalEl = document.getElementById('bulkAssignModal');
+          const modal = bootstrap.Modal.getInstance(modalEl);
+          if (modal) modal.hide();
+        } else {
+          showInlineAlert(data.message || 'Ocurrió un error al procesar la acción.', 'danger');
+        }
+      } catch (err) {
+        console.error('Error in bulk assign:', err);
+        showInlineAlert('Error de red al procesar la acción.', 'danger');
+      }
+    }
+    btnAssign?.addEventListener('click', () => submitBulk('assign'));
+    btnUnassign?.addEventListener('click', () => submitBulk('unassign'));
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    await loadCategories();
+    setupCategoryCreate();
+    setupBulkAssign();
+  });
+</script>
+{% endblock %}
+
 {% endblock %}

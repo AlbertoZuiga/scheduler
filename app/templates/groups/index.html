@@ -1,51 +1,110 @@
 {% extends 'base.html' %}
 
+{% block title %}Mis Grupos{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-  <h2>Mis Grupos</h2>
-  <a href="{{ url_for('groups.create') }}" class="btn btn-success mb-3">Crear nuevo grupo</a>
-  <ul class="list-group">
-    {% for group in groups %}
-    <li class="list-group-item d-flex flex-column align-items-start">
-      <div class="d-flex justify-content-between align-items-center w-100">
-        <span>{{ group.name }}</span>
-        <div class="btn-group" role="group" aria-label="Group actions">
-          <a href="{{ url_for('groups.show', group_id=group.id) }}" class="btn btn-outline-secondary btn-sm">Ver grupo</a>
-        </div>
-      </div>
-      {% if group.owner_id == current_user.id %}
-      <div class="card mt-2 w-100 shadow-sm border-0">
-        <div class="card-body">
-          <label for="inviteLink-{{ group.id }}" class="form-label mb-1 fw-bold">Link de invitación:</label>
-          <div class="input-group">
-            <input type="text" class="form-control" value="{{ url_for('groups.join', token=group.join_token, _external=True) }}" id="inviteLink-{{ group.id }}" readonly>
-            <button class="btn btn-outline-secondary" onclick="copyToClipboard('{{ group.id }}')">Copiar</button>
+<div class="container mt-4">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">
+        <i class="bi bi-grid-fill text-primary me-2"></i>Mis Grupos
+      </h2>
+      <p class="text-muted mb-0">Gestiona tus grupos y coordina disponibilidad</p>
+    </div>
+    <a href="{{ url_for('groups.create') }}" class="btn btn-primary shadow-sm">
+      <i class="bi bi-plus-circle me-2"></i>Crear Nuevo Grupo
+    </a>
+  </div>
+
+  {% if groups %}
+    <div class="row g-4">
+      {% for group in groups %}
+      <div class="col-md-6 col-lg-4 animate-on-load">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <h5 class="card-title fw-bold mb-0">
+                <i class="bi bi-people-fill text-primary me-2"></i>{{ group.name }}
+              </h5>
+              {% if group.owner_id == current_user.id %}
+                <span class="badge bg-primary" data-bs-toggle="tooltip" title="Eres el propietario">
+                  <i class="bi bi-star-fill"></i> Owner
+                </span>
+              {% endif %}
+            </div>
+            
+            {% if group.description %}
+            <p class="card-text text-muted small mb-3">{{ group.description[:100] }}{% if group.description|length > 100 %}...{% endif %}</p>
+            {% endif %}
+            
+            <!-- Group Stats -->
+            <div class="d-flex gap-3 mb-3 text-muted small">
+              <div data-bs-toggle="tooltip" title="Miembros">
+                <i class="bi bi-people"></i> {{ group.members|length }}
+              </div>
+              <div data-bs-toggle="tooltip" title="Categorías">
+                <i class="bi bi-tag"></i> {{ group.categories|length if group.categories else 0 }}
+              </div>
+            </div>
+            
+            <div class="d-grid">
+              <a href="{{ url_for('groups.show', group_id=group.id) }}" class="btn btn-outline-primary">
+                <i class="bi bi-eye me-2"></i>Ver Grupo
+              </a>
+            </div>
           </div>
+          
+          {% if group.owner_id == current_user.id %}
+          <div class="card-footer bg-light border-0">
+            <small class="text-muted fw-bold d-block mb-2">
+              <i class="bi bi-link-45deg me-1"></i>Link de invitación:
+            </small>
+            <div class="input-group input-group-sm">
+              <input 
+                type="text" 
+                class="form-control" 
+                value="{{ url_for('groups.join', token=group.join_token, _external=True) }}" 
+                id="inviteLink-{{ group.id }}" 
+                readonly
+              >
+              <button 
+                class="btn btn-outline-secondary" 
+                type="button"
+                onclick="copyInviteLink('{{ group.id }}')"
+                data-bs-toggle="tooltip"
+                title="Copiar enlace"
+              >
+                <i class="bi bi-clipboard"></i>
+              </button>
+            </div>
+          </div>
+          {% endif %}
         </div>
       </div>
-      {% endif %}
-    </li>
-    {% else %}
-    <li class="list-group-item text-muted">No perteneces a ningún grupo.</li>
-    {% endfor %}
-  </ul>
+      {% endfor %}
+    </div>
+  {% else %}
+    <!-- Empty State -->
+    <div class="empty-state">
+      <div class="empty-state-icon">
+        <i class="bi bi-inbox"></i>
+      </div>
+      <h3>No tienes grupos aún</h3>
+      <p>Crea tu primer grupo para empezar a coordinar horarios con tu equipo</p>
+      <a href="{{ url_for('groups.create') }}" class="btn btn-primary btn-lg mt-3">
+        <i class="bi bi-plus-circle me-2"></i>Crear Mi Primer Grupo
+      </a>
+    </div>
+  {% endif %}
 </div>
 {% endblock %}
 
 {% block script %}
 <script>
-  function copyToClipboard(group_id) {
-    const copyText = document.getElementById(`inviteLink-${group_id}`);
-    if (!copyText) return alert("No se encontró el campo para copiar.");
-    copyText.select();
-    copyText.setSelectionRange(0, 99999);
-    navigator.clipboard.writeText(copyText.value)
-      .then(() => {
-        alert("Link copiado: " + copyText.value);
-      })
-      .catch(err => {
-        alert("Error al copiar: " + err);
-      });
-  }
+  // Initialize tooltips
+  document.addEventListener('DOMContentLoaded', () => {
+    schedulerApp.initTooltips();
+  });
 </script>
 {% endblock %}
