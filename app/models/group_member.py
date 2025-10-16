@@ -21,3 +21,7 @@ class GroupMember(scheduler_db.Model):    # pylint: disable=too-few-public-metho
 
     group = scheduler_db.relationship("Group", back_populates="members")
     user = scheduler_db.relationship("User", back_populates="memberships")
+    # Categories associated to this group member
+    categories = scheduler_db.relationship(
+        "GroupMemberCategory", back_populates="group_member", cascade="all, delete-orphan"
+    )

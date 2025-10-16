@@ -12,6 +12,10 @@ class Group(scheduler_db.Model):    # pylint: disable=too-few-public-methods
     members = scheduler_db.relationship(
         "GroupMember", back_populates="group", cascade="all, delete-orphan"
     )
+    # Categories that belong to this group
+    categories = scheduler_db.relationship(
+        "Category", back_populates="group", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return (
