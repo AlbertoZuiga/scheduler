@@ -12,7 +12,7 @@ from app.authz import (
     safe_remove_member,
 )
 
-group_bp = Blueprint("groups", __name__, url_prefix="/group")
+group_bp = Blueprint("groups", __name__, url_prefix="/groups")
 
 def _generate_time_blocks():
     return [
