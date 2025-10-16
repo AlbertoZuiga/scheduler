@@ -272,18 +272,28 @@ docker compose up -d --build --force-recreate
 ### Gestión de Base de Datos
 
 ```bash
+# Usar el script interactivo (Recomendado) 🎯
+./db-manager.sh
+
+# O comandos directos:
+
+# Configuración inicial completa (primera vez)
+docker exec -it backend_container python -m app.db.setup
+
 # Resetear la base de datos (elimina todos los datos)
 docker exec -it backend_container python -m app.db.reset
 
+# Poblar con datos de prueba
+docker exec -it backend_container python -m app.db.seed
+
 # Crear tablas
-docker exec -it backend_container python -m app.db.create
+docker exec -it backend_container python -m app.db.migrate
 
 # Eliminar tablas
 docker exec -it backend_container python -m app.db.drop
-
-# Aplicar migraciones
-docker exec -it backend_container python -m app.db.migrate
 ```
+
+> 📚 **Documentación completa**: Ver [DATABASE.md](DATABASE.md) para guía detallada de gestión de base de datos y solución de problemas.
 
 ### Detener la Aplicación
 
@@ -700,6 +710,31 @@ def show_group(group_id):
 ---
 
 ## 🔧 Solución de Problemas
+
+### ❌ Error: "relation does not exist" (Base de Datos)
+
+**Síntoma:** Al ejecutar la aplicación o seed, aparece el error:
+
+```
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedTable) relation "user" does not exist
+```
+
+**Causa:** Las tablas de la base de datos no han sido creadas.
+
+**Solución:**
+
+```bash
+# Opción 1: Script interactivo (más fácil)
+./db-manager.sh
+# Luego selecciona opción 1 (Setup)
+
+# Opción 2: Comando directo
+docker exec -it backend_container python -m app.db.setup
+```
+
+> 📚 Ver [DATABASE.md](DATABASE.md) para más detalles sobre gestión de base de datos.
+
+---
 
 ### ❌ Error 400: redirect_uri_mismatch (Google OAuth)
 
