@@ -181,6 +181,9 @@ def show(group_id):
             selected.add((weekday, blocks[block_index]))
 
     availability_data = get_availability_data(group_id)
+    
+    # Determinar si el usuario puede gestionar el grupo
+    can_manage = (group.owner_id == current_user.id) or is_admin
 
     return render_template(
         "groups/show.html",
@@ -193,6 +196,7 @@ def show(group_id):
         color_map=color_map,
         user_info_map=user_info_map,
         is_admin=is_admin,
+        can_manage=can_manage,
     )
 
 
@@ -201,11 +205,17 @@ def show(group_id):
 def create():
     if request.method == "POST":
         group_name = request.form["group_name"]
+        group_description = request.form.get("group_description", "")
 
         join_token = uuid.uuid4().hex[:10]
         user_id = current_user.id
 
-        new_group = Group(name=group_name, join_token=join_token, owner_id=user_id)
+        new_group = Group(
+            name=group_name, 
+            description=group_description,
+            join_token=join_token, 
+            owner_id=user_id
+        )
         scheduler_db.session.add(new_group)
         scheduler_db.session.commit()
 
@@ -214,8 +224,7 @@ def create():
         scheduler_db.session.commit()
 
         flash(
-            "Grupo creado con éxito."
-            f"El link para unirse es: {request.url_root}group/join/{join_token}",
+            f"✅ ¡Grupo '{group_name}' creado con éxito! Ya puedes invitar miembros.",
             "success",
         )
         return redirect(url_for(GROUP_SHOW_URL, group_id=new_group.id))
@@ -228,7 +237,7 @@ def join(token):
     group = Group.query.filter_by(join_token=token).first()
 
     if not group:
-        flash("Grupo no encontrado o token inválido.", "danger")
+        flash("❌ Grupo no encontrado. Verifica que el enlace de invitación sea correcto.", "danger")
         return redirect(url_for(GROUP_INDEX_URL))
 
     user_id = current_user.id
@@ -236,14 +245,14 @@ def join(token):
     print(group, user_id)
 
     if GroupMember.query.filter_by(group_id=group.id, user_id=user_id).first():
-        flash("Ya estás en este grupo.", "info")
+        flash(f"ℹ️ Ya eres miembro del grupo '{group.name}'.", "info")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group.id))
 
     new_member = GroupMember(group_id=group.id, user_id=user_id, role=RoleEnum.MEMBER)
     scheduler_db.session.add(new_member)
     scheduler_db.session.commit()
 
-    flash("Te has unido al grupo con éxito.", "success")
+    flash(f"✅ ¡Bienvenido! Te has unido al grupo '{group.name}' exitosamente.", "success")
     return redirect(url_for(GROUP_SHOW_URL, group_id=group.id))
 
 
@@ -268,7 +277,7 @@ def availability(group_id):
         saved_count = _process_posted_availability(group_id, request.form, blocks, current_user.id)
 
         if saved_count == 0:
-            flash("No se guardó ninguna disponibilidad. Verifica tu selección.", "warning")
+            flash("⚠️ No se guardó ninguna disponibilidad. Por favor, selecciona al menos un bloque horario.", "warning")
             return render_template(
                 "groups/availability.html",
                 group_id=group_id,
@@ -276,7 +285,7 @@ def availability(group_id):
                 blocks=blocks
             )
 
-        flash(f"Disponibilidad actualizada con éxito. ({saved_count} bloques guardados)", "success")
+        flash(f"✅ Disponibilidad actualizada exitosamente ({saved_count} bloques horarios guardados).", "success")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
     user_availability = (
@@ -302,6 +311,7 @@ def availability(group_id):
 @login_required
 def delete(group_id):
     group, _ = require_group_owner(group_id)
+    group_name = group.name
 
     availability_ids = [a.id for a in Availability.query.filter_by(group_id=group_id).all()]
     if availability_ids:
@@ -315,7 +325,7 @@ def delete(group_id):
     scheduler_db.session.delete(group)
     scheduler_db.session.commit()
 
-    flash("Grupo eliminado exitosamente.", "success")
+    flash(f"✅ Grupo '{group_name}' eliminado exitosamente.", "success")
     return redirect(url_for(GROUP_INDEX_URL))
 
 
@@ -325,7 +335,7 @@ def leave(group_id):
     group = Group.query.get_or_404(group_id)
     membership = GroupMember.query.filter_by(user_id=current_user.id, group_id=group_id).first()
     if not membership:
-        flash("No perteneces a este grupo.", "warning")
+        flash("⚠️ No perteneces a este grupo.", "warning")
         return redirect(url_for(GROUP_INDEX_URL))
     ua_ids = (
         scheduler_db.session.query(UserAvailability.id)
@@ -360,7 +370,7 @@ def leave(group_id):
 
     scheduler_db.session.commit()
 
-    flash("Grupo abandonado exitosamente.", "success")
+    flash(f"✅ Has abandonado el grupo '{group.name}' exitosamente.", "success")
     return redirect(url_for(GROUP_INDEX_URL))
 
 
@@ -368,7 +378,7 @@ def leave(group_id):
 @login_required
 def remove(group_id, user_id):
     if current_user.id == user_id:
-        flash("Usa la opción de abandonar para salir del grupo.", "info")
+        flash("ℹ️ Para salir del grupo, usa la opción 'Abandonar grupo'.", "info")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
     # Ejecuta comprobaciones y elimina
@@ -388,7 +398,7 @@ def remove(group_id, user_id):
         )
 
     scheduler_db.session.commit()
-    flash("Miembro eliminado exitosamente.", "success")
+    flash("✅ Miembro removido del grupo exitosamente.", "success")
     return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
 
@@ -399,13 +409,15 @@ def update_role(group_id, user_id):
 
     role_str = request.form.get("role")
     if role_str not in RoleEnum.__members__:
-        flash("Rol inválido.", "danger")
+        flash("❌ Rol inválido. Selecciona un rol válido.", "danger")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
     member = GroupMember.query.filter_by(group_id=group_id, user_id=user_id).first_or_404()
     if group.owner_id == user_id:
-        flash("No puedes cambiar el rol del propietario.", "danger")
+        flash("⚠️ No puedes cambiar el rol del propietario del grupo.", "warning")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
+    
+    old_role = member.role.value
     member.role = RoleEnum[role_str]
     scheduler_db.session.commit()
 
