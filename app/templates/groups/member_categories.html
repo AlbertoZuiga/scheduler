@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+  <h4>Categorías para: {{ member.user.email }}</h4>
+
+  <ul class="list-group mb-3">
+    {% for cat in categories %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      {{ cat.name }}
+      {% if cat.id in assoc_ids %}
+        <form method="POST" action="{{ url_for('categories.member_categories', group_member_id=member.id) }}" onsubmit="return confirm('¿Eliminar asociación?');">
+          <input type="hidden" name="_method" value="delete" />
+          <input type="hidden" name="category_id" value="{{ cat.id }}" />
+          <button formaction="{{ url_for('categories.member_categories', group_member_id=member.id) }}" class="btn btn-danger btn-sm">Desasociar</button>
+        </form>
+      {% else %}
+        <form method="POST" action="{{ url_for('categories.member_categories', group_member_id=member.id) }}">
+          <input type="hidden" name="category_id" value="{{ cat.id }}" />
+          <button class="btn btn-primary btn-sm">Asociar</button>
+        </form>
+      {% endif %}
+    </li>
+    {% else %}
+    <li class="list-group-item text-muted">No hay categorías en el grupo.</li>
+    {% endfor %}
+  </ul>
+
+  <a href="{{ url_for('groups.members', group_id=group.id) }}" class="btn btn-secondary">Volver</a>
+</div>
+{% endblock %}

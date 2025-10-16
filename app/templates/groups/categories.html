@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3>Categorías del grupo: {{ group.name }}</h3>
+  <ul class="list-group mb-3">
+    {% for cat in categories %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      {{ cat.name }}
+      <form method="POST" action="{{ url_for('categories.group_categories', group_id=group.id) }}" class="d-inline-block">
+        <!-- placeholder: delete action could be added -->
+      </form>
+    </li>
+    {% else %}
+    <li class="list-group-item text-muted">No hay categorías aún.</li>
+    {% endfor %}
+  </ul>
+
+  <form method="POST" action="{{ url_for('categories.group_categories', group_id=group.id) }}" class="row g-2">
+    <div class="col-auto">
+      <input type="text" name="name" class="form-control" placeholder="Nombre categoría" required>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-primary">Crear</button>
+    </div>
+  </form>
+
+  <a href="{{ url_for('groups.show', group_id=group.id) }}" class="btn btn-secondary mt-3">Volver</a>
+</div>
+{% endblock %}

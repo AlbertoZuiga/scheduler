@@ -79,9 +79,11 @@
                             <div class="accordion-body">
                               <ul class="list-group list-group-flush">
                                 {% for user_id in data.users %}
+                                  {% if user_id in user_info_map %}
                                   <li class="list-group-item">
-                                    <span class="badge {{ color_map[user_id] }} d-block mb-1">{{ user_info_map[user_id].name }} {{ user_info_map[user_id].email }}</span>
+                                    <span class="badge {{ color_map.get(user_id, 'bg-secondary') }} d-block mb-1">{{ user_info_map[user_id].name }} {{ user_info_map[user_id].email }}</span>
                                   </li>
+                                  {% endif %}
                                 {% endfor %}
                               </ul>
                             </div>
