@@ -295,8 +295,6 @@ docker exec -it backend_container python -m app.db.migrate
 docker exec -it backend_container python -m app.db.drop
 ```
 
-> 📚 **Documentación completa**: Ver [DATABASE.md](DATABASE.md) para guía detallada de gestión de base de datos y solución de problemas.
-
 ### Detener la Aplicación
 
 ```bash
@@ -1020,8 +1018,6 @@ sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedTable) relation "user
 # Opción 2: Comando directo
 docker exec -it backend_container python -m app.db.setup
 ```
-
-> 📚 Ver [DATABASE.md](DATABASE.md) para más detalles sobre gestión de base de datos.
 
 ---
 
