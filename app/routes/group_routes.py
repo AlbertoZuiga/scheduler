@@ -250,9 +250,9 @@ def join(token):
 @group_bp.route("/<int:group_id>/members", methods=["GET"])
 @login_required
 def members(group_id):
-    group, _ = require_group_member(group_id)
+    group, membership = require_group_member(group_id)
     group_members = GroupMember.query.filter_by(group_id=group.id).all()
-    return render_template("groups/members.html", group=group, members=group_members)
+    return render_template("groups/members.html", group=group, members=group_members, membership=membership)
 
 
 @group_bp.route("/<int:group_id>/availability", methods=["GET", "POST"])
