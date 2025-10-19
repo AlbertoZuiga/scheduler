@@ -49,11 +49,19 @@ def _process_posted_availability(group_id, form_data, blocks, user_id):
                     )
                     scheduler_db.session.add(group_availability)
                     scheduler_db.session.commit()
-                user_availability = UserAvailability(
-                    user_id=user_id, availability_id=group_availability.id
-                )
-                scheduler_db.session.add(user_availability)
-                count += 1
+                existing = UserAvailability.query.join(Availability).filter(
+                    UserAvailability.user_id == user_id,
+                    Availability.group_id == group_id,
+                    Availability.weekday == weekday,
+                    Availability.hour == hour_as_float,
+                ).first()
+
+                if not existing:
+                    user_availability = UserAvailability(
+                        user_id=user_id, availability_id=group_availability.id
+                    )
+                    scheduler_db.session.add(user_availability)
+                    count += 1
     scheduler_db.session.commit()
     return count
 
@@ -181,8 +189,7 @@ def show(group_id):
             selected.add((weekday, blocks[block_index]))
 
     availability_data = get_availability_data(group_id)
-    
-    # Determinar si el usuario puede gestionar el grupo
+
     can_manage = (group.owner_id == current_user.id) or is_admin
 
     return render_template(
@@ -299,7 +306,6 @@ def availability(group_id):
         block_index = int(hour - STARTING_HOUR)
         if 0 <= block_index < len(blocks):
             selected.add((weekday, block_index))
-        print(f"Selected availability: {selected}")
     return render_template(
         "groups/availability.html", group_id=group_id, selected=selected, blocks=blocks
     )
