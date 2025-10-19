@@ -4,7 +4,6 @@ from app.extensions import scheduler_db
 class Group(scheduler_db.Model):    # pylint: disable=too-few-public-methods
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     name = scheduler_db.Column(scheduler_db.String(150), nullable=False)
-    description = scheduler_db.Column(scheduler_db.Text, nullable=True)
     join_token = scheduler_db.Column(scheduler_db.String(64), unique=True, nullable=False)
     owner_id = scheduler_db.Column(
         scheduler_db.Integer, scheduler_db.ForeignKey("user.id"), nullable=False

@@ -37,9 +37,6 @@
                 </span>
               {% endif %}
             </div>
-            {% if group.description %}
-            <p class="text-light-text-secondary dark:text-dark-text-secondary text-sm mb-3">{{ group.description[:100] }}{% if group.description|length > 100 %}...{% endif %}</p>
-            {% endif %}
             <!-- Group Stats -->
             <div class="flex gap-4 mb-4 text-xs text-light-text-muted dark:text-dark-text-muted">
               <div title="Miembros" class="flex items-center gap-1">
