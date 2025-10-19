@@ -1,0 +1,545 @@
+{% extends "base.html" %}
+
+{% block title %}Dividir Grupo - {{ group.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .rule-builder {
+    border: 2px solid var(--tw-prose-border, theme('colors.light-border'));
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background-color: var(--tw-prose-bg, theme('colors.light-card'));
+  }
+  .dark .rule-builder {
+    border-color: var(--tw-prose-border-dark, theme('colors.dark-border'));
+    background-color: var(--tw-prose-bg-dark, theme('colors.dark-card'));
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+  }
+  
+  .condition-group {
+    background-color: var(--tw-prose-bg, theme('colors.light-card'));
+    border: 2px solid var(--tw-prose-border, theme('colors.light-border'));
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+  .dark .condition-group {
+    background-color: var(--tw-prose-bg-dark, theme('colors.dark-card'));
+    border-color: var(--tw-prose-border-dark, theme('colors.dark-border'));
+  }
+  
+  .preview-card {
+    border: 2px solid theme('colors.indigo.500');
+    background-color: theme('colors.indigo.100');
+  }
+  .dark .preview-card {
+    background-color: theme('colors.indigo.900');
+    border-color: theme('colors.indigo.400');
+  }
+  
+  .compatibility-bar {
+    height: 24px;
+    border-radius: 4px;
+    background: linear-gradient(to right, theme('colors.red.600'), theme('colors.amber.400'), theme('colors.green.600'));
+    position: relative;
+    border: 1px solid var(--tw-prose-border, theme('colors.light-border'));
+  }
+  .dark .compatibility-bar {
+    background: linear-gradient(to right, theme('colors.red.500'), theme('colors.amber.300'), theme('colors.green.400'));
+    border: 1px solid var(--tw-prose-border-dark, theme('colors.dark-border'));
+  }
+  
+  .compatibility-indicator {
+    position: absolute;
+    height: 100%;
+    width: 4px;
+    background-color: var(--tw-prose-text, theme('colors.lightTextPrimary'));
+    border-radius: 2px;
+    box-shadow: 0 0 4px rgba(0,0,0,0.5);
+  }
+  .dark .compatibility-indicator {
+    background-color: var(--tw-prose-text-dark, theme('colors.dark-text-primary'));
+    box-shadow: 0 0 6px rgba(255,255,255,0.8);
+  }
+  
+  .rule-status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  
+  .rule-fulfilled {
+    background-color: theme('colors.green.100');
+    color: theme('colors.green.900');
+    border: 1px solid theme('colors.green.300');
+  }
+  .dark .rule-fulfilled {
+    background-color: theme('colors.green.900');
+    color: theme('colors.green.100');
+    border: 1px solid theme('colors.green.400');
+  }
+  
+  .rule-unfulfilled {
+    background-color: theme('colors.red.100');
+    color: theme('colors.red.900');
+    border: 1px solid theme('colors.red.300');
+  }
+  .dark .rule-unfulfilled {
+    background-color: theme('colors.red.900');
+    color: theme('colors.red.100');
+    border: 1px solid theme('colors.red.400');
+  }
+  
+  #loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+  }
+  
+  .spinner-border {
+    width: 3rem;
+    height: 3rem;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  /* Mejorar contraste de inputs en modo oscuro */
+  .dark input[type="number"],
+  .dark input[type="range"],
+  .dark select {
+    background-color: var(--tw-prose-bg-dark, theme('colors.dark-card'));
+    border-color: var(--tw-prose-border-dark, theme('colors.dark-border'));
+    color: var(--tw-prose-text-dark, theme('colors.dark-text-primary'));
+  }
+  
+  .dark input[type="number"]:focus,
+  .dark select:focus {
+    border-color: theme('colors.blue.300');
+    background-color: theme('colors.dark-surface');
+  }
+  
+  .dark select option {
+    background-color: var(--tw-prose-bg-dark, theme('colors.dark-card'));
+    color: var(--tw-prose-text-dark, theme('colors.dark-text-primary'));
+  }
+  
+  .dark input[type="checkbox"] {
+    background-color: theme('colors.dark-muted');
+    border-color: var(--tw-prose-border-dark, theme('colors.dark-border'));
+  }
+  
+  .dark input[type="checkbox"]:checked {
+    background-color: theme('colors.primary');
+    border-color: theme('colors.primary');
+  }
+  
+  .dark kbd {
+    background-color: theme('colors.dark-muted');
+    border: 1px solid var(--tw-prose-border-dark, theme('colors.dark-border'));
+    color: var(--tw-prose-text-dark, theme('colors.dark-text-primary'));
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-7xl mx-auto">
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <div>
+      <h2 class="text-3xl font-bold text-light-text-primary dark:text-dark-text-primary flex items-center gap-2">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+        Dividir Grupo: {{ group.name }}
+      </h2>
+      <p class="text-light-text-secondary dark:text-dark-text-secondary mt-1">Genera subgrupos optimizados basados en compatibilidad horaria y categorías</p>
+    </div>
+    <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center gap-2 px-4 py-2 border border-light-border dark:border-dark-border rounded hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition-colors text-light-text-primary dark:text-dark-text-primary">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+      Volver al Grupo
+    </a>
+  </div>
+
+  <!-- Resumen visual de configuración -->
+  <div id="config-summary" class="mb-6 p-4 rounded-lg bg-indigo-100 dark:bg-indigo-900/70 border-2 border-indigo-300 dark:border-indigo-600 shadow-sm">
+    <div class="flex items-center gap-3 flex-wrap">
+      <span class="font-bold text-indigo-900 dark:text-indigo-100 text-base">Resumen de configuración:</span>
+  <span id="summary-num-groups" class="text-indigo-800 dark:text-indigo-200">Subgrupos: <b class="text-indigo-900 dark:text-dark-text-primary">3</b></span>
+  <span id="summary-max-size" class="text-indigo-800 dark:text-indigo-200">Máx. por subgrupo: <b class="text-indigo-900 dark:text-dark-text-primary">{{ (member_count // 3) + 1 }}</b></span>
+  <span id="summary-threshold" class="text-indigo-800 dark:text-indigo-200">Compatibilidad mínima: <b class="text-indigo-900 dark:text-dark-text-primary">50%</b></span>
+    </div>
+    <div class="text-sm text-indigo-700 dark:text-indigo-300 mt-2 italic">Las opciones seleccionadas se mostrarán aquí en tiempo real para que puedas revisar tu configuración antes de generar los subgrupos.</div>
+  </div>
+</div>
+
+<div class="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-4">
+  <!-- Panel de Configuración -->
+  <div>
+    <div class="bg-light-card dark:bg-dark-card rounded-lg shadow-sm border border-light-border dark:border-dark-border">
+  <div class="bg-indigo-600 dark:bg-indigo-500 text-white px-4 py-3 rounded-t-lg">
+        <h5 class="font-bold flex items-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+          Configuración de División
+        </h5>
+      </div>
+      <div class="p-4">
+        <form id="division-form">
+          <!-- Configuración Básica -->
+
+          <div class="mb-3">
+            <label for="num_groups" class="block text-sm font-bold mb-1 text-light-text-primary dark:text-dark-text-primary flex items-center gap-1">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
+              Número de Subgrupos
+              <span class="ml-1 cursor-pointer" title="¿Cuántos subgrupos quieres crear? Elige entre 2 y 20.">
+                <svg class="w-4 h-4 text-blue-400 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-8 4a1 1 0 100-2 1 1 0 000 2zm.93-7.412a1 1 0 00-1.858 0l-.518 1.036A1 1 0 008.618 9h2.764a1 1 0 00.964-1.376l-.518-1.036z"/></svg>
+              </span>
+            </label>
+            <input type="number" class="w-full px-3 py-2 rounded border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary" id="num_groups" min="2" max="20" value="3" required>
+            <small class="text-light-text-secondary dark:text-dark-text-secondary">Total de miembros activos: {{ member_count }}. <b>Recomendación:</b> Elige un número que permita grupos equilibrados.</small>
+          </div>
+
+
+          <div class="mb-3">
+            <label for="max_group_size" class="block text-sm font-bold mb-1 text-light-text-primary dark:text-dark-text-primary flex items-center gap-1">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"></path></svg>
+              Tamaño Máximo por Subgrupo
+              <span class="ml-1 cursor-pointer" title="¿Cuál es el máximo de personas permitido por subgrupo? Deja vacío para no limitar.">
+                <svg class="w-4 h-4 text-blue-400 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-8 4a1 1 0 100-2 1 1 0 000 2zm.93-7.412a1 1 0 00-1.858 0l-.518 1.036A1 1 0 008.618 9h2.764a1 1 0 00.964-1.376l-.518-1.036z"/></svg>
+              </span>
+            </label>
+            <input type="number" class="w-full px-3 py-2 rounded border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary" id="max_group_size" min="1" value="{{ (member_count // 3) + 1 }}" placeholder="Sin límite">
+            <small class="text-light-text-secondary dark:text-dark-text-secondary">Dejar vacío para no limitar el tamaño de los subgrupos.</small>
+          </div>
+
+
+          <div class="mb-3">
+            <label for="compatibility_threshold" class="block text-sm font-bold mb-1 text-light-text-primary dark:text-dark-text-primary flex items-center gap-1">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clip-rule="evenodd"></path></svg>
+              Umbral de Compatibilidad
+              <span class="ml-1 cursor-pointer" title="Porcentaje mínimo de coincidencia de horarios entre miembros para considerarlos compatibles.">
+                <svg class="w-4 h-4 text-blue-400 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-8 4a1 1 0 100-2 1 1 0 000 2zm.93-7.412a1 1 0 00-1.858 0l-.518 1.036A1 1 0 008.618 9h2.764a1 1 0 00.964-1.376l-.518-1.036z"/></svg>
+              </span>
+            </label>
+            <input type="range" class="w-full" id="compatibility_threshold" min="0" max="100" value="50" step="5">
+            <div class="flex justify-between text-sm">
+              <small class="text-light-text-secondary dark:text-dark-text-secondary">0%</small>
+              <small id="threshold_display" class="font-bold text-light-text-primary dark:text-dark-text-primary">50%</small>
+              <small class="text-light-text-secondary dark:text-dark-text-secondary">100%</small>
+            </div>
+            <small class="text-light-text-secondary dark:text-dark-text-secondary">Define el solapamiento mínimo de horarios requerido entre miembros para que puedan estar juntos en un subgrupo.</small>
+          </div>
+
+
+          <div class="mb-3">
+            <div class="flex items-center">
+              <input class="w-4 h-4 text-primary bg-light-muted/30 dark:bg-dark-muted/30 border-light-border dark:border-dark-border rounded focus:ring-2 focus:ring-primary" type="checkbox" id="allow_multiple_membership">
+              <label class="ml-2 text-sm text-light-text-primary dark:text-dark-text-primary flex items-center gap-1" for="allow_multiple_membership">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path></svg>
+                Permitir Membresía Múltiple
+                <span class="ml-1 cursor-pointer" title="Permite que un miembro esté en más de un subgrupo.">
+                  <svg class="w-4 h-4 text-blue-400 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-8 4a1 1 0 100-2 1 1 0 000 2zm.93-7.412a1 1 0 00-1.858 0l-.518 1.036A1 1 0 008.618 9h2.764a1 1 0 00.964-1.376l-.518-1.036z"/></svg>
+                </span>
+              </label>
+            </div>
+            <small class="text-light-text-secondary dark:text-dark-text-secondary ml-6">Si está activado, un miembro puede pertenecer a varios subgrupos a la vez.</small>
+          </div>
+
+
+          <div class="mb-3">
+            <div class="flex items-center">
+              <input class="w-4 h-4 text-primary bg-light-muted/30 dark:bg-dark-muted/30 border-light-border dark:border-dark-border rounded focus:ring-2 focus:ring-primary" type="checkbox" id="require_all_members" checked>
+              <label class="ml-2 text-sm text-light-text-primary dark:text-dark-text-primary flex items-center gap-1" for="require_all_members">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                Todos los miembros deben estar en al menos un grupo
+                <span class="ml-1 cursor-pointer" title="Si está activado, todos los miembros serán asignados a algún subgrupo.">
+                  <svg class="w-4 h-4 text-blue-400 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-8 4a1 1 0 100-2 1 1 0 000 2zm.93-7.412a1 1 0 00-1.858 0l-.518 1.036A1 1 0 008.618 9h2.764a1 1 0 00.964-1.376l-.518-1.036z"/></svg>
+                </span>
+              </label>
+            </div>
+            <small class="text-light-text-secondary dark:text-dark-text-secondary ml-6">Garantiza que ningún miembro quede sin asignar a un subgrupo.</small>
+          </div>
+
+          <!-- Reglas de Categorías -->
+
+          <hr class="my-4 border-light-border dark:border-dark-border">
+          <div class="mb-3">
+            <div class="flex justify-between items-center mb-2">
+              <h6 class="font-bold text-light-text-primary dark:text-dark-text-primary flex items-center gap-1">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"></path></svg>
+                Requisitos de Categorías (Opcional)
+              </h6>
+                            <button type="button" class="px-3 py-1 text-sm rounded bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 text-light-text-primary dark:text-dark-text-primary font-semibold transition-all shadow hover:shadow-md flex items-center gap-1" id="add-rule-btn">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path></svg>
+                <span>Agregar Requisito</span>
+              </button>
+            </div>
+            
+            <!-- Explicación simplificada -->
+            <div class="bg-purple-50 dark:bg-purple-900/40 border-2 border-purple-200 dark:border-purple-700 rounded-lg p-4 mb-3 shadow-sm">
+              <div class="flex items-start gap-3">
+                <svg class="w-6 h-6 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                <div class="text-sm flex-1">
+                  <p class="font-bold mb-2 text-purple-900 dark:text-purple-100 text-base">¿Qué son los Requisitos?</p>
+                  <p class="text-purple-800 dark:text-purple-200 mb-3">Define cuántos miembros de ciertas categorías debe haber en cada subgrupo.</p>
+                  <div class="mt-2 text-sm bg-light-card dark:bg-purple-950/60 rounded-md p-3 border-2 border-purple-200 dark:border-purple-700">
+                    <strong class="text-purple-900 dark:text-purple-100">Ejemplo:</strong> 
+                    <span class="text-purple-800 dark:text-purple-200">"Cada subgrupo debe tener mínimo 1 Líder y entre 2-4 Desarrolladores"</span>
+                  </div>
+                  <p class="mt-3 text-sm italic text-purple-700 dark:text-purple-300">💡 Si no agregas requisitos, los subgrupos se crearán solo por compatibilidad horaria.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="rules-builder" class="space-y-3">
+            <p class="text-light-text-secondary dark:text-dark-text-secondary text-center py-8 border-2 border-dashed border-light-border dark:border-dark-border rounded-lg" id="no-rules-msg">
+              <svg class="w-12 h-12 mx-auto mb-2 text-light-text-muted dark:text-dark-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+              <span class="block font-semibold">Sin requisitos de categorías</span>
+              <span class="block text-sm mt-1">Los subgrupos se crearán solo por compatibilidad horaria</span>
+              <span class="block text-xs mt-2">Haz clic en <b>Agregar Requisito</b> para establecer criterios adicionales</span>
+            </p>
+          </div>
+
+          <div class="grid gap-2 mt-4">
+            <button type="submit" class="w-full px-6 py-3 text-lg rounded bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 text-white transition-all flex items-center justify-center gap-2 text-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105" id="generate-btn">
+              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+              <span>Generar Subgrupos Óptimos</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel de Preview -->
+  <div>
+    <div class="bg-light-card dark:bg-dark-card rounded-lg shadow-sm border border-light-border dark:border-dark-border" id="preview-panel" style="display: none;">
+  <div class="bg-green-600 dark:bg-green-500 text-white px-4 py-3 rounded-t-lg">
+        <h5 class="font-bold flex items-center gap-2">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"></path></svg>
+          Vista Previa de Subgrupos
+        </h5>
+      </div>
+      <div class="p-4" id="preview-content">
+      </div>
+      <div class="px-4 py-3 bg-light-surface dark:bg-dark-surface rounded-b-lg border-t border-light-border dark:border-dark-border">
+        <div class="flex gap-2 flex-wrap">
+          <button type="button" class="px-4 py-2 rounded bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 text-white font-semibold transition-all shadow hover:shadow-md flex items-center gap-2" id="confirm-btn">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+            Confirmar División
+          </button>
+          <button type="button" class="px-4 py-2 rounded bg-light-muted dark:bg-dark-muted hover:bg-light-muted/70 dark:hover:bg-dark-muted/70 text-light-text-primary dark:text-dark-text-primary font-semibold transition-all shadow hover:shadow-md flex items-center gap-2" id="redo-btn">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path></svg>
+            Rehacer
+          </button>
+          <button type="button" class="px-4 py-2 rounded bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white font-semibold transition-all shadow hover:shadow-md flex items-center gap-2" id="export-btn">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+            Exportar CSV
+          </button>
+          <button type="button" class="px-4 py-2 rounded bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 text-white font-semibold transition-colors flex items-center gap-2 shadow" id="undo-btn">
+            <i class="bi bi-arrow-counterclockwise"></i> Deshacer Última División
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Información de Ayuda -->
+    <div class="mt-3 rounded-lg border-2 border-teal-300 dark:border-teal-400 bg-teal-50 dark:bg-teal-900/50 shadow-md overflow-hidden">
+  <div class="bg-teal-600 dark:bg-teal-600 text-white px-4 py-3">
+        <h6 class="mb-0 font-semibold flex items-center gap-2">
+          <i class="bi bi-info-circle text-xl"></i> Ayuda
+        </h6>
+      </div>
+      <div class="px-4 py-4 bg-light-card dark:bg-dark-card">
+        <h6 class="font-bold text-light-text-primary dark:text-dark-text-primary mb-3 text-base">¿Cómo funciona?</h6>
+        <ul class="text-sm space-y-2 ml-4 list-disc text-light-text-primary dark:text-dark-text-primary">
+          <li><strong class="text-light-text-primary dark:text-dark-text-primary">Compatibilidad:</strong> Se calcula según el solapamiento de horarios disponibles entre miembros.</li>
+          <li><strong class="text-light-text-primary dark:text-dark-text-primary">Reglas AND:</strong> El miembro debe tener TODAS las categorías especificadas.</li>
+          <li><strong class="text-light-text-primary dark:text-dark-text-primary">Reglas OR:</strong> El miembro debe tener AL MENOS una de las categorías.</li>
+          <li><strong class="text-light-text-primary dark:text-dark-text-primary">Mín/Máx:</strong> Cantidad requerida de miembros que cumplan la regla por subgrupo.</li>
+        </ul>
+        
+        <h6 class="font-bold text-light-text-primary dark:text-dark-text-primary mt-4 mb-2 text-base">Categorías Disponibles:</h6>
+        <div class="flex flex-wrap gap-2 mt-2">
+          {% for category in categories %}
+          <span class="inline-block px-3 py-1 rounded-full bg-teal-600 dark:bg-teal-500 text-white text-sm font-medium shadow-sm">{{ category.name }}</span>
+          {% endfor %}
+        </div>
+        
+        {% if not categories %}
+        <p class="text-light-text-secondary dark:text-dark-text-secondary text-sm mt-3 italic">No hay categorías configuradas en este grupo.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay">
+  <div class="text-center text-white">
+    <div class="spinner-border" aria-label="Cargando">
+      <span class="visually-hidden">Generando...</span>
+    </div>
+    <output class="mt-3 fs-5 block">Generando subgrupos optimizados...</output>
+  </div>
+</div>
+
+<!-- Template para Requisitos (oculto) -->
+<template id="rule-template">
+  <div class="rule-builder bg-light-card dark:bg-dark-card border-2 border-light-border dark:border-dark-border rounded-lg p-4 hover:border-blue-300 dark:hover:border-blue-600 transition-colors" data-rule-index="">
+    <div class="flex justify-between items-start mb-4">
+      <div class="flex-1">
+        <h6 class="text-base font-bold text-light-text-primary dark:text-dark-text-primary flex items-center gap-2 mb-1">
+          <span class="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 text-sm font-bold rule-number"></span>
+          Requisito <span class="rule-number"></span>
+        </h6>
+        <p class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Este requisito debe cumplirse en cada subgrupo generado</p>
+      </div>
+      <button type="button" class="px-2 py-1 text-xs rounded border border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 transition-colors flex items-center gap-1 remove-rule-btn">
+        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+        Eliminar
+      </button>
+    </div>
+
+    <div class="conditions-container">
+      <!-- El contenido del requisito se agregará aquí -->
+    </div>
+  </div>
+</template>
+
+<!-- Template para Contenido de Requisito (oculto) -->
+<template id="condition-template">
+  <div class="condition-group bg-light-card dark:bg-dark-card border-2 border-light-border dark:border-dark-border rounded-md p-3 mb-2">
+    <div class="mb-3">
+      <label class="block text-sm font-bold mb-2 text-light-text-primary dark:text-dark-text-primary flex items-center gap-1" for="cond-categories-__IDX__">
+        <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"></path></svg>
+        ¿Qué categorías deben estar presentes?
+      </label>
+      <select id="cond-categories-__IDX__" class="w-full px-3 py-2 rounded border-2 border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary condition-categories focus:border-blue-500 dark:focus:border-blue-400 transition-colors" multiple required size="5">
+        {% for category in categories %}
+        <option value="{{ category.name }}" class="py-1">{{ category.name }}</option>
+        {% endfor %}
+      </select>
+      <small class="text-light-text-secondary dark:text-dark-text-secondary text-xs mt-2 block bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 p-2 rounded">
+        💡 <strong class="text-light-text-primary dark:text-dark-text-primary">Tip:</strong> Mantén 
+        <kbd class="px-1.5 py-0.5 bg-light-muted/40 dark:bg-dark-muted/40 text-light-text-primary dark:text-dark-text-primary rounded text-xs font-mono border border-light-border dark:border-dark-border">Ctrl</kbd> 
+        o 
+        <kbd class="px-1.5 py-0.5 bg-light-muted/40 dark:bg-dark-muted/40 text-light-text-primary dark:text-dark-text-primary rounded text-xs font-mono border border-light-border dark:border-dark-border">Cmd</kbd> 
+        presionado para seleccionar múltiples
+      </small>
+    </div>
+
+    <div class="mb-3">
+      <label class="block text-sm font-bold mb-2 text-light-text-primary dark:text-dark-text-primary flex items-center gap-1" for="cond-operator-__IDX__">
+        <svg class="w-4 h-4 text-purple-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+        ¿Cómo deben cumplirse?
+      </label>
+      <select id="cond-operator-__IDX__" class="w-full px-3 py-2 rounded border-2 border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary condition-operator focus:border-blue-500 dark:focus:border-blue-400 transition-colors">
+        <option value="AND">✓ TODAS - El miembro debe tener TODAS las categorías seleccionadas</option>
+        <option value="OR">◉ AL MENOS UNA - El miembro debe tener AL MENOS UNA categoría</option>
+      </select>
+      <div class="mt-2 text-xs bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 p-3 rounded">
+        <span class="text-light-text-primary dark:text-amber-200 font-semibold">💡 Ejemplo con "Líder" y "Senior":</span>
+        <div class="mt-2 space-y-1">
+          <div class="text-light-text-primary dark:text-dark-text-primary"><strong class="text-light-text-primary dark:text-dark-text-primary">TODAS:</strong> Busca miembros que sean Líder <em>Y</em> Senior a la vez</div>
+          <div class="text-light-text-primary dark:text-dark-text-primary"><strong class="text-light-text-primary dark:text-dark-text-primary">AL MENOS UNA:</strong> Busca miembros que sean Líder <em>O</em> Senior</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-sm font-bold mb-2 text-light-text-primary dark:text-dark-text-primary flex items-center gap-1" for="cond-min-__IDX__">
+          <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clip-rule="evenodd"></path></svg>
+          Cantidad Mínima
+        </label>
+        <input id="cond-min-__IDX__" type="number" class="w-full px-3 py-2 text-lg rounded border-2 border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary condition-min focus:border-green-500 dark:focus:border-green-400 transition-colors" min="0" value="1">
+        <small class="text-light-text-secondary dark:text-dark-text-secondary text-xs mt-1 block">Cuántos miembros como mínimo</small>
+      </div>
+      <div>
+        <label class="block text-sm font-bold mb-2 text-light-text-primary dark:text-dark-text-primary flex items-center gap-1" for="cond-max-__IDX__">
+          <svg class="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clip-rule="evenodd"></path></svg>
+          Cantidad Máxima
+        </label>
+        <input id="cond-max-__IDX__" type="number" class="w-full px-3 py-2 text-lg rounded border-2 border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary condition-max focus:border-orange-500 dark:focus:border-orange-400 transition-colors" min="0" placeholder="Sin límite">
+        <small class="text-light-text-secondary dark:text-dark-text-secondary text-xs mt-1 block">Dejar vacío = sin límite máximo</small>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- Pasar datos del servidor a JavaScript de forma segura -->
+<script id="group-data" type="application/json">
+{
+  "groupId": {{ group.id }},
+  "categories": {{ categories_json|tojson }}
+}
+</script>
+
+<script>
+  // Cargar datos del servidor
+  (function() {
+    const groupData = JSON.parse(document.getElementById('group-data').textContent);
+    globalThis.GROUP_ID = groupData.groupId;
+    globalThis.CATEGORIES = groupData.categories;
+  })();
+
+  // Actualizar resumen visual en tiempo real
+  document.addEventListener('DOMContentLoaded', function() {
+    const numGroups = document.getElementById('num_groups');
+    const maxGroupSize = document.getElementById('max_group_size');
+    const threshold = document.getElementById('compatibility_threshold');
+    const summaryNumGroups = document.getElementById('summary-num-groups');
+    const summaryMaxSize = document.getElementById('summary-max-size');
+    const summaryThreshold = document.getElementById('summary-threshold');
+    const thresholdDisplay = document.getElementById('threshold_display');
+
+    function updateSummary() {
+      summaryNumGroups.innerHTML = 'Subgrupos: <b>' + (numGroups.value || '-') + '</b>';
+      summaryMaxSize.innerHTML = 'Máx. por subgrupo: <b>' + (maxGroupSize.value || 'Sin límite') + '</b>';
+      summaryThreshold.innerHTML = 'Compatibilidad mínima: <b>' + (threshold.value || '-') + '%</b>';
+      if (thresholdDisplay) thresholdDisplay.textContent = threshold.value + '%';
+    }
+    if (numGroups) numGroups.addEventListener('input', updateSummary);
+    if (maxGroupSize) maxGroupSize.addEventListener('input', updateSummary);
+    if (threshold) threshold.addEventListener('input', updateSummary);
+    updateSummary();
+  });
+</script>
+
+<script src="{{ url_for('static', filename='js/subgroups.js') }}"></script>
+<script>
+// Reemplaza __IDX__ por un índice único al clonar el template
+document.addEventListener('DOMContentLoaded', function() {
+  const rulesBuilder = document.getElementById('rules-builder');
+  if (!rulesBuilder) return;
+  let condCounter = 0;
+  // Hook para cuando se agregue una condición (esto es solo para accesibilidad)
+  rulesBuilder.addEventListener('click', function(e) {
+    if (e.target.closest('.add-condition-btn')) {
+      setTimeout(() => {
+        const lastCond = rulesBuilder.querySelectorAll('.condition-group');
+        if (lastCond.length) {
+          const cond = lastCond.at(-1);
+          cond.innerHTML = cond.innerHTML.replaceAll('__IDX__', condCounter);
+          condCounter++;
+        }
+      }, 10);
+    }
+  });
+});
+</script>
+{% endblock %}

@@ -1,14 +1,69 @@
 {% extends 'base.html' %}
 
+{% block title %}Crear Grupo{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-  <h2>Crear Grupo</h2>
-  <form method="POST">
-    <div class="mb-3">
-      <label for="group_name" class="form-label">Nombre del Grupo</label>
-      <input type="text" class="form-control" id="group_name" name="group_name" required>
+<div class="w-full max-w-2xl mx-auto">
+  <a href="{{ url_for('groups.index') }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 mb-4">Volver a Mis Grupos</a>
+
+  <div class="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border shadow">
+    <div class="px-5 py-4 border-b border-light-border dark:border-dark-border">
+      <h3 class="text-xl font-bold">Crear Nuevo Grupo</h3>
+      <p class="text-sm text-light-text-secondary dark:text-dark-text-secondary mt-1">Crea un grupo para coordinar disponibilidad horaria con tu equipo.</p>
     </div>
-    <button type="submit" class="btn btn-primary">Crear</button>
-  </form>
+    <div class="p-5">
+      <form method="POST" class="space-y-4" novalidate>
+        <div>
+          <label for="group_name" class="block text-sm font-medium mb-1">Nombre del Grupo <span class="text-red-500">*</span></label>
+          <input type="text" id="group_name" name="group_name" required minlength="3" maxlength="100" placeholder="Ej: Equipo de Desarrollo, Grupo de Estudio..." class="w-full px-3 py-2 rounded border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background focus:outline-none focus:ring-2 focus:ring-primary">
+          <p class="text-xs text-light-text-muted dark:text-dark-text-muted mt-1">Usa un nombre descriptivo que identifique fácilmente tu grupo</p>
+        </div>
+        <div class="rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-900/20 p-4 text-sm text-blue-800 dark:text-blue-200">
+          <strong>¿Qué sucede después?</strong>
+          <ul class="list-disc list-inside mt-2">
+            <li>Serás el propietario del grupo con permisos completos</li>
+            <li>Recibirás un enlace de invitación para compartir</li>
+            <li>Podrás configurar categorías y disponibilidad</li>
+          </ul>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <button type="submit" class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:opacity-90">Crear Grupo</button>
+          <a href="{{ url_for('groups.index') }}" class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="mt-4 rounded-xl border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card p-4">
+    <h6 class="font-semibold mb-2">¿Necesitas ayuda?</h6>
+    <p class="text-sm text-light-text-secondary dark:text-dark-text-secondary mb-2">Un grupo te permite coordinar horarios con múltiples personas. Después de crearlo, podrás:</p>
+    <ul class="text-sm text-light-text-secondary dark:text-dark-text-secondary list-disc list-inside">
+      <li>Invitar miembros y asignar roles (Owner, Admin, Member)</li>
+      <li>Crear categorías para organizar a los miembros</li>
+      <li>Definir bloques de disponibilidad horaria</li>
+      <li>Visualizar cuándo todos están disponibles</li>
+    </ul>
+  </div>
 </div>
+{% endblock %}
+
+{% block script %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const nameInput = document.getElementById('group_name');
+    nameInput?.focus();
+
+    const descInput = document.getElementById('group_description');
+    if (descInput) {
+      const maxLength = descInput.getAttribute('maxlength');
+      const counterDiv = document.createElement('div');
+      counterDiv.className = 'text-xs text-right text-light-text-secondary dark:text-dark-text-secondary mt-1';
+      counterDiv.innerHTML = `<span id="charCount">0</span>/${maxLength} caracteres`;
+      descInput.parentElement.appendChild(counterDiv);
+      descInput.addEventListener('input', () => {
+        document.getElementById('charCount').textContent = descInput.value.length;
+      });
+    }
+  });
+</script>
 {% endblock %}

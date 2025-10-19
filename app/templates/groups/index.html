@@ -1,51 +1,113 @@
 {% extends 'base.html' %}
 
+{% block title %}Mis Grupos{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-  <h2>Mis Grupos</h2>
-  <a href="{{ url_for('groups.create') }}" class="btn btn-success mb-3">Crear nuevo grupo</a>
-  <ul class="list-group">
-    {% for group in groups %}
-    <li class="list-group-item d-flex flex-column align-items-start">
-      <div class="d-flex justify-content-between align-items-center w-100">
-        <span>{{ group.name }}</span>
-        <div class="btn-group" role="group" aria-label="Group actions">
-          <a href="{{ url_for('groups.show', group_id=group.id) }}" class="btn btn-outline-secondary btn-sm">Ver grupo</a>
-        </div>
-      </div>
-      {% if group.owner_id == current_user.id %}
-      <div class="card mt-2 w-100 shadow-sm border-0">
-        <div class="card-body">
-          <label for="inviteLink-{{ group.id }}" class="form-label mb-1 fw-bold">Link de invitación:</label>
-          <div class="input-group">
-            <input type="text" class="form-control" value="{{ url_for('groups.join', token=group.join_token, _external=True) }}" id="inviteLink-{{ group.id }}" readonly>
-            <button class="btn btn-outline-secondary" onclick="copyToClipboard('{{ group.id }}')">Copiar</button>
+<div class="w-full">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+    <div>
+      <h2 class="text-2xl sm:text-3xl font-bold flex items-center gap-2 mb-1">
+        <svg class="w-7 h-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+        Mis Grupos
+      </h2>
+      <p class="text-light-text-secondary dark:text-dark-text-secondary text-sm">Gestiona tus grupos y coordina disponibilidad</p>
+    </div>
+    <a href="{{ url_for('groups.create') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white font-semibold shadow hover:scale-105 hover:bg-accent transition-all focus:outline-none focus:ring-2 focus:ring-primary">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+      Crear Nuevo Grupo
+    </a>
+  </div>
+
+  {% if groups %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {% for group in groups %}
+      <div class="animate-on-load">
+        <div class="flex flex-col h-full bg-light-card dark:bg-dark-card rounded-xl shadow hover:shadow-lg transition-all border border-light-border dark:border-dark-border">
+          <div class="flex-1 p-5 flex flex-col">
+            <div class="flex items-start justify-between mb-2">
+              <h3 class="text-lg font-bold flex items-center gap-2">
+                <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-5a4 4 0 11-8 0 4 4 0 018 0zm6 4v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5a2 2 0 012-2h12a2 2 0 012 2z" /></svg>
+                {{ group.name }}
+              </h3>
+              {% if group.owner_id == current_user.id %}
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-semibold" title="Eres el propietario">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.967a1 1 0 00.95.69h4.175c.969 0 1.371 1.24.588 1.81l-3.38 2.455a1 1 0 00-.364 1.118l1.287 3.966c.3.922-.755 1.688-1.54 1.118l-3.38-2.454a1 1 0 00-1.175 0l-3.38 2.454c-.784.57-1.838-.196-1.54-1.118l1.287-3.966a1 1 0 00-.364-1.118L2.049 9.394c-.783-.57-.38-1.81.588-1.81h4.175a1 1 0 00.95-.69l1.286-3.967z"/></svg>
+                  Owner
+                </span>
+              {% endif %}
+            </div>
+            <!-- Group Stats -->
+            <div class="flex gap-4 mb-4 text-xs text-light-text-muted dark:text-dark-text-muted">
+              <div title="Miembros" class="flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-5a4 4 0 11-8 0 4 4 0 018 0zm6 4v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5a2 2 0 012-2h12a2 2 0 012 2z" /></svg>
+                {{ group.members|length }}
+              </div>
+              <div title="Categorías" class="flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                {{ group.categories|length if group.categories else 0 }}
+              </div>
+            </div>
+            <div class="flex flex-col gap-2 mt-auto">
+              <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-primary text-primary font-semibold hover:bg-primary hover:text-white transition-all focus:outline-none focus:ring-2 focus:ring-primary">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Ver Grupo
+              </a>
+              {% if group.owner_id == current_user.id or (current_user in group.members and group.members[current_user].role == 'admin') %}
+              <a href="{{ url_for('subgroups.new', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-green-500 text-green-600 font-semibold hover:bg-green-500 hover:text-white transition-all focus:outline-none focus:ring-2 focus:ring-green-400 text-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                División Automática
+              </a>
+              {% endif %}
+            </div>
           </div>
+          {% if group.owner_id == current_user.id %}
+          <div class="bg-light-muted/20 dark:bg-dark-muted/20 border-t border-light-border dark:border-dark-border rounded-b-xl px-5 py-3">
+            <small class="text-xs text-light-text-muted dark:text-dark-text-muted font-semibold block mb-1">
+              <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 14.828a4 4 0 01-5.656-5.656m6.364 6.364A9 9 0 1112 3v1" /></svg>
+              Link de invitación:
+            </small>
+            <div class="flex gap-2">
+              <input type="text" class="flex-1 px-2 py-1 rounded border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background text-xs text-light-text-primary dark:text-dark-text-primary focus:ring-2 focus:ring-primary" value="{{ url_for('groups.join', token=group.join_token, _external=True) }}" id="inviteLink-{{ group.id }}" readonly>
+              <button type="button" onclick="copyInviteLink('{{ group.id }}')" class="px-2 py-1 rounded border border-light-border dark:border-dark-border bg-light-muted/30 dark:bg-dark-muted/30 hover:bg-primary hover:text-white transition-all text-xs" title="Copiar enlace">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16h8M8 12h8m-8-4h8" /></svg>
+              </button>
+            </div>
+          </div>
+          {% endif %}
         </div>
       </div>
-      {% endif %}
-    </li>
-    {% else %}
-    <li class="list-group-item text-muted">No perteneces a ningún grupo.</li>
-    {% endfor %}
-  </ul>
+      {% endfor %}
+    </div>
+  {% else %}
+    <!-- Empty State -->
+    <div class="flex flex-col items-center justify-center py-16 text-center">
+      <div class="mb-4">
+        <svg class="w-16 h-16 text-lightMuted dark:text-muted mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V7a2 2 0 00-2-2H6a2 2 0 00-2 2v6m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4" /></svg>
+      </div>
+      <h3 class="text-xl font-bold mb-2">No tienes grupos aún</h3>
+      <p class="text-light-text-secondary dark:text-dark-text-secondary mb-4">Crea tu primer grupo para empezar a coordinar horarios con tu equipo</p>
+      <a href="{{ url_for('groups.create') }}" class="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-primary text-white font-semibold shadow hover:scale-105 hover:bg-accent transition-all focus:outline-none focus:ring-2 focus:ring-primary text-lg">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+        Crear Mi Primer Grupo
+      </a>
+    </div>
+  {% endif %}
 </div>
 {% endblock %}
 
 {% block script %}
 <script>
-  function copyToClipboard(group_id) {
-    const copyText = document.getElementById(`inviteLink-${group_id}`);
-    if (!copyText) return alert("No se encontró el campo para copiar.");
-    copyText.select();
-    copyText.setSelectionRange(0, 99999);
-    navigator.clipboard.writeText(copyText.value)
-      .then(() => {
-        alert("Link copiado: " + copyText.value);
-      })
-      .catch(err => {
-        alert("Error al copiar: " + err);
-      });
+  // Copiar link de invitación al portapapeles
+  function copyInviteLink(groupId) {
+    const input = document.getElementById('inviteLink-' + groupId);
+    if (input) {
+      input.select();
+      input.setSelectionRange(0, 99999);
+      document.execCommand('copy');
+      input.classList.add('ring-2', 'ring-primary');
+      setTimeout(() => input.classList.remove('ring-2', 'ring-primary'), 1000);
+    }
   }
 </script>
 {% endblock %}

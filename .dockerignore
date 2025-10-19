@@ -1,15 +1,48 @@
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.log
-*.env
+# VCS
+.git
+.gitignore
+
+# OS/Editor
+.DS_Store
+.idea/
+.vscode/
+.history/
+
+# Python env and caches
 env/
 venv/
 .venv/
-build/
-dist/
+__pycache__/
+*.pyc
+*.pyo
 .pytest_cache/
 .mypy_cache/
-.DS_Store
+.ruff_cache/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-lock.yaml
+
+# Env files and secrets
+.env
+.env.*
 client_secret.json
+
+# Build artifacts
+build/
+dist/
+app/static/css/main.css
+app/static/css/*.map
+
+# Tests and docs (optional to speed up context)
+tests/
+docs/
+
+# Keep necessary Tailwind sources/manifests
+!package.json
+!package-lock.json
+!tailwind.config.js
+!app/static/css/tailwind.css

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Subgrupos - {{ group.name }}{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-7xl mx-auto">
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <div>
+      <h2 class="text-3xl font-bold flex items-center gap-2">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+        Subgrupos de {{ group.name }}
+      </h2>
+      <p class="text-light-text-secondary dark:text-dark-text-secondary mt-1">Vista de todos los subgrupos creados automáticamente</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="{{ url_for('subgroups.new', group_id=group.id) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded hover:opacity-90 transition-opacity">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        Nueva División
+      </a>
+      <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center gap-2 px-4 py-2 border border-light-border dark:border-dark-border rounded hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        Volver
+      </a>
+    </div>
+  </div>
+</div>
+
+
+{% if subgroups %}
+<div class="w-full max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  {% for subgroup in subgroups %}
+  <div class="bg-light-card dark:bg-dark-card rounded-lg shadow-sm border border-light-border dark:border-dark-border flex flex-col h-full">
+    <div class="{% if subgroup.auto_generated %}bg-blue-500{% else %}bg-light-muted dark:bg-dark-muted{% endif %} text-white px-4 py-3 rounded-t-lg">
+      <h5 class="font-bold flex items-center justify-between">
+        <span class="flex items-center gap-2">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"></path></svg>
+          {{ subgroup.name }}
+        </span>
+        {% if subgroup.auto_generated %}
+        <span class="bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary text-xs px-2 py-1 rounded" title="Generado automáticamente">
+          <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z"></path></svg>
+        </span>
+        {% endif %}
+      </h5>
+    </div>
+    <div class="p-4 flex-1">
+      <!-- Información básica -->
+      <div class="mb-3">
+        <p class="mb-1">
+          <strong class="flex items-center gap-1">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"></path></svg>
+            Miembros:
+          </strong> 
+          {{ subgroup.members|length }}
+        </p>
+        <p class="mb-1">
+          <strong class="flex items-center gap-1">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path></svg>
+            Creado:
+          </strong> 
+          {{ subgroup.created_at.strftime('%d/%m/%Y %H:%M') if subgroup.created_at else 'N/A' }}
+        </p>
+      </div>
+
+      <!-- Métricas (si está disponible en meta) -->
+      {% if subgroup.meta %}
+      <div class="mb-3">
+        {% if subgroup.meta.get('compatibility_avg') %}
+        <div class="mb-2">
+          <small class="text-light-text-secondary dark:text-dark-text-secondary block mb-1">Compatibilidad Promedio</small>
+          <div class="w-full bg-light-muted/30 dark:bg-dark-muted/30 rounded-full h-6">
+            <div class="bg-green-500 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold" 
+                 style="width: {{ (subgroup.meta.compatibility_avg * 100)|int }}%">
+              {{ (subgroup.meta.compatibility_avg * 100)|int }}%
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- Lista de miembros -->
+      <div class="mb-2">
+        <small class="text-light-text-secondary dark:text-dark-text-secondary block mb-2"><strong>Miembros:</strong></small>
+        <div class="border border-light-border dark:border-dark-border rounded max-h-48 overflow-y-auto">
+          {% for member in subgroup.members %}
+          <div class="px-2 py-1 text-sm flex items-center gap-1">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path></svg>
+            {{ member.user.name if member.user else 'Usuario desconocido' }}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="px-4 py-3 bg-light-muted/20 dark:bg-dark-muted/20 rounded-b-lg border-t border-light-border dark:border-dark-border">
+      <small class="text-light-text-muted dark:text-dark-text-muted flex items-center gap-1">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+        ID: {{ subgroup.id }}
+      </small>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="w-full max-w-7xl mx-auto">
+  <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-8 text-center">
+    <svg class="w-16 h-16 mx-auto mb-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+    <h5 class="text-xl font-bold mb-2">No hay subgrupos creados</h5>
+    <p class="mb-4 text-light-text-secondary dark:text-dark-text-secondary">Aún no se han creado subgrupos para este grupo.</p>
+    <a href="{{ url_for('subgroups.new', group_id=group.id) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded hover:opacity-90 transition-opacity">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+      Crear Primera División
+    </a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

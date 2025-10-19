@@ -1,44 +1,42 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container mt-5 d-flex justify-content-center">
-  <div style="min-width: 50%;">
-  <h2>Mi disponibilidad para el grupo</h2>
-  <form method="POST">
-    <table class="table table-bordered text-center mx-auto w-100" style="min-width: 50%; table-layout: auto;">
-      <thead>
-        <tr>
-          <th>Hora / Día</th>
-          {% for d in ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] %}
-            <th>{{ d }}</th>
-          {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for block_index, block_time in blocks %}
-        <tr>
-          <td>{{ block_time }}</td>
-          {% for day in range(0, 7) %}
-            <td class="p-0">
-            <input type="checkbox"
-                  class="btn-check"
-                  id="cb_{{ day }}_{{ block_index }}"
-                  name="day_{{ day }}_hour_{{ block_index }}"
-                  autocomplete="off"
-                  aria-label="Disponible el {{ d }} a las {{ block_time }}"
-                  {% if (day, block_index) in selected %}checked{% endif %}>
-            <label class="btn btn-outline-success w-100 h-100 m-0 py-4" for="cb_{{ day }}_{{ block_index }}"></label>
+<div class="w-full">
+  <h2 class="text-2xl font-bold mb-4">Mi disponibilidad para el grupo</h2>
+  <form method="POST" class="space-y-4">
+    <div class="overflow-x-auto">
+      <table class="w-full text-center border-collapse">
+        <thead>
+          <tr class="bg-light-muted/30 dark:bg-dark-muted/30 text-light-text-primary dark:text-dark-text-primary">
+            <th class="px-3 py-2 border border-light-border dark:border-dark-border">Hora / Día</th>
+            {% for d in ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] %}
+              <th class="px-3 py-2 border border-light-border dark:border-dark-border">{{ d }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for block_index, block_time in blocks %}
+          <tr class="odd:bg-light-background even:bg-light-surface dark:odd:bg-dark-background dark:even:bg-dark-surface">
+            <td class="px-3 py-2 border border-light-border dark:border-dark-border text-sm">{{ block_time }}</td>
+            {% for day in range(0, 7) %}
+            <td class="border border-light-border dark:border-dark-border p-0">
+              <input type="checkbox" id="cb_{{ day }}_{{ block_index }}" name="day_{{ day }}_hour_{{ block_index }}" class="peer sr-only" {% if (day, block_index) in selected %}checked{% endif %}>
+              <label for="cb_{{ day }}_{{ block_index }}" class="block w-full h-full py-4 cursor-pointer transition-all select-none text-sm
+                bg-light-background dark:bg-dark-background hover:bg-primary/10 dark:hover:bg-accent/10 
+                peer-checked:bg-green-500 peer-checked:text-white peer-checked:font-semibold">
+                <span class="sr-only">Disponible el {{ d }} a las {{ block_time }}</span>
+              </label>
             </td>
+            {% endfor %}
+          </tr>
           {% endfor %}
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <div class="d-flex justify-content-between mt-4">
-      <a href="{{ url_for('groups.show', group_id=group_id) }}" class="btn btn-outline-secondary px-5">Cancelar</a>
-      <button type="submit" class="btn btn-success px-5">Guardar disponibilidad</button>
+        </tbody>
+      </table>
+    </div>
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
+      <a href="{{ url_for('groups.show', group_id=group_id) }}" class="inline-flex items-center gap-2 px-5 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">Cancelar</a>
+      <button type="submit" class="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700">Guardar disponibilidad</button>
     </div>
   </form>
-    </div>
-  </div>
+</div>
 {% endblock %}
