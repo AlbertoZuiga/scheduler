@@ -3,112 +3,46 @@
 {% block title %}Crear Grupo{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-  <div class="row justify-content-center">
-    <div class="col-md-8 col-lg-6">
-      <!-- Back Button -->
-      <a href="{{ url_for('groups.index') }}" class="btn btn-outline-secondary mb-4">
-        <i class="bi bi-arrow-left me-2"></i>Volver a Mis Grupos
-      </a>
-      
-      <!-- Create Group Card -->
-      <div class="card shadow-lg border-0">
-        <div class="card-header bg-primary text-white">
-          <h3 class="mb-0">
-            <i class="bi bi-plus-circle me-2"></i>Crear Nuevo Grupo
-          </h3>
+<div class="w-full max-w-2xl mx-auto">
+  <a href="{{ url_for('groups.index') }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 mb-4">Volver a Mis Grupos</a>
+
+  <div class="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border shadow">
+    <div class="px-5 py-4 border-b border-light-border dark:border-dark-border">
+      <h3 class="text-xl font-bold">Crear Nuevo Grupo</h3>
+      <p class="text-sm text-light-text-secondary dark:text-dark-text-secondary mt-1">Crea un grupo para coordinar disponibilidad horaria con tu equipo.</p>
+    </div>
+    <div class="p-5">
+      <form method="POST" class="space-y-4" novalidate>
+        <div>
+          <label for="group_name" class="block text-sm font-medium mb-1">Nombre del Grupo <span class="text-red-500">*</span></label>
+          <input type="text" id="group_name" name="group_name" required minlength="3" maxlength="100" placeholder="Ej: Equipo de Desarrollo, Grupo de Estudio..." class="w-full px-3 py-2 rounded border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background focus:outline-none focus:ring-2 focus:ring-primary">
+          <p class="text-xs text-light-text-muted dark:text-dark-text-muted mt-1">Usa un nombre descriptivo que identifique fácilmente tu grupo</p>
         </div>
-        <div class="card-body p-4">
-          <p class="text-muted mb-4">
-            <i class="bi bi-info-circle me-2"></i>
-            Crea un grupo para coordinar disponibilidad horaria con tu equipo. Podrás invitar miembros y gestionar sus roles después.
-          </p>
-          
-          <form method="POST" class="needs-validation" novalidate data-loader>
-            <div class="mb-4">
-              <label for="group_name" class="form-label fw-bold">
-                <i class="bi bi-pencil me-2"></i>Nombre del Grupo
-                <span class="text-danger">*</span>
-              </label>
-              <input 
-                type="text" 
-                class="form-control form-control-lg" 
-                id="group_name" 
-                name="group_name" 
-                placeholder="Ej: Equipo de Desarrollo, Grupo de Estudio..."
-                required
-                minlength="3"
-                maxlength="100"
-              >
-              <div class="invalid-feedback">
-                Por favor, ingresa un nombre para el grupo (mínimo 3 caracteres).
-              </div>
-              <div class="form-text">
-                <i class="bi bi-lightbulb me-1"></i>
-                Usa un nombre descriptivo que identifique fácilmente tu grupo
-              </div>
-            </div>
-
-            <div class="mb-4">
-              <label for="group_description" class="form-label fw-bold">
-                <i class="bi bi-text-paragraph me-2"></i>Descripción (Opcional)
-              </label>
-              <textarea 
-                class="form-control" 
-                id="group_description" 
-                name="group_description" 
-                rows="3" 
-                placeholder="Describe el propósito del grupo..."
-                maxlength="500"
-                data-auto-resize
-              ></textarea>
-              <div class="form-text">
-                Máximo 500 caracteres
-              </div>
-            </div>
-
-            <div class="alert alert-info d-flex align-items-start">
-              <i class="bi bi-info-circle-fill me-3 fs-5"></i>
-              <div>
-                <strong>¿Qué sucede después?</strong>
-                <ul class="mb-0 mt-2 small">
-                  <li>Serás el propietario del grupo con permisos completos</li>
-                  <li>Recibirás un enlace de invitación para compartir</li>
-                  <li>Podrás configurar categorías y disponibilidad</li>
-                </ul>
-              </div>
-            </div>
-
-            <div class="d-grid gap-2">
-              <button type="submit" class="btn btn-primary btn-lg">
-                <i class="bi bi-check-circle me-2"></i>Crear Grupo
-              </button>
-              <a href="{{ url_for('groups.index') }}" class="btn btn-outline-secondary">
-                Cancelar
-              </a>
-            </div>
-          </form>
-        </div>
-      </div>
-      
-      <!-- Help Card -->
-      <div class="card mt-4 border-0 bg-light">
-        <div class="card-body">
-          <h6 class="fw-bold mb-3">
-            <i class="bi bi-question-circle me-2"></i>¿Necesitas ayuda?
-          </h6>
-          <p class="small text-muted mb-2">
-            Un grupo te permite coordinar horarios con múltiples personas. Después de crearlo, podrás:
-          </p>
-          <ul class="small text-muted mb-0">
-            <li>Invitar miembros y asignar roles (Owner, Admin, Member)</li>
-            <li>Crear categorías para organizar a los miembros</li>
-            <li>Definir bloques de disponibilidad horaria</li>
-            <li>Visualizar cuándo todos están disponibles</li>
+        <div class="rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-900/20 p-4 text-sm text-blue-800 dark:text-blue-200">
+          <strong>¿Qué sucede después?</strong>
+          <ul class="list-disc list-inside mt-2">
+            <li>Serás el propietario del grupo con permisos completos</li>
+            <li>Recibirás un enlace de invitación para compartir</li>
+            <li>Podrás configurar categorías y disponibilidad</li>
           </ul>
         </div>
-      </div>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <button type="submit" class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:opacity-90">Crear Grupo</button>
+          <a href="{{ url_for('groups.index') }}" class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">Cancelar</a>
+        </div>
+      </form>
     </div>
+  </div>
+
+  <div class="mt-4 rounded-xl border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card p-4">
+    <h6 class="font-semibold mb-2">¿Necesitas ayuda?</h6>
+    <p class="text-sm text-light-text-secondary dark:text-dark-text-secondary mb-2">Un grupo te permite coordinar horarios con múltiples personas. Después de crearlo, podrás:</p>
+    <ul class="text-sm text-light-text-secondary dark:text-dark-text-secondary list-disc list-inside">
+      <li>Invitar miembros y asignar roles (Owner, Admin, Member)</li>
+      <li>Crear categorías para organizar a los miembros</li>
+      <li>Definir bloques de disponibilidad horaria</li>
+      <li>Visualizar cuándo todos están disponibles</li>
+    </ul>
   </div>
 </div>
 {% endblock %}
@@ -116,21 +50,16 @@
 {% block script %}
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    const form = document.querySelector('form');
     const nameInput = document.getElementById('group_name');
-    
-    // Focus on name input
-    nameInput.focus();
-    
-    // Character counter for description
+    nameInput?.focus();
+
     const descInput = document.getElementById('group_description');
     if (descInput) {
       const maxLength = descInput.getAttribute('maxlength');
       const counterDiv = document.createElement('div');
-      counterDiv.className = 'form-text text-end';
+      counterDiv.className = 'text-xs text-right text-light-text-secondary dark:text-dark-text-secondary mt-1';
       counterDiv.innerHTML = `<span id="charCount">0</span>/${maxLength} caracteres`;
       descInput.parentElement.appendChild(counterDiv);
-      
       descInput.addEventListener('input', () => {
         document.getElementById('charCount').textContent = descInput.value.length;
       });

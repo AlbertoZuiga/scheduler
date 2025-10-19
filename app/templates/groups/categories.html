@@ -1,30 +1,26 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container mt-4">
-  <h3>Categorías del grupo: {{ group.name }}</h3>
-  <ul class="list-group mb-3">
+<div class="w-full max-w-3xl mx-auto">
+  <h3 class="text-2xl font-bold mb-4">Categorías del grupo: {{ group.name }}</h3>
+  <ul class="space-y-2 mb-4">
     {% for cat in categories %}
-    <li class="list-group-item d-flex justify-content-between align-items-center">
-      {{ cat.name }}
-      <form method="POST" action="{{ url_for('categories.group_categories', group_id=group.id) }}" class="d-inline-block">
+    <li class="flex items-center justify-between px-4 py-3 bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border">
+      <span>{{ cat.name }}</span>
+      <form method="POST" action="{{ url_for('categories.group_categories', group_id=group.id) }}" class="inline-block">
         <!-- placeholder: delete action could be added -->
       </form>
     </li>
     {% else %}
-    <li class="list-group-item text-muted">No hay categorías aún.</li>
+    <li class="text-light-text-secondary dark:text-dark-text-secondary">No hay categorías aún.</li>
     {% endfor %}
   </ul>
 
-  <form method="POST" action="{{ url_for('categories.group_categories', group_id=group.id) }}" class="row g-2">
-    <div class="col-auto">
-      <input type="text" name="name" class="form-control" placeholder="Nombre categoría" required>
-    </div>
-    <div class="col-auto">
-      <button class="btn btn-primary">Crear</button>
-    </div>
+  <form method="POST" action="{{ url_for('categories.group_categories', group_id=group.id) }}" class="flex gap-2 mb-4">
+    <input type="text" name="name" class="flex-1 px-3 py-2 rounded border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background" placeholder="Nombre categoría" required>
+    <button class="px-4 py-2 rounded bg-primary text-white hover:opacity-90 transition-opacity">Crear</button>
   </form>
 
-  <a href="{{ url_for('groups.show', group_id=group.id) }}" class="btn btn-secondary mt-3">Volver</a>
+  <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center px-3 py-2 rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition-colors">Volver</a>
 </div>
 {% endblock %}

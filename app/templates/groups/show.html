@@ -1,194 +1,210 @@
 {% extends 'base.html' %}
 
-{% block content %}    
-<h1 class="mb-4">Grupo: {{ group.name }}</h1>
+{% block content %}
+<div class="w-full">
+  <!-- Page Header -->
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold mb-1">{{ group.name }}</h1>
+    <p class="text-light-text-secondary dark:text-dark-text-secondary">Gestiona la disponibilidad y categorías del grupo</p>
+  </div>
 
-<div class="d-flex mb-3 align-items-start flex-wrap">
-  <a href="{{ url_for('groups.index') }}" class="btn btn-outline-secondary me-2 mb-2">🔙 Volver</a>  
-  {% if current_user.id == group.owner_id %}
-    <a href="{{ url_for('groups.members', group_id=group.id) }}" class="btn btn-info me-2 mb-2">👥 Miembros</a>
-    <a href="{{ url_for('subgroups.new', group_id=group.id) }}" class="btn btn-success me-2 mb-2">🎯 División Automática</a>
-    <a href="{{ url_for('subgroups.index', group_id=group.id) }}" class="btn btn-outline-success me-2 mb-2">📋 Ver Subgrupos</a>
-    <form method="POST" action="{{ url_for('groups.delete', group_id=group.id) }}"
-          onsubmit="return confirm('¿Estás seguro de que deseas eliminar este grupo?');"
-          class="d-inline-block me-2 mb-2">
-      <button type="submit" class="btn btn-danger">🗑️ Eliminar grupo</button>
-    </form>
-  {% elif is_admin %}
-    <a href="{{ url_for('groups.members', group_id=group.id) }}" class="btn btn-info me-2 mb-2">👥 Miembros</a>
-    <a href="{{ url_for('subgroups.new', group_id=group.id) }}" class="btn btn-success me-2 mb-2">🎯 División Automática</a>
-    <a href="{{ url_for('subgroups.index', group_id=group.id) }}" class="btn btn-outline-success me-2 mb-2">📋 Ver Subgrupos</a>
-    <form method="POST" action="{{ url_for('groups.leave', group_id=group.id) }}" onsubmit="return confirm('¿Estás seguro de que deseas abandonar este grupo?');" class="d-inline-block me-2 mb-2">
-      <button type="submit" class="btn btn-danger">🗑️ Salir del grupo</button>
-    </form>
-  {% else %}
-    <a href="{{ url_for('subgroups.index', group_id=group.id) }}" class="btn btn-outline-success me-2 mb-2">📋 Ver Subgrupos</a>
-    <form method="POST" action="{{ url_for('groups.leave', group_id=group.id) }}" onsubmit="return confirm('¿Estás seguro de que deseas abandonar este grupo?');" class="d-inline-block me-2 mb-2">
-      <button type="submit" class="btn btn-danger">🗑️ Salir del grupo</button>
-    </form>
-  {% endif %}
-</div>
+  <!-- Action Buttons -->
+  <div class="flex flex-wrap gap-2 mb-6">
+    <a href="{{ url_for('groups.index') }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition focus:outline-none focus:ring-2 focus:ring-primary">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+      Volver
+    </a>
+    {% if current_user.id == group.owner_id %}
+      <a href="{{ url_for('groups.members', group_id=group.id) }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition focus:outline-none focus:ring-2 focus:ring-blue-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+        Miembros
+      </a>
+      <a href="{{ url_for('subgroups.new', group_id=group.id) }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition focus:outline-none focus:ring-2 focus:ring-green-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+        División Automática
+      </a>
+      <a href="{{ url_for('subgroups.index', group_id=group.id) }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-green-500 text-green-600 hover:bg-green-500 hover:text-white transition focus:outline-none focus:ring-2 focus:ring-green-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+        Ver Subgrupos
+      </a>
+      <form method="POST" action="{{ url_for('groups.delete', group_id=group.id) }}" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este grupo?');" class="inline-block">
+        <button type="submit" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition focus:outline-none focus:ring-2 focus:ring-red-400">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+          Eliminar grupo
+        </button>
+      </form>
+    {% elif is_admin %}
+      <a href="{{ url_for('groups.members', group_id=group.id) }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition focus:outline-none focus:ring-2 focus:ring-blue-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+        Miembros
+      </a>
+      <a href="{{ url_for('subgroups.new', group_id=group.id) }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition focus:outline-none focus:ring-2 focus:ring-green-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+        División Automática
+      </a>
+      <a href="{{ url_for('subgroups.index', group_id=group.id) }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-green-500 text-green-600 hover:bg-green-500 hover:text-white transition focus:outline-none focus:ring-2 focus:ring-green-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+        Ver Subgrupos
+      </a>
+      <form method="POST" action="{{ url_for('groups.leave', group_id=group.id) }}" onsubmit="return confirm('¿Estás seguro de que deseas abandonar este grupo?');" class="inline-block">
+        <button type="submit" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition focus:outline-none focus:ring-2 focus:ring-red-400">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+          Salir del grupo
+        </button>
+      </form>
+    {% else %}
+      <a href="{{ url_for('subgroups.index', group_id=group.id) }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-green-500 text-green-600 hover:bg-green-500 hover:text-white transition focus:outline-none focus:ring-2 focus:ring-green-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+        Ver Subgrupos
+      </a>
+      <form method="POST" action="{{ url_for('groups.leave', group_id=group.id) }}" onsubmit="return confirm('¿Estás seguro de que deseas abandonar este grupo?');" class="inline-block">
+        <button type="submit" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition focus:outline-none focus:ring-2 focus:ring-red-400">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+          Salir del grupo
+        </button>
+      </form>
+    {% endif %}
+  </div>
 
 {% set weekdays = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"] %}
 
-<div class="table-responsive mt-4">
-  <table class="table table-bordered text-center align-middle table-striped table-hover">
-    <thead class="table-light">
-      <tr>
-        <th>Bloque</th>
-        {% for day in weekdays %}
-          <th>{{ day }}</th>
+<div class="mt-6 space-y-6">
+  {% if (current_user.id == group.owner_id or is_admin) and availability_data %}
+  <section class="space-y-4">
+    <details class="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-lg p-4" open>
+      <summary class="cursor-pointer font-semibold">Horarios en los que pueden todos</summary>
+      <ul class="mt-3 list-disc list-inside text-sm text-light-text-secondary dark:text-dark-text-secondary">
+        {% for availability_id, data in availability_data.items() %}
+          {% if data.count_users == user_info_map|length %}
+            <li>{{ weekdays[data.availability.weekday] }} {{ convert_float_to_time_string(data.availability.hour) }}</li>
+          {% endif %}
         {% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-        {% if (current_user.id == group.owner_id or is_admin) and availability_data %}
-          <div class="accordion mb-4" id="availabilityAccordion">
-            <div class="accordion-item">
-              <h2 class="accordion-header" id="headingCanAll">
-                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCanAll" aria-expanded="true" aria-controls="collapseCanAll">
-                  Horarios en los que pueden todos
-                </button>
-              </h2>
-              <div id="collapseCanAll" class="accordion-collapse collapse show" aria-labelledby="headingCanAll" data-bs-parent="#availabilityAccordion">
-                <div class="accordion-body">
-                  <ul class="list-group list-group-flush">
-                    {% for availability_id, data in availability_data.items() %}
-                      {% if data.count_users == user_info_map|length %}
-                        <li class="list-group-item">{{ weekdays[data.availability.weekday] }} {{ convert_float_to_time_string(data.availability.hour) }}</li>
-                      {% endif %}
-                    {% endfor %}
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <div class="accordion-item">
-              <h2 class="accordion-header" id="headingCannotAll">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCannotAll" aria-expanded="false" aria-controls="collapseCannotAll">
-                  Horarios en los que no pueden todos
-                </button>
-              </h2>
-              <div id="collapseCannotAll" class="accordion-collapse collapse" aria-labelledby="headingCannotAll" data-bs-parent="#availabilityAccordion">
-                <div class="accordion-body">
-                  <div class="accordion" id="partialAvailabilityAccordion">
-                    {% for availability_id, data in availability_data.items() %}
-                      {% if data.count_users < user_info_map|length %}
-                        <div class="accordion-item">
-                          <h2 class="accordion-header" id="heading{{ loop.index }}">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" aria-expanded="false" aria-controls="collapse{{ loop.index }}">
-                              {{ weekdays[data.availability.weekday] }} {{ convert_float_to_time_string(data.availability.hour) }} — {{ data.count_users }} {{ "personas disponibles" if data.count_users > 1 else "persona disponible" }}:
-                            </button>
-                          </h2>
-                          <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" aria-labelledby="heading{{ loop.index }}" data-bs-parent="#partialAvailabilityAccordion">
-                            <div class="accordion-body">
-                              <ul class="list-group list-group-flush">
-                                {% for user_id in data.users %}
-                                  {% if user_id in user_info_map %}
-                                  <li class="list-group-item">
-                                    <span class="badge {{ color_map.get(user_id, 'bg-secondary') }} d-block mb-1">{{ user_info_map[user_id].name }} {{ user_info_map[user_id].email }}</span>
-                                  </li>
-                                  {% endif %}
-                                {% endfor %}
-                              </ul>
-                            </div>
-                          </div>
-                        </div>
-                      {% endif %}
-                    {% endfor %}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        {% endif %}
-
-        <a href="{{ url_for('groups.availability', group_id=group.id) }}" class="btn btn-outline-primary my-4">📝 Editar disponibilidad</a>
-
-        {% for block in blocks %}
-        {% set block_index = loop.index0 %}
-        <tr>
-          <td>{{ block }}</td>
-          {% for day_index in range(0, 7) %}
-            <td>
-              {% if current_user.id == group.owner_id or is_admin %}
-                {% for user_id, weekday, hour in availability %}
-                  {% if (weekday, blocks[hour|int - 8]) == (day_index, blocks[block_index]) %}
-                    {% set user_name = user_info_map[user_id].name %}
-                    {% set color = color_map[user_id] %}
-                    <span class="badge {{ color }} d-block mb-1">{{ user_name }}</span>
-                  {% endif %}
-                {% endfor %}
-              {% else %}
-                {% if (day_index, block) in selected %}
-                  <span class="badge bg-primary">Disponible</span>
+      </ul>
+    </details>
+    <details class="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-lg p-4">
+      <summary class="cursor-pointer font-semibold">Horarios en los que no pueden todos</summary>
+      <div class="mt-3 space-y-3">
+        {% for availability_id, data in availability_data.items() %}
+          {% if data.count_users < user_info_map|length %}
+          <details class="bg-light-surface dark:bg-dark-surface border border-light-border dark:border-dark-border rounded p-3">
+            <summary class="cursor-pointer text-sm">
+              {{ weekdays[data.availability.weekday] }} {{ convert_float_to_time_string(data.availability.hour) }} — {{ data.count_users }} {{ "personas disponibles" if data.count_users > 1 else "persona disponible" }}
+            </summary>
+            <ul class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {% for user_id in data.users %}
+                {% if user_id in user_info_map %}
+                <li>
+                  <span class="inline-block text-xs px-2 py-1 rounded bg-light-muted/40 dark:bg-dark-muted/40">{{ user_info_map[user_id].name }} {{ user_info_map[user_id].email }}</span>
+                </li>
                 {% endif %}
-              {% endif %}
-            </td>
+              {% endfor %}
+            </ul>
+          </details>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </details>
+  </section>
+  {% endif %}
+
+  <a href="{{ url_for('groups.availability', group_id=group.id) }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-primary text-primary hover:bg-primary hover:text-white transition focus:outline-none focus:ring-2 focus:ring-primary">📝 Editar disponibilidad</a>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-center align-middle border-collapse">
+      <thead>
+        <tr class="bg-light-muted/30 dark:bg-dark-muted/30">
+          <th class="px-3 py-2 border border-light-border dark:border-dark-border">Bloque</th>
+          {% for day in weekdays %}
+            <th class="px-3 py-2 border border-light-border dark:border-dark-border">{{ day }}</th>
           {% endfor %}
         </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {% for block in blocks %}
+        {% set block_index = loop.index0 %}
+        <tr class="odd:bg-light-background even:bg-light-surface dark:odd:bg-dark-background dark:even:bg-dark-surface">
+          <td class="px-3 py-2 border border-light-border dark:border-dark-border text-sm">{{ block }}</td>
+          {% for day_index in range(0, 7) %}
+          <td class="px-3 py-2 border border-light-border dark:border-dark-border align-top">
+            <div class="space-y-1">
+            {% if current_user.id == group.owner_id or is_admin %}
+              {% for user_id, weekday, hour in availability %}
+                {% if (weekday, blocks[hour|int - 8]) == (day_index, blocks[block_index]) %}
+                  {% set user_name = user_info_map[user_id].name %}
+                  {% set color = color_map[user_id] %}
+                  <span class="inline-block text-xs px-2 py-0.5 rounded {{ 'bg-blue-500 text-white' if 'bg-primary' in color else 'bg-light-muted/40 dark:bg-dark-muted/40' }}">{{ user_name }}</span>
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              {% if (day_index, block) in selected %}
+                <span class="inline-block text-xs px-2 py-0.5 rounded bg-primary text-white">Disponible</span>
+              {% endif %}
+            {% endif %}
+            </div>
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
 
-<div class="mt-5">
-  <div class="d-flex justify-content-between align-items-center mb-2">
-    <h3>Categorías</h3>
+<div class="mt-8">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="text-xl font-bold">Categorías</h3>
     {% if can_manage %}
-    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#bulkAssignModal">Asignar en bloque</button>
+    <button id="openBulkAssign" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition">Asignar en bloque</button>
     {% endif %}
   </div>
   {% if can_manage %}
-  <form id="createCategoryForm" class="row g-2 mb-3" autocomplete="off" novalidate>
-    <div class="col-12 col-md-6">
-      <input type="text" id="newCategoryName" class="form-control" placeholder="Nueva categoría (p. ej. Backend, Diseño)" required>
-      <div id="nameFeedback" class="form-text"></div>
+  <form id="createCategoryForm" class="flex flex-col sm:flex-row gap-2 mb-4" autocomplete="off" novalidate>
+    <div class="flex-1">
+      <input type="text" id="newCategoryName" class="w-full px-3 py-2 rounded border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background" placeholder="Nueva categoría (p. ej. Backend, Diseño)" required>
+      <div id="nameFeedback" class="text-xs mt-1"></div>
     </div>
-    <div class="col-auto">
-      <button type="submit" class="btn btn-primary" id="createCategoryBtn" disabled>
-        <i class="bi bi-plus-circle me-1"></i>Crear categoría
+    <div>
+      <button type="submit" class="px-4 py-2 rounded bg-primary text-white disabled:opacity-50" id="createCategoryBtn" disabled>
+        Crear categoría
       </button>
     </div>
   </form>
   {% endif %}
-  <div id="categoriesList" class="row g-3"></div>
+  <div id="categoriesList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 </div>
 
 {% if can_manage %}
-<!-- Modal Asignación en bloque -->
-<div class="modal fade" id="bulkAssignModal" tabindex="-1" aria-labelledby="bulkAssignModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="bulkAssignModalLabel">Asignar categorías a miembros</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<!-- Modal Asignación en bloque (Tailwind) -->
+<div id="bulkAssignModal" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/40" data-close="true"></div>
+  <div class="relative mx-auto my-10 w-[95%] max-w-3xl bg-light-card dark:bg-dark-card rounded-xl shadow-lg border border-light-border dark:border-dark-border">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-light-border dark:border-dark-border">
+      <h5 class="font-bold">Asignar categorías a miembros</h5>
+      <button class="p-2 rounded hover:bg-light-muted/30 dark:hover:bg-dark-muted/30" data-close="true" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-auto">
+      <div>
+        <h6 class="mb-2 font-semibold">Miembros</h6>
+        <div id="bulkMembers" class="border border-light-border dark:border-dark-border rounded p-2 space-y-1 max-h-64 overflow-auto"></div>
       </div>
-      <div class="modal-body">
-        <div class="row">
-          <div class="col-12 col-md-6">
-            <h6 class="mb-2">Miembros</h6>
-            <div id="bulkMembers" class="list-group border rounded" style="max-height: 300px; overflow:auto;"></div>
-          </div>
-          <div class="col-12 col-md-6">
-            <h6 class="mb-2">Categorías</h6>
-            <div id="bulkCategories" class="list-group border rounded" style="max-height: 300px; overflow:auto;"></div>
-          </div>
-        </div>
+      <div>
+        <h6 class="mb-2 font-semibold">Categorías</h6>
+        <div id="bulkCategories" class="border border-light-border dark:border-dark-border rounded p-2 space-y-1 max-h-64 overflow-auto"></div>
       </div>
-      <div class="modal-footer d-flex justify-content-between">
-        <div class="d-flex gap-2">
-          <button type="button" class="btn btn-outline-secondary" id="selectAllMembers">Todos miembros</button>
-          <button type="button" class="btn btn-outline-secondary" id="selectAllCategories">Todas categorías</button>
-        </div>
-        <div class="d-flex gap-2">
-          <button type="button" class="btn btn-outline-danger" id="unassignSelected">Desasignar</button>
-          <button type="button" class="btn btn-primary" id="assignSelected">Asignar</button>
-        </div>
+    </div>
+    <div class="flex items-center justify-between px-4 py-3 border-t border-light-border dark:border-dark-border">
+      <div class="space-x-2">
+        <button type="button" class="px-3 py-2 rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30" id="selectAllMembers">Todos miembros</button>
+        <button type="button" class="px-3 py-2 rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30" id="selectAllCategories">Todas categorías</button>
+      </div>
+      <div class="space-x-2">
+        <button type="button" class="px-3 py-2 rounded border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" id="unassignSelected">Desasignar</button>
+        <button type="button" class="px-3 py-2 rounded bg-primary text-white hover:opacity-90" id="assignSelected">Asignar</button>
       </div>
     </div>
   </div>
+  <div class="h-10"></div>
 </div>
 {% endif %}
 
@@ -219,12 +235,19 @@
 
   function showInlineAlert(message, type = 'success') {
     const container = document.querySelector('main');
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>`;
-    container.prepend(wrapper.firstElementChild);
+    const el = document.createElement('div');
+    const styleMap = {
+      success: 'bg-green-50 text-green-800 border-green-200',
+      danger: 'bg-red-50 text-red-800 border-red-200',
+      warning: 'bg-yellow-50 text-yellow-800 border-yellow-200',
+      info: 'bg-blue-50 text-blue-800 border-blue-200'
+    };
+    el.setAttribute('role', 'alert');
+    el.className = `flex items-start justify-between gap-4 rounded-lg border px-4 py-3 text-sm ${styleMap[type] || 'bg-light-surface text-light-text-primary border-light-border dark:bg-dark-surface dark:text-dark-text-primary dark:border-dark-border'}`;
+    el.innerHTML = `<div>${message}</div><button class="p-1 rounded hover:bg-black/5 dark:hover:bg-white/5" aria-label="Cerrar">✕</button>`;
+    el.querySelector('button')?.addEventListener('click', () => el.remove());
+    container?.prepend(el);
+    setTimeout(() => el.remove(), 4000);
   }
 
   // Helper to resolve group_member id to display name
@@ -235,35 +258,31 @@
 
   // Render categories list with member badges
   async function loadCategories() {
-    const list = document.getElementById('categoriesList');
-    list.innerHTML = '<div class="text-muted">Cargando categorías…</div>';
+  const list = document.getElementById('categoriesList');
+  list.innerHTML = '<div class="text-light-text-secondary dark:text-dark-text-secondary">Cargando categorías…</div>';
     try {
       const res = await fetch(`/categories/group/${GROUP_ID}`, { headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error('Error al cargar categorías');
       const data = await res.json();
-      if (!Array.isArray(data)) { list.innerHTML = '<span class="text-muted">Sin datos</span>'; return; }
-      if (data.length === 0) { list.innerHTML = '<span class="text-muted">No hay categorías aún.</span>'; return; }
+      if (!Array.isArray(data)) { list.innerHTML = '<span class="text-light-text-secondary dark:text-dark-text-secondary">Sin datos</span>'; return; }
+      if (data.length === 0) { list.innerHTML = '<span class="text-light-text-secondary dark:text-dark-text-secondary">No hay categorías aún.</span>'; return; }
       list.innerHTML = '';
       for (const c of data) {
-        const col = document.createElement('div');
-        col.className = 'col-12 col-md-6 col-lg-4';
         const count = Array.isArray(c.member_ids) ? c.member_ids.length : (c.count || 0);
-        const membersHtml = (c.member_ids || []).map(gmId => `<span class="badge bg-light text-dark border me-1 mb-1">${memberNameByGmId(gmId)}</span>`).join(' ');
-        
+        const membersHtml = (c.member_ids || []).map(gmId => `<span class="inline-block text-xs rounded px-2 py-1 bg-light-muted/40 dark:bg-dark-muted/40 text-light-text-primary dark:text-dark-text-primary mr-1 mb-1">${memberNameByGmId(gmId)}</span>`).join(' ');
+
         const card = document.createElement('div');
-        card.className = 'card h-100';
+        card.className = 'bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border shadow p-4 flex flex-col gap-2';
         card.innerHTML = `
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <h6 class="card-title mb-0">${c.name}</h6>
-              <div class="d-flex gap-1 align-items-center">
-                <span class="badge bg-secondary">${count}</span>
-                ${CAN_MANAGE ? '<button class="btn btn-sm btn-outline-danger delete-category-btn"><i class="bi bi-trash"></i></button>' : ''}
-              </div>
+          <div class="flex items-center justify-between">
+            <h6 class="font-semibold">${c.name}</h6>
+            <div class="flex items-center gap-2">
+              <span class="inline-flex items-center justify-center w-6 h-6 text-xs rounded-full bg-light-muted/40 dark:bg-dark-muted/40 text-light-text-primary dark:text-dark-text-primary">${count}</span>
+              ${CAN_MANAGE ? '<button class="px-2 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 delete-category-btn">Eliminar</button>' : ''}
             </div>
-            <div>${membersHtml || '<span class="text-muted">Sin miembros asignados</span>'}</div>
-          </div>`;
-        
+          </div>
+          <div>${membersHtml || '<span class="text-light-text-secondary dark:text-dark-text-secondary">Sin miembros asignados</span>'}</div>`;
+
         // Add event listener to delete button if user can manage
         if (CAN_MANAGE) {
           const deleteBtn = card.querySelector('.delete-category-btn');
@@ -271,13 +290,11 @@
             deleteBtn.addEventListener('click', () => deleteCategory(c.id, c.name));
           }
         }
-        
-        col.appendChild(card);
-        list.appendChild(col);
+        list.appendChild(card);
       }
     } catch (err) {
       console.error('Error loading categories:', err);
-      list.innerHTML = '<span class="text-danger">Error al cargar categorías</span>';
+      list.innerHTML = '<span class="text-red-600">Error al cargar categorías</span>';
     }
   }
 
@@ -369,8 +386,8 @@
     const btnAllMembers = document.getElementById('selectAllMembers');
     const btnAllCategories = document.getElementById('selectAllCategories');
 
-    const modal = document.getElementById('bulkAssignModal');
-    modal?.addEventListener('show.bs.modal', async () => {
+  const modal = document.getElementById('bulkAssignModal');
+  async function populateModal() {
       // Load members from DOM info in availability table (we have user_info_map server-side but not ids here)
       // Fetch members via a simple endpoint using existing members page would be heavy; instead, reuse DOM from server via a hidden dataset.
       // We'll request categories JSON and members list from a minimal endpoint in group show context: members are not exposed here, so we derive from table variables is not trivial.
@@ -382,18 +399,32 @@
       membersContainer.innerHTML = '';
       for (const m of members) {
         const item = document.createElement('label');
-        item.className = 'list-group-item d-flex align-items-center gap-2';
-        item.innerHTML = `<input type="checkbox" class="form-check-input me-2" value="${m.group_member_id}"> <span>${m.name} <small class="text-muted">${m.email}</small></span>`;
+        item.className = 'flex items-center gap-2 p-2 rounded hover:bg-light-surface dark:hover:bg-dark-surface';
+        item.innerHTML = `<input type="checkbox" class="accent-primary" value="${m.group_member_id}"> <span>${m.name} <small class="text-light-text-secondary dark:text-dark-text-secondary">${m.email}</small></span>`;
         membersContainer.appendChild(item);
       }
       categoriesContainer.innerHTML = '';
       for (const c of categories) {
         const item = document.createElement('label');
-        item.className = 'list-group-item d-flex align-items-center gap-2';
-        item.innerHTML = `<input type="checkbox" class="form-check-input me-2" value="${c.id}"> <span>${c.name}</span>`;
+        item.className = 'flex items-center gap-2 p-2 rounded hover:bg-light-surface dark:hover:bg-dark-surface';
+        item.innerHTML = `<input type="checkbox" class="accent-primary" value="${c.id}"> <span>${c.name}</span>`;
         categoriesContainer.appendChild(item);
       }
+    }
+
+    const openBtn = document.getElementById('openBulkAssign');
+    const closeEls = modal?.querySelectorAll('[data-close="true"]');
+    openBtn?.addEventListener('click', async () => {
+      await populateModal();
+      modal.classList.remove('hidden');
     });
+    if (closeEls) {
+      for (const btn of closeEls) {
+        btn.addEventListener('click', () => modal.classList.add('hidden'));
+      }
+    }
+    modal?.addEventListener('click', (e) => { if (e.target?.dataset?.close === 'true') modal.classList.add('hidden'); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal?.classList.add('hidden'); });
 
   const getCheckedValues = (container) => Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(i => Number.parseInt(i.value));
 
@@ -427,9 +458,7 @@
           showInlineAlert(action === 'assign' ? 'Asignación completada.' : 'Desasignación completada.', 'success');
           await loadCategories();
           // Close modal
-          const modalEl = document.getElementById('bulkAssignModal');
-          const modal = bootstrap.Modal.getInstance(modalEl);
-          if (modal) modal.hide();
+          document.getElementById('bulkAssignModal')?.classList.add('hidden');
         } else {
           showInlineAlert(data.message || 'Ocurrió un error al procesar la acción.', 'danger');
         }

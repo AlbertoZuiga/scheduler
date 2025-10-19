@@ -54,7 +54,7 @@
   }
 
   /**
-   * Añade una nueva regla al builder
+   * Añade un nuevo requisito al builder
    */
   function addRule() {
     ruleCounter++;
@@ -65,14 +65,12 @@
 
     // Configurar índice
     ruleDiv.setAttribute("data-rule-index", ruleCounter);
-    ruleDiv.querySelector(".rule-number").textContent = ruleCounter;
+    const ruleNumbers = ruleDiv.querySelectorAll(".rule-number");
+    ruleNumbers.forEach((el) => (el.textContent = ruleCounter));
 
     // Event listeners
     const removeBtn = ruleDiv.querySelector(".remove-rule-btn");
-    const addConditionBtn = ruleDiv.querySelector(".add-condition-btn");
-
     removeBtn.addEventListener("click", () => removeRule(ruleDiv));
-    addConditionBtn.addEventListener("click", () => addCondition(ruleDiv));
 
     // Añadir al builder
     rulesBuilder.appendChild(ruleDiv);
@@ -82,7 +80,7 @@
       noRulesMsg.style.display = "none";
     }
 
-    // Añadir una condición por defecto
+    // Añadir el contenido del requisito (una "condición" por defecto)
     addCondition(ruleDiv);
   }
 
@@ -100,38 +98,16 @@
   }
 
   /**
-   * Añade una condición a una regla
+   * Añade el contenido de un requisito
    */
   function addCondition(ruleDiv) {
     const conditionsContainer = ruleDiv.querySelector(".conditions-container");
 
-    // Clonar template de condición
+    // Clonar template de contenido (antes llamado "condición")
     const conditionNode = conditionTemplate.content.cloneNode(true);
     const conditionDiv = conditionNode.querySelector(".condition-group");
 
-    // Event listener para remover
-    const removeBtn = conditionDiv.querySelector(".remove-condition-btn");
-    removeBtn.addEventListener("click", () =>
-      removeCondition(conditionDiv, ruleDiv)
-    );
-
     conditionsContainer.appendChild(conditionDiv);
-  }
-
-  /**
-   * Remueve una condición
-   */
-  function removeCondition(conditionDiv, ruleDiv) {
-    const conditionsContainer = ruleDiv.querySelector(".conditions-container");
-    const conditions = conditionsContainer.querySelectorAll(".condition-group");
-
-    // No permitir eliminar si es la última condición
-    if (conditions.length <= 1) {
-      alert("Cada regla debe tener al menos una condición.");
-      return;
-    }
-
-    conditionDiv.remove();
   }
 
   /**
@@ -275,19 +251,29 @@
       const compatColor = getCompatibilityColor(group.compatibility_avg);
 
       html += `
-        <div class="card mb-3 ${idx === 0 ? "preview-card" : ""}">
-          <div class="card-header">
-            <h6 class="mb-0">
-              <i class="bi bi-people-fill"></i> ${group.name}
-              <span class="badge bg-secondary float-end">${
+        <div class="rounded-lg border-2 mb-3 overflow-hidden shadow-md ${
+          idx === 0
+            ? "preview-card border-indigo-500 dark:border-indigo-400"
+            : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+        }">
+          <div class="px-4 py-3 font-semibold ${
+            idx === 0
+              ? "bg-indigo-100 dark:bg-indigo-900 text-indigo-900 dark:text-indigo-100 border-b-2 border-indigo-500 dark:border-indigo-400"
+              : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-b border-gray-300 dark:border-gray-600"
+          }">
+            <div class="flex items-center justify-between">
+              <span class="flex items-center gap-2">
+                <i class="bi bi-people-fill"></i> ${group.name}
+              </span>
+              <span class="inline-block px-3 py-1 rounded-full bg-gray-600 dark:bg-gray-500 text-white text-sm font-medium">${
                 group.members.length
               } miembros</span>
-            </h6>
+            </div>
           </div>
-          <div class="card-body">
+          <div class="px-4 py-3 bg-white dark:bg-gray-800">
             <!-- Compatibilidad -->
             <div class="mb-3">
-              <small class="text-muted d-block mb-1">Compatibilidad Promedio: <strong>${compatPercent}%</strong></small>
+              <small class="text-gray-600 dark:text-gray-300 block mb-1">Compatibilidad Promedio: <strong class="text-gray-900 dark:text-white">${compatPercent}%</strong></small>
               <div class="compatibility-bar">
                 <div class="compatibility-indicator" style="left: ${compatPercent}%"></div>
               </div>
@@ -298,15 +284,15 @@
               group.rules_status.length > 0
                 ? `
               <div class="mb-3">
-                <small class="text-muted d-block mb-1">Estado de Reglas:</small>
-                <div class="d-flex flex-wrap gap-1">
+                <small class="text-gray-600 dark:text-gray-300 block mb-1">Estado de Requisitos:</small>
+                <div class="flex flex-wrap gap-2">
                   ${group.rules_status
                     .map(
                       (r) => `
                     <span class="rule-status-badge ${
                       r.fulfilled ? "rule-fulfilled" : "rule-unfulfilled"
                     }">
-                      Regla ${r.rule}: ${r.count}/${r.min}${
+                      Requisito ${r.rule}: ${r.count}/${r.min}${
                         r.max ? "-" + r.max : "+"
                       } 
                       ${r.fulfilled ? "✓" : "✗"}
@@ -322,21 +308,23 @@
             
             <!-- Lista de Miembros -->
             <div>
-              <small class="text-muted d-block mb-1">Miembros:</small>
-              <div class="list-group list-group-flush" style="max-height: 200px; overflow-y: auto;">
+              <small class="text-gray-600 dark:text-gray-300 block mb-2">Miembros:</small>
+              <div class="rounded border border-gray-300 dark:border-gray-600 overflow-hidden" style="max-height: 200px; overflow-y: auto;">
                 ${group.members
                   .map(
                     (member) => `
-                  <div class="list-group-item px-2 py-1 small">
-                    <i class="bi bi-person"></i> ${member.name}
+                  <div class="px-3 py-2 text-sm border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <div class="flex items-center gap-2 text-gray-900 dark:text-white font-medium">
+                      <i class="bi bi-person"></i> ${member.name}
+                    </div>
                     ${
                       member.categories.length > 0
                         ? `
-                      <div class="mt-1">
+                      <div class="flex flex-wrap gap-1 mt-2">
                         ${member.categories
                           .map(
                             (cat) =>
-                              `<span class="badge bg-light text-dark">${cat}</span>`
+                              `<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100">${cat}</span>`
                           )
                           .join(" ")}
                       </div>
