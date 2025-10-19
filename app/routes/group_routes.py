@@ -205,15 +205,13 @@ def show(group_id):
 def create():
     if request.method == "POST":
         group_name = request.form["group_name"]
-        group_description = request.form.get("group_description", "")
 
         join_token = uuid.uuid4().hex[:10]
         user_id = current_user.id
 
         new_group = Group(
-            name=group_name, 
-            description=group_description,
-            join_token=join_token, 
+            name=group_name,
+            join_token=join_token,
             owner_id=user_id
         )
         scheduler_db.session.add(new_group)
