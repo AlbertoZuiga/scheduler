@@ -7,3 +7,30 @@ __pycache__
 client_secret.json
 .vscode
 .python-version
+node_modules
+
+# Compiled CSS (Tailwind build output)
+app/static/css/main.css
+app/static/css/*.map
+
+# Logs
+*.log
+
+# Python caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.pyc
+*.pyo
+
+# Coverage artifacts
+.coverage
+coverage.xml
+htmlcov/
+
+# IDE/editor settings
+.idea/
+.history/
+
+# Local env variants
+.env.*
