@@ -228,10 +228,10 @@
 <script type="application/json" id="embed-data">{{ embed_data | tojson }}</script>
 
 <script>
-  const __EMBED__ = JSON.parse(document.getElementById('embed-data').textContent || '{}');
-  const GROUP_ID = __EMBED__.group_id;
-  const CAN_MANAGE = !!__EMBED__.can_manage;
-  const __GROUP_MEMBERS__ = __EMBED__.members || [];
+  globalThis.__EMBED__ = JSON.parse(document.getElementById('embed-data').textContent || '{}');
+  globalThis.GROUP_ID = globalThis.__EMBED__.group_id;
+  globalThis.CAN_MANAGE = !!globalThis.__EMBED__.can_manage;
+  globalThis.__GROUP_MEMBERS__ = globalThis.__EMBED__.members || [];
 
   function showInlineAlert(message, type = 'success') {
     const container = document.querySelector('main');
@@ -252,7 +252,7 @@
 
   // Helper to resolve group_member id to display name
   function memberNameByGmId(gmId) {
-    const m = (globalThis.__GROUP_MEMBERS__ || []).find(x => x.group_member_id === gmId);
+    const m = (globalThis.__GROUP_MEMBERS__ || []).find(x => Number.parseInt(x.group_member_id) === Number.parseInt(gmId));
     return m ? (m.name || m.email) : `Miembro ${gmId}`;
   }
 
@@ -261,7 +261,7 @@
   const list = document.getElementById('categoriesList');
   list.innerHTML = '<div class="text-light-text-secondary dark:text-dark-text-secondary">Cargando categorías…</div>';
     try {
-      const res = await fetch(`/categories/group/${GROUP_ID}`, { headers: { 'Accept': 'application/json' } });
+      const res = await fetch(`/categories/group/${globalThis.GROUP_ID}`, { headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error('Error al cargar categorías');
       const data = await res.json();
       if (!Array.isArray(data)) { list.innerHTML = '<span class="text-light-text-secondary dark:text-dark-text-secondary">Sin datos</span>'; return; }
@@ -278,13 +278,13 @@
             <h6 class="font-semibold">${c.name}</h6>
             <div class="flex items-center gap-2">
               <span class="inline-flex items-center justify-center w-6 h-6 text-xs rounded-full bg-light-muted/40 dark:bg-dark-muted/40 text-light-text-primary dark:text-dark-text-primary">${count}</span>
-              ${CAN_MANAGE ? '<button class="px-2 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 delete-category-btn">Eliminar</button>' : ''}
+              ${globalThis.CAN_MANAGE ? '<button class="px-2 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 delete-category-btn">Eliminar</button>' : ''}
             </div>
           </div>
           <div>${membersHtml || '<span class="text-light-text-secondary dark:text-dark-text-secondary">Sin miembros asignados</span>'}</div>`;
 
         // Add event listener to delete button if user can manage
-        if (CAN_MANAGE) {
+        if (globalThis.CAN_MANAGE) {
           const deleteBtn = card.querySelector('.delete-category-btn');
           if (deleteBtn) {
             deleteBtn.addEventListener('click', () => deleteCategory(c.id, c.name));
@@ -302,7 +302,7 @@
   async function deleteCategory(catId, catName) {
     if (!confirm(`¿Eliminar la categoría "${catName}"? Se desasociarán todos los miembros.`)) return;
     try {
-      const res = await fetch(`/categories/group/${GROUP_ID}/${catId}`, { 
+      const res = await fetch(`/categories/group/${globalThis.GROUP_ID}/${catId}`, { 
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -323,18 +323,23 @@
   }
 
   // Real-time validation for category name
-  let checkTimer = null;
+  var checkTimer = null;
   function setupCategoryCreate() {
-    if (!CAN_MANAGE) return;
+    if (!globalThis.CAN_MANAGE) return;
     const input = document.getElementById('newCategoryName');
     const feedback = document.getElementById('nameFeedback');
     const btn = document.getElementById('createCategoryBtn');
     const form = document.getElementById('createCategoryForm');
+    
+    // Si el formulario ya fue inicializado, no hacer nada
+    if (form?.dataset.initialized === 'true') return;
+    if (form) form.dataset.initialized = 'true';
+    
     const updateBtn = (enabled) => { btn.disabled = !enabled; };
     const validate = async () => {
       const name = (input.value || '').trim();
       if (!name) { feedback.textContent = ''; updateBtn(false); return; }
-      const res = await fetch(`/categories/group/${GROUP_ID}/check?name=${encodeURIComponent(name)}`);
+      const res = await fetch(`/categories/group/${globalThis.GROUP_ID}/check?name=${encodeURIComponent(name)}`);
       const data = await res.json();
       if (data.available) {
         feedback.textContent = 'Disponible';
@@ -352,16 +357,13 @@
     });
     form?.addEventListener('submit', async (e) => {
       e.preventDefault();
-        console.log('Form submit triggered');
       const name = (input.value || '').trim();
       if (!name) { return; }
-        console.log('Creating category:', name);
-      const res = await fetch(`/categories/group/${GROUP_ID}` , {
+      const res = await fetch(`/categories/group/${globalThis.GROUP_ID}` , {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name })
       });
-        console.log('Response status:', res.status);
       if (res.ok) {
         input.value = '';
         feedback.textContent = '';
@@ -377,23 +379,22 @@
 
   // Bulk assign modal
   function setupBulkAssign() {
-      console.log('setupBulkAssign called, CAN_MANAGE:', CAN_MANAGE);
-    if (!CAN_MANAGE) return;
+    if (!globalThis.CAN_MANAGE) return;
+    
+    const modal = document.getElementById('bulkAssignModal');
+    // Si el modal ya fue inicializado, no hacer nada
+    if (modal?.dataset.initialized === 'true') return;
+    if (modal) modal.dataset.initialized = 'true';
+    
     const membersContainer = document.getElementById('bulkMembers');
     const categoriesContainer = document.getElementById('bulkCategories');
     const btnAssign = document.getElementById('assignSelected');
     const btnUnassign = document.getElementById('unassignSelected');
     const btnAllMembers = document.getElementById('selectAllMembers');
     const btnAllCategories = document.getElementById('selectAllCategories');
-
-  const modal = document.getElementById('bulkAssignModal');
-  async function populateModal() {
-      // Load members from DOM info in availability table (we have user_info_map server-side but not ids here)
-      // Fetch members via a simple endpoint using existing members page would be heavy; instead, reuse DOM from server via a hidden dataset.
-      // We'll request categories JSON and members list from a minimal endpoint in group show context: members are not exposed here, so we derive from table variables is not trivial.
-      // Use a lightweight approach: call the members page JSON by scraping is not ideal; instead, we will request categories and build members by calling a small inline JSON endpoint using group members on server side is not present. As a workaround, we embed member list in a script tag below.
-  const members = globalThis.__GROUP_MEMBERS__ || [];
-      const categoriesRes = await fetch(`/categories/group/${GROUP_ID}`, { headers: { 'Accept': 'application/json' } });
+    async function populateModal() {
+      const members = globalThis.__GROUP_MEMBERS__ || [];
+      const categoriesRes = await fetch(`/categories/group/${globalThis.GROUP_ID}`, { headers: { 'Accept': 'application/json' } });
       const categories = await categoriesRes.json();
 
       membersContainer.innerHTML = '';
@@ -429,15 +430,18 @@
   const getCheckedValues = (container) => Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(i => Number.parseInt(i.value));
 
     btnAllMembers?.addEventListener('click', () => {
-      const inputs = membersContainer.querySelectorAll('input[type="checkbox"]');
-      const allChecked = Array.from(inputs).every(i => i.checked);
-      for (const i of inputs) { i.checked = !allChecked; }
-    });
-    btnAllCategories?.addEventListener('click', () => {
-      const inputs = categoriesContainer.querySelectorAll('input[type="checkbox"]');
-      const allChecked = Array.from(inputs).every(i => i.checked);
-      for (const i of inputs) { i.checked = !allChecked; }
-    });
+    const inputs = membersContainer.querySelectorAll('input[type="checkbox"]');
+    const allChecked = Array.from(inputs).every(i => i.checked);
+    for (const i of inputs) { i.checked = !allChecked; }
+    btnAllMembers.textContent = allChecked ? 'Todos miembros' : 'Deseleccionar todos';
+  });
+
+  btnAllCategories?.addEventListener('click', () => {
+    const inputs = categoriesContainer.querySelectorAll('input[type="checkbox"]');
+    const allChecked = Array.from(inputs).every(i => i.checked);
+    for (const i of inputs) { i.checked = !allChecked; }
+    btnAllCategories.textContent = allChecked ? 'Todas categorías' : 'Deseleccionar todas';
+  });
 
     async function submitBulk(action) {
       const member_ids = getCheckedValues(membersContainer);
@@ -451,7 +455,7 @@
         const res = await fetch('/categories/bulk_assign', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ group_id: GROUP_ID, member_ids, category_ids, action })
+          body: JSON.stringify({ group_id: globalThis.GROUP_ID, member_ids, category_ids, action })
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.ok) {

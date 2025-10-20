@@ -1,42 +1,263 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="w-full">
-  <h2 class="text-2xl font-bold mb-4">Mi disponibilidad para el grupo</h2>
-  <form method="POST" class="space-y-4">
-    <div class="overflow-x-auto">
-      <table class="w-full text-center border-collapse">
+<div class="w-full max-w-7xl mx-auto px-4">
+  <!-- Header Section -->
+  <div class="mb-6">
+    <h2 class="text-2xl sm:text-3xl font-bold mb-2 text-light-text-primary dark:text-dark-text-primary">
+      📅 Mi disponibilidad
+    </h2>
+    <p class="text-sm sm:text-base text-light-text-secondary dark:text-dark-text-secondary">
+      Selecciona los horarios en los que estás disponible. Toca o haz clic en las celdas para marcar tu disponibilidad.
+    </p>
+  </div>
+
+  <form method="POST" class="space-y-6">
+    <!-- Contador de selecciones -->
+    <div class="bg-info/10 dark:bg-info/20 border border-info/30 dark:border-info/40 rounded-lg p-4">
+      <div class="flex items-center gap-3">
+        <svg class="w-5 h-5 text-info dark:text-info-light" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <div>
+          <span class="font-semibold text-light-text-primary dark:text-dark-text-primary">
+            <span id="selected-count">{{ selected|length }}</span> bloque(s) seleccionado(s)
+          </span>
+          <p class="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-0.5">Las celdas verdes indican disponibilidad</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop/Tablet View - Tabla (solo visible en md y superior) -->
+    <div class="hidden md:block w-full overflow-x-auto rounded-lg border border-light-border dark:border-dark-border shadow-card dark:shadow-card-dark">
+      <table class="w-full text-center border-collapse bg-light-surface dark:bg-dark-surface">
         <thead>
-          <tr class="bg-light-muted/30 dark:bg-dark-muted/30 text-light-text-primary dark:text-dark-text-primary">
-            <th class="px-3 py-2 border border-light-border dark:border-dark-border">Hora / Día</th>
-            {% for d in ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] %}
-              <th class="px-3 py-2 border border-light-border dark:border-dark-border">{{ d }}</th>
+          <tr class="bg-gradient-to-r from-primary/10 to-accent/10 dark:from-primary/20 dark:to-accent/20">
+            <th class="px-4 py-3 border-r border-light-border dark:border-dark-border text-sm font-bold text-light-text-primary dark:text-dark-text-primary sticky left-0 bg-gradient-to-r from-primary/10 to-accent/10 dark:from-primary/20 dark:to-accent/20 z-30 text-left min-w-[140px]">
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-primary dark:text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Hora</span>
+              </div>
+            </th>
+            {% for d in ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'] %}
+            <th class="px-4 py-3 border-l border-light-border dark:border-dark-border min-w-[100px]">
+              <div class="font-bold text-light-text-primary dark:text-dark-text-primary text-sm">{{ d }}</div>
+            </th>
             {% endfor %}
           </tr>
         </thead>
-        <tbody>
+        <tbody class="bg-light-surface dark:bg-dark-surface">
+          {% if blocks|length == 0 %}
+          <tr>
+            <td colspan="8" class="py-8 text-light-text-secondary dark:text-dark-text-secondary">No hay bloques disponibles.</td>
+          </tr>
+          {% else %}
           {% for block_index, block_time in blocks %}
-          <tr class="odd:bg-light-background even:bg-light-surface dark:odd:bg-dark-background dark:even:bg-dark-surface">
-            <td class="px-3 py-2 border border-light-border dark:border-dark-border text-sm">{{ block_time }}</td>
-            {% for day in range(0, 7) %}
-            <td class="border border-light-border dark:border-dark-border p-0">
-              <input type="checkbox" id="cb_{{ day }}_{{ block_index }}" name="day_{{ day }}_hour_{{ block_index }}" class="peer sr-only" {% if (day, block_index) in selected %}checked{% endif %}>
-              <label for="cb_{{ day }}_{{ block_index }}" class="block w-full h-full py-4 cursor-pointer transition-all select-none text-sm
-                bg-light-background dark:bg-dark-background hover:bg-primary/10 dark:hover:bg-accent/10 
-                peer-checked:bg-green-500 peer-checked:text-white peer-checked:font-semibold">
-                <span class="sr-only">Disponible el {{ d }} a las {{ block_time }}</span>
-              </label>
+          <tr class="group hover:bg-primary/5 dark:hover:bg-accent/5 transition-colors">
+            <td class="px-4 py-3 border-r border-t border-light-border dark:border-dark-border text-sm font-semibold text-light-text-primary dark:text-dark-text-primary sticky left-0 bg-light-surface dark:bg-dark-surface group-hover:bg-primary/5 dark:group-hover:bg-accent/5 z-20 text-left">
+              <div class="flex items-center gap-2">
+                <svg class="w-3 h-3 text-primary dark:text-accent" fill="currentColor" viewBox="0 0 20 20">
+                  <circle cx="10" cy="10" r="3" />
+                </svg>
+                <span>{{ block_time }}</span>
+              </div>
+            </td>
+            {% for day in range(7) %}
+            <td class="border-l border-t border-light-border dark:border-dark-border p-2">
+              <div class="flex items-center justify-center">
+                <input 
+                  type="checkbox" 
+                  id="cb_desktop_{{ day }}_{{ block_index }}" 
+                  name="day_{{ day }}_hour_{{ block_index }}" 
+                  class="availability-checkbox peer sr-only"
+                  {% if (day, block_index) in selected %}checked{% endif %}
+                >
+                <label 
+                  for="cb_desktop_{{ day }}_{{ block_index }}" 
+                  class="cursor-pointer select-none flex items-center justify-center w-14 h-10 rounded-lg border-2 transition-all border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:border-primary hover:bg-primary/10 dark:hover:border-accent dark:hover:bg-accent/10 hover:scale-105 active:scale-95 peer-checked:border-success peer-checked:bg-success peer-checked:text-white peer-checked:font-bold peer-checked:shadow-lg peer-checked:hover:bg-success-dark peer-checked:hover:border-success-dark"
+                >
+                  <svg class="w-5 h-5 hidden peer-checked:block" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                  <span class="text-xs peer-checked:hidden text-light-text-secondary dark:text-dark-text-secondary">—</span>
+                </label>
+              </div>
             </td>
             {% endfor %}
           </tr>
           {% endfor %}
+          {% endif %}
         </tbody>
       </table>
     </div>
-    <div class="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
-      <a href="{{ url_for('groups.show', group_id=group_id) }}" class="inline-flex items-center gap-2 px-5 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">Cancelar</a>
-      <button type="submit" class="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700">Guardar disponibilidad</button>
+
+    <!-- Mobile View - Tarjetas por día (solo visible en pantallas menores a md) -->
+    <div class="md:hidden w-full space-y-4">
+      {% for day_index, day_name in [(0, 'Lunes'), (1, 'Martes'), (2, 'Miércoles'), (3, 'Jueves'), (4, 'Viernes'), (5, 'Sábado'), (6, 'Domingo')] %}
+      <details class="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border shadow-card dark:shadow-card-dark overflow-hidden" open>
+        <summary class="px-4 py-3 cursor-pointer select-none bg-gradient-to-r from-primary/5 to-accent/5 dark:from-primary/10 dark:to-accent/10 hover:from-primary/10 hover:to-accent/10 dark:hover:from-primary/15 dark:hover:to-accent/15 transition-all">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center font-bold text-primary dark:text-accent">
+                {{ day_name[0:2] }}
+              </div>
+              <div>
+                <h3 class="font-bold text-light-text-primary dark:text-dark-text-primary">{{ day_name }}</h3>
+                <p class="text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                  <span class="day-{{ day_index }}-count">0</span> horarios seleccionados
+                </p>
+              </div>
+            </div>
+            <svg class="w-5 h-5 text-light-text-secondary dark:text-dark-text-secondary transition-transform details-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </summary>
+        
+        <div class="p-4 grid grid-cols-2 gap-2">
+          {% for block_index, block_time in blocks %}
+          <div class="relative">
+            <input 
+              type="checkbox" 
+              id="cb_mobile_{{ day_index }}_{{ block_index }}" 
+              name="day_{{ day_index }}_hour_{{ block_index }}" 
+              class="availability-checkbox peer sr-only" 
+              data-day="{{ day_index }}"
+              {% if (day_index, block_index) in selected %}checked{% endif %}
+            >
+            <label 
+              for="cb_mobile_{{ day_index }}_{{ block_index }}" 
+              class="flex flex-col items-center justify-center gap-1 px-3 py-4 rounded-lg border-2 cursor-pointer transition-all select-none min-h-[72px] border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:border-primary hover:bg-primary/5 dark:hover:border-accent dark:hover:bg-accent/5 active:scale-95 peer-checked:border-success peer-checked:bg-gradient-to-br peer-checked:from-success peer-checked:to-success-light peer-checked:text-white peer-checked:font-semibold peer-checked:shadow-lg peer-checked:hover:from-success-dark peer-checked:hover:to-success"
+            >
+              <svg class="w-4 h-4 text-light-text-secondary dark:text-dark-text-secondary peer-checked:text-white hidden peer-checked:block" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+              </svg>
+              <svg class="w-4 h-4 text-light-text-secondary dark:text-dark-text-secondary peer-checked:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span class="text-sm font-medium peer-checked:text-white text-light-text-primary dark:text-dark-text-primary">
+                {{ block_time }}
+              </span>
+            </label>
+          </div>
+          {% endfor %}
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+
+    <!-- Action Buttons - Sticky en móvil -->
+    <div class="sticky bottom-0 left-0 right-0 bg-light-background dark:bg-dark-background border-t border-light-border dark:border-dark-border p-4 md:p-0 md:border-0 md:relative shadow-lg md:shadow-none z-20 -mx-4 md:mx-0">
+      <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <a 
+          href="{{ url_for('groups.show', group_id=group_id) }}" 
+          class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border-2 border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 text-light-text-primary dark:text-dark-text-primary font-medium transition-all active:scale-95"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          Cancelar
+        </a>
+        <button 
+          type="submit"
+          class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border-2 border-success dark:border-success-dark bg-success dark:bg-success-dark hover:bg-success-dark hover:border-success-dark dark:hover:bg-success-light dark:hover:border-success-light text-white font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>Guardar disponibilidad</span>
+        </button>
+      </div>
     </div>
   </form>
 </div>
+
+<!-- JavaScript para contador y animaciones -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const checkboxes = document.querySelectorAll('.availability-checkbox');
+    const countDisplay = document.getElementById('selected-count');
+    
+    // Función para actualizar contadores
+    function updateCounters() {
+      const totalChecked = document.querySelectorAll('.availability-checkbox:checked').length;
+      countDisplay.textContent = totalChecked;
+      
+      // Actualizar contadores por día en móvil
+      for (let day = 0; day < 7; day++) {
+        const dayCount = document.querySelectorAll(`.availability-checkbox[data-day="${day}"]:checked`).length;
+        const dayCountDisplay = document.querySelector(`.day-${day}-count`);
+        if (dayCountDisplay) {
+          dayCountDisplay.textContent = dayCount;
+        }
+      }
+    }
+    
+    // Agregar listeners a todos los checkboxes
+    for (const checkbox of checkboxes) {
+      checkbox.addEventListener('change', updateCounters);
+    }
+    
+    // Inicializar contadores
+    updateCounters();
+    
+    // Animar flechas de details
+    for (const detail of document.querySelectorAll('details')) {
+      detail.addEventListener('toggle', (e) => {
+        const arrow = e.target.querySelector('.details-arrow');
+        if (arrow) {
+          arrow.style.transform = detail.open ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+      });
+    }
+  });
+</script>
+
+<style>
+  /* Mejoras táctiles para todas las plataformas */
+  label {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  
+  /* Animación suave para details en móvil */
+  details summary {
+    list-style: none;
+  }
+  
+  details summary::-webkit-details-marker {
+    display: none;
+  }
+  
+  /* Transición suave de flechas */
+  .details-arrow {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* Efecto de pulso al seleccionar */
+  @keyframes pulse {
+    0%, 100% { 
+      transform: scale(1); 
+    }
+    50% { 
+      transform: scale(1.05); 
+    }
+  }
+  
+  .availability-checkbox:checked ~ label,
+  .availability-checkbox:checked + label {
+    animation: pulse 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* Asegurar que la columna sticky tenga el z-index correcto en desktop */
+  @media (min-width: 768px) {
+    table thead th:first-child,
+    table tbody td:first-child {
+      position: sticky;
+      left: 0;
+    }
+  }
+</style>
 {% endblock %}

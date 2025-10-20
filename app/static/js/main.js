@@ -241,6 +241,10 @@ function animateElements(selector = ".animate-on-load", delay = 100) {
 function handleFormSubmit(formSelector, loaderMessage = "Procesando...") {
   const forms = document.querySelectorAll(formSelector);
   forms.forEach((form) => {
+    // Evitar agregar múltiples listeners al mismo formulario
+    if (form.dataset.loaderInitialized === "true") return;
+    form.dataset.loaderInitialized = "true";
+
     form.addEventListener("submit", (e) => {
       const submitBtn = form.querySelector('button[type="submit"]');
       if (submitBtn) {
@@ -300,6 +304,10 @@ function enhanceFormValidation() {
   const forms = document.querySelectorAll(".needs-validation");
 
   forms.forEach((form) => {
+    // Evitar agregar múltiples listeners al mismo formulario
+    if (form.dataset.validationInitialized === "true") return;
+    form.dataset.validationInitialized = "true";
+
     form.addEventListener("submit", (event) => {
       if (!form.checkValidity()) {
         event.preventDefault();
@@ -387,6 +395,10 @@ function highlightAvailableSlots() {
 // ============================================
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Prevenir ejecución múltiple
+  if (globalThis.__MAIN_JS_INITIALIZED__) return;
+  globalThis.__MAIN_JS_INITIALIZED__ = true;
+
   // Initialize Bootstrap components
   initTooltips();
   initPopovers();
