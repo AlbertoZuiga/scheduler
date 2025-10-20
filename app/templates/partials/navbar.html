@@ -69,7 +69,7 @@
           <span class="flex items-center gap-2">
             <svg id="icon-sun-mobile" class="h-5 w-5 hidden text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 6.66l-.71-.71M4.05 4.05l-.71-.71M12 7a5 5 0 100 10 5 5 0 000-10z" /></svg>
             <svg id="icon-moon-mobile" class="h-5 w-5 hidden text-light-text-primary dark:text-dark-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z" /></svg>
-            <span>Modo oscuro</span>
+            <span id="dark-mode-text">Modo oscuro</span>
           </span>
         </button>
       </li>
@@ -101,27 +101,33 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     // Inicialización
     const userPref = localStorage.getItem('theme');
-  const systemPref = globalThis.matchMedia('(prefers-color-scheme: dark)').matches;
+    const systemPref = globalThis.matchMedia('(prefers-color-scheme: dark)').matches;
     setDarkMode(userPref === 'dark' || (!userPref && systemPref));
     darkToggle.addEventListener('click', () => {
       setDarkMode(!document.documentElement.classList.contains('dark'));
     });
   }
+  
   // Dark mode toggle (mobile)
   const darkToggleMobile = document.getElementById('dark-toggle-mobile');
   const iconSunMobile = document.getElementById('icon-sun-mobile');
   const iconMoonMobile = document.getElementById('icon-moon-mobile');
-  if (darkToggleMobile && iconSunMobile && iconMoonMobile) {
+  const darkModeText = document.getElementById('dark-mode-text');
+  
+  if (darkToggleMobile && iconSunMobile && iconMoonMobile && darkModeText) {
     function setDarkModeMobile(dark) {
       document.documentElement.classList.toggle('dark', dark);
       localStorage.setItem('theme', dark ? 'dark' : 'light');
       iconSunMobile.classList.toggle('hidden', !dark);
       iconMoonMobile.classList.toggle('hidden', dark);
+      darkModeText.textContent = dark ? 'Modo claro' : 'Modo oscuro';
     }
+    
     // Inicialización
     const userPref = localStorage.getItem('theme');
-  const systemPref = globalThis.matchMedia('(prefers-color-scheme: dark)').matches;
+    const systemPref = globalThis.matchMedia('(prefers-color-scheme: dark)').matches;
     setDarkModeMobile(userPref === 'dark' || (!userPref && systemPref));
+    
     darkToggleMobile.addEventListener('click', () => {
       setDarkModeMobile(!document.documentElement.classList.contains('dark'));
     });
