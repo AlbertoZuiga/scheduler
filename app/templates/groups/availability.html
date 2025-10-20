@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="w-full max-w-7xl mx-auto">
+<div class="w-full max-w-7xl mx-auto px-4">
   <!-- Header Section -->
   <div class="mb-6">
     <h2 class="text-2xl sm:text-3xl font-bold mb-2 text-light-text-primary dark:text-dark-text-primary">
@@ -14,81 +14,89 @@
 
   <form method="POST" class="space-y-6">
     <!-- Contador de selecciones -->
-    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+    <div class="bg-info/10 dark:bg-info/20 border border-info/30 dark:border-info/40 rounded-lg p-4">
       <div class="flex items-center gap-3">
-        <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-5 h-5 text-info dark:text-info-light" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <div>
-          <span class="font-semibold text-blue-900 dark:text-blue-100">
+          <span class="font-semibold text-light-text-primary dark:text-dark-text-primary">
             <span id="selected-count">{{ selected|length }}</span> bloque(s) seleccionado(s)
           </span>
-          <p class="text-xs text-blue-700 dark:text-blue-300 mt-0.5">Las celdas verdes indican disponibilidad</p>
+          <p class="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-0.5">Las celdas verdes indican disponibilidad</p>
         </div>
       </div>
     </div>
 
-    <!-- Desktop/Tablet View - Tabla -->
-    <div class="hidden md:block overflow-x-auto rounded-lg border border-light-border dark:border-dark-border shadow-sm">
-      <table class="w-full text-center border-collapse">
+    <!-- Desktop/Tablet View - Tabla (solo visible en md y superior) -->
+    <div class="hidden md:block w-full overflow-x-auto rounded-lg border border-light-border dark:border-dark-border shadow-card dark:shadow-card-dark">
+      <table class="w-full text-center border-collapse bg-light-surface dark:bg-dark-surface">
         <thead>
           <tr class="bg-gradient-to-r from-primary/10 to-accent/10 dark:from-primary/20 dark:to-accent/20">
-            <th class="px-4 py-3 border-r border-light-border dark:border-dark-border text-sm font-bold text-light-text-primary dark:text-dark-text-primary sticky left-0 bg-light-surface dark:bg-dark-surface z-10">
-              <div class="flex items-center justify-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <th class="px-4 py-3 border-r border-light-border dark:border-dark-border text-sm font-bold text-light-text-primary dark:text-dark-text-primary sticky left-0 bg-gradient-to-r from-primary/10 to-accent/10 dark:from-primary/20 dark:to-accent/20 z-30 text-left min-w-[140px]">
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-primary dark:text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                Hora
+                <span>Hora</span>
               </div>
             </th>
-            {% for d in [('Lunes', 'Lun'), ('Martes', 'Mar'), ('Miércoles', 'Mié'), ('Jueves', 'Jue'), ('Viernes', 'Vie'), ('Sábado', 'Sáb'), ('Domingo', 'Dom')] %}
-              <th class="px-3 py-3 border-l border-light-border dark:border-dark-border min-w-[80px]">
-                <div class="font-bold text-light-text-primary dark:text-dark-text-primary text-sm">{{ d[1] }}</div>
-                <div class="text-xs text-light-text-secondary dark:text-dark-text-secondary font-normal mt-0.5 hidden lg:block">{{ d[0] }}</div>
-              </th>
+            {% for d in ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'] %}
+            <th class="px-4 py-3 border-l border-light-border dark:border-dark-border min-w-[100px]">
+              <div class="font-bold text-light-text-primary dark:text-dark-text-primary text-sm">{{ d }}</div>
+            </th>
             {% endfor %}
           </tr>
         </thead>
-        <tbody>
+        <tbody class="bg-light-surface dark:bg-dark-surface">
+          {% if blocks|length == 0 %}
+          <tr>
+            <td colspan="8" class="py-8 text-light-text-secondary dark:text-dark-text-secondary">No hay bloques disponibles.</td>
+          </tr>
+          {% else %}
           {% for block_index, block_time in blocks %}
-          <tr class="group hover:bg-light-muted/20 dark:hover:bg-dark-muted/20 transition-colors">
-            <td class="px-4 py-2 border-r border-t border-light-border dark:border-dark-border text-sm font-medium text-light-text-primary dark:text-dark-text-primary sticky left-0 bg-light-background dark:bg-dark-background group-hover:bg-light-muted/20 dark:group-hover:bg-dark-muted/20 z-10">
-              {{ block_time }}
+          <tr class="group hover:bg-primary/5 dark:hover:bg-accent/5 transition-colors">
+            <td class="px-4 py-3 border-r border-t border-light-border dark:border-dark-border text-sm font-semibold text-light-text-primary dark:text-dark-text-primary sticky left-0 bg-light-surface dark:bg-dark-surface group-hover:bg-primary/5 dark:group-hover:bg-accent/5 z-20 text-left">
+              <div class="flex items-center gap-2">
+                <svg class="w-3 h-3 text-primary dark:text-accent" fill="currentColor" viewBox="0 0 20 20">
+                  <circle cx="10" cy="10" r="3" />
+                </svg>
+                <span>{{ block_time }}</span>
+              </div>
             </td>
-            {% for day in range(0, 7) %}
-            <td class="border-l border-t border-light-border dark:border-dark-border p-0">
-              <div class="flex items-center justify-center py-2">
+            {% for day in range(7) %}
+            <td class="border-l border-t border-light-border dark:border-dark-border p-2">
+              <div class="flex items-center justify-center">
                 <input 
                   type="checkbox" 
-                  id="cb_{{ day }}_{{ block_index }}" 
+                  id="cb_desktop_{{ day }}_{{ block_index }}" 
                   name="day_{{ day }}_hour_{{ block_index }}" 
-                  class="availability-checkbox desktop-checkbox w-6 h-6 rounded border-2 border-light-border dark:border-dark-border focus:ring-2 focus:ring-primary/50 dark:focus:ring-accent/50 transition-all duration-150
-                    {% if (day, block_index) in selected %}bg-green-500 border-green-600 ring-2 ring-green-400 dark:bg-green-600 dark:border-green-700{% endif %}"
+                  class="availability-checkbox peer sr-only"
                   {% if (day, block_index) in selected %}checked{% endif %}
                 >
-                <label for="cb_{{ day }}_{{ block_index }}" class="ml-2 cursor-pointer select-none text-sm font-medium text-light-text-primary dark:text-dark-text-primary">
-                  <span class="inline-block px-2 py-1 rounded transition-all
-                    {% if (day, block_index) in selected %}bg-green-500 text-white font-semibold shadow{% else %}bg-light-muted/30 dark:bg-dark-muted/30{% endif %}">
-                    {% if (day, block_index) in selected %}
-                      ✓
-                    {% else %}
-                      &nbsp;
-                    {% endif %}
-                  </span>
+                <label 
+                  for="cb_desktop_{{ day }}_{{ block_index }}" 
+                  class="cursor-pointer select-none flex items-center justify-center w-14 h-10 rounded-lg border-2 transition-all border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:border-primary hover:bg-primary/10 dark:hover:border-accent dark:hover:bg-accent/10 hover:scale-105 active:scale-95 peer-checked:border-success peer-checked:bg-success peer-checked:text-white peer-checked:font-bold peer-checked:shadow-lg peer-checked:hover:bg-success-dark peer-checked:hover:border-success-dark"
+                >
+                  <svg class="w-5 h-5 hidden peer-checked:block" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                  <span class="text-xs peer-checked:hidden text-light-text-secondary dark:text-dark-text-secondary">—</span>
                 </label>
               </div>
             </td>
             {% endfor %}
           </tr>
           {% endfor %}
+          {% endif %}
         </tbody>
       </table>
     </div>
 
-    <!-- Mobile View - Tarjetas por día -->
-    <div class="md:hidden space-y-4">
+    <!-- Mobile View - Tarjetas por día (solo visible en pantallas menores a md) -->
+    <div class="md:hidden w-full space-y-4">
       {% for day_index, day_name in [(0, 'Lunes'), (1, 'Martes'), (2, 'Miércoles'), (3, 'Jueves'), (4, 'Viernes'), (5, 'Sábado'), (6, 'Domingo')] %}
-      <details class="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border shadow-sm overflow-hidden" open>
+      <details class="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border shadow-card dark:shadow-card-dark overflow-hidden" open>
         <summary class="px-4 py-3 cursor-pointer select-none bg-gradient-to-r from-primary/5 to-accent/5 dark:from-primary/10 dark:to-accent/10 hover:from-primary/10 hover:to-accent/10 dark:hover:from-primary/15 dark:hover:to-accent/15 transition-all">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -121,14 +129,7 @@
             >
             <label 
               for="cb_mobile_{{ day_index }}_{{ block_index }}" 
-              class="flex flex-col items-center justify-center gap-1 px-3 py-4 rounded-lg border-2 cursor-pointer transition-all select-none min-h-[72px]
-                border-light-border dark:border-dark-border
-                bg-light-background dark:bg-dark-background
-                hover:border-primary hover:bg-primary/5 dark:hover:border-accent dark:hover:bg-accent/5
-                active:scale-95
-                peer-checked:border-green-500 peer-checked:bg-gradient-to-br peer-checked:from-green-500 peer-checked:to-green-600
-                peer-checked:text-white peer-checked:font-semibold peer-checked:shadow-lg
-                peer-checked:hover:from-green-600 peer-checked:hover:to-green-700"
+              class="flex flex-col items-center justify-center gap-1 px-3 py-4 rounded-lg border-2 cursor-pointer transition-all select-none min-h-[72px] border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:border-primary hover:bg-primary/5 dark:hover:border-accent dark:hover:bg-accent/5 active:scale-95 peer-checked:border-success peer-checked:bg-gradient-to-br peer-checked:from-success peer-checked:to-success-light peer-checked:text-white peer-checked:font-semibold peer-checked:shadow-lg peer-checked:hover:from-success-dark peer-checked:hover:to-success"
             >
               <svg class="w-4 h-4 text-light-text-secondary dark:text-dark-text-secondary peer-checked:text-white hidden peer-checked:block" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
@@ -148,15 +149,11 @@
     </div>
 
     <!-- Action Buttons - Sticky en móvil -->
-    <div class="sticky bottom-0 left-0 right-0 bg-light-background dark:bg-dark-background border-t border-light-border dark:border-dark-border p-4 -mx-4 md:mx-0 md:border-0 md:p-0 md:relative shadow-lg md:shadow-none z-20">
+    <div class="sticky bottom-0 left-0 right-0 bg-light-background dark:bg-dark-background border-t border-light-border dark:border-dark-border p-4 md:p-0 md:border-0 md:relative shadow-lg md:shadow-none z-20 -mx-4 md:mx-0">
       <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <a 
           href="{{ url_for('groups.show', group_id=group_id) }}" 
-          class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border-2 border-light-border dark:border-dark-border 
-            bg-light-background dark:bg-dark-background
-            hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 
-            text-light-text-primary dark:text-dark-text-primary font-medium
-            transition-all active:scale-95"
+          class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border-2 border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 text-light-text-primary dark:text-dark-text-primary font-medium transition-all active:scale-95"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -165,17 +162,12 @@
         </a>
         <button 
           type="submit"
-          class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border-2 border-success dark:border-success-dark 
-            bg-success dark:bg-success-dark 
-            hover:bg-success-light hover:border-success-light hover:text-success-dark dark:hover:bg-success dark:hover:border-success dark:hover:text-success-light 
-            text-light-text-primary dark:text-dark-text-primary font-semibold shadow-lg hover:shadow-2xl hover:scale-105
-            transition-all duration-200 active:scale-95
-            disabled:opacity-50 disabled:cursor-not-allowed"
+          class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border-2 border-success dark:border-success-dark bg-success dark:bg-success-dark hover:bg-success-dark hover:border-success-dark dark:hover:bg-success-light dark:hover:border-success-light text-white font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
           </svg>
-          <span class="drop-shadow">Guardar disponibilidad</span>
+          <span>Guardar disponibilidad</span>
         </button>
       </div>
     </div>
@@ -204,55 +196,68 @@
     }
     
     // Agregar listeners a todos los checkboxes
-    checkboxes.forEach(checkbox => {
+    for (const checkbox of checkboxes) {
       checkbox.addEventListener('change', updateCounters);
-    });
+    }
     
     // Inicializar contadores
     updateCounters();
     
     // Animar flechas de details
-    document.querySelectorAll('details').forEach(detail => {
+    for (const detail of document.querySelectorAll('details')) {
       detail.addEventListener('toggle', (e) => {
         const arrow = e.target.querySelector('.details-arrow');
         if (arrow) {
           arrow.style.transform = detail.open ? 'rotate(180deg)' : 'rotate(0deg)';
         }
       });
-    });
+    }
   });
 </script>
 
 <style>
-  /* Mejoras táctiles para móvil */
-  @media (max-width: 768px) {
-    .availability-checkbox + label {
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
-    }
+  /* Mejoras táctiles para todas las plataformas */
+  label {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
   
-  /* Animación suave para details */
+  /* Animación suave para details en móvil */
   details summary {
     list-style: none;
   }
+  
   details summary::-webkit-details-marker {
     display: none;
   }
   
   /* Transición suave de flechas */
   .details-arrow {
-    transition: transform 0.3s ease;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
   
   /* Efecto de pulso al seleccionar */
   @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
+    0%, 100% { 
+      transform: scale(1); 
+    }
+    50% { 
+      transform: scale(1.05); 
+    }
   }
   
+  .availability-checkbox:checked ~ label,
   .availability-checkbox:checked + label {
-    animation: pulse 0.3s ease;
+    animation: pulse 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* Asegurar que la columna sticky tenga el z-index correcto en desktop */
+  @media (min-width: 768px) {
+    table thead th:first-child,
+    table tbody td:first-child {
+      position: sticky;
+      left: 0;
+    }
   }
 </style>
 {% endblock %}
