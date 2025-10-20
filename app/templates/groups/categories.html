@@ -2,25 +2,31 @@
 
 {% block content %}
 <div class="w-full max-w-3xl mx-auto">
-  <h3 class="text-2xl font-bold mb-4">Categorías del grupo: {{ group.name }}</h3>
+  <h3 class="text-xl sm:text-2xl font-bold mb-4">Categorías del grupo: <span class="block sm:inline mt-1 sm:mt-0">{{ group.name }}</span></h3>
   <ul class="space-y-2 mb-4">
     {% for cat in categories %}
-    <li class="flex items-center justify-between px-4 py-3 bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border">
-      <span>{{ cat.name }}</span>
+    <li class="flex items-center justify-between px-3 sm:px-4 py-3 bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border touch-manipulation min-h-[48px]">
+      <span class="text-sm sm:text-base">{{ cat.name }}</span>
       <form method="POST" action="{{ url_for('categories.group_categories', group_id=group.id) }}" class="inline-block">
         <!-- placeholder: delete action could be added -->
       </form>
     </li>
     {% else %}
-    <li class="text-light-text-secondary dark:text-dark-text-secondary">No hay categorías aún.</li>
+    <li class="text-sm text-light-text-secondary dark:text-dark-text-secondary p-4 text-center bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border">No hay categorías aún.</li>
     {% endfor %}
   </ul>
 
-  <form method="POST" action="{{ url_for('categories.group_categories', group_id=group.id) }}" class="flex gap-2 mb-4">
-    <input type="text" name="name" class="flex-1 px-3 py-2 rounded border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background" placeholder="Nombre categoría" required>
-    <button class="px-4 py-2 rounded bg-primary text-white hover:opacity-90 transition-opacity">Crear</button>
+  <form method="POST" action="{{ url_for('categories.group_categories', group_id=group.id) }}" class="flex flex-col xs:flex-row gap-2 mb-4">
+    <input type="text" name="name" class="flex-1 px-3 sm:px-4 py-3 rounded-lg text-base border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background focus:outline-none focus:ring-2 focus:ring-primary touch-manipulation" placeholder="Nombre categoría" required>
+    <button class="px-4 py-3 rounded-lg bg-primary text-white hover:opacity-90 transition-opacity touch-manipulation active:scale-95 font-medium min-h-[48px]">
+      <span class="hidden xs:inline">Crear Categoría</span>
+      <span class="xs:hidden">Crear</span>
+    </button>
   </form>
 
-  <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center px-3 py-2 rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition-colors">Volver</a>
+  <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition-colors touch-manipulation active:scale-95 min-h-[44px] text-sm">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+    Volver
+  </a>
 </div>
 {% endblock %}

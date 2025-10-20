@@ -2,39 +2,47 @@
 
 {% block content %}
 <div class="w-full max-w-3xl mx-auto">
-  <h2 class="text-2xl font-bold mb-4">Miembros del Grupo: {{ group.name }}</h2>
+  <h2 class="text-xl sm:text-2xl font-bold mb-4">Miembros del Grupo: <span class="block sm:inline mt-1 sm:mt-0">{{ group.name }}</span></h2>
   <ul class="space-y-3 mb-4">
     {% for member in members %}
-    <li class="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border p-4">
+    <li class="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border p-3 sm:p-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
         <div class="flex items-center gap-2 flex-wrap">
-          <strong>{{ member.user.email }}</strong>
+          <strong class="text-sm sm:text-base break-all">{{ member.user.email }}</strong>
           {% if member.role.name == 'ADMIN' %}<span class="inline-flex items-center px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">Admin</span>{% endif %}
           {% if member.user.id == group.owner_id %}<span class="inline-flex items-center px-2 py-0.5 text-xs rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200">Owner</span>{% endif %}
         </div>
         <div class="flex items-center gap-2">
           {% if current_user.id == group.owner.id or membership.role.name == 'ADMIN' %}
-            <a href="{{ url_for('categories.member_categories', group_member_id=member.id) }}" class="inline-flex items-center px-3 py-1.5 text-sm rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">Gestionar categorías</a>
+            <a href="{{ url_for('categories.member_categories', group_member_id=member.id) }}" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 touch-manipulation active:scale-95 transition min-h-[40px]">
+              <span class="hidden xs:inline">Gestionar categorías</span>
+              <span class="xs:hidden">Categorías</span>
+            </a>
           {% elif member.user == current_user %}
-            <a href="{{ url_for('categories.member_categories', group_member_id=member.id) }}" class="inline-flex items-center px-3 py-1.5 text-sm rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">Mis categorías</a>
+            <a href="{{ url_for('categories.member_categories', group_member_id=member.id) }}" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 touch-manipulation active:scale-95 transition min-h-[40px]">
+              <span class="hidden xs:inline">Mis categorías</span>
+              <span class="xs:hidden">Categorías</span>
+            </a>
           {% endif %}
         </div>
       </div>
       <div class="mt-2">
         {% set assigned = member.categories | map(attribute='category') | list %}
         {% if assigned and assigned|length > 0 %}
-          {% for gmc in member.categories %}
-            <span class="inline-block text-xs rounded px-2 py-1 bg-light-muted/40 dark:bg-dark-muted/40 text-light-text-primary dark:text-dark-text-primary mr-1 mb-1">{{ gmc.category.name }}</span>
-          {% endfor %}
+          <div class="flex flex-wrap gap-1">
+            {% for gmc in member.categories %}
+              <span class="inline-block text-xs rounded px-2 py-1 bg-light-muted/40 dark:bg-dark-muted/40 text-light-text-primary dark:text-dark-text-primary">{{ gmc.category.name }}</span>
+            {% endfor %}
+          </div>
         {% else %}
-          <span class="text-light-text-secondary dark:text-dark-text-secondary">Sin categorías</span>
+          <span class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary">Sin categorías</span>
         {% endif %}
       </div>
-      <div class="flex items-center gap-2 mt-3">
+      <div class="flex flex-wrap items-center gap-2 mt-3">
         {% if current_user.id == group.owner.id %}
-          <form method="POST" action="{{ url_for('groups.update_role', group_id=group.id, user_id=member.user.id) }}">
+          <form method="POST" action="{{ url_for('groups.update_role', group_id=group.id, user_id=member.user.id) }}" class="flex-shrink-0">
             <label for="role_{{ member.user.id }}" class="sr-only">Rol</label>
-            <select id="role_{{ member.user.id }}" name="role" class="px-2 py-1.5 text-sm rounded border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background" onchange="this.form.submit()">
+            <select id="role_{{ member.user.id }}" name="role" class="px-3 py-2 text-sm rounded-lg border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background touch-manipulation min-h-[40px]" onchange="this.form.submit()">
               <option value="ADMIN" {% if member.role.name == 'ADMIN' %}selected{% endif %}>Admin</option>
               <option value="MEMBER" {% if member.role.name == 'MEMBER' %}selected{% endif %}>Miembro</option>
             </select>
@@ -42,21 +50,31 @@
         {% endif %}
         {% if member.user == current_user %}
           <form method="POST" action="{{ url_for('groups.leave', group_id=group.id) }}" onsubmit="return confirm('¿Estás seguro de que deseas abandonar este grupo?');">
-            <button type="submit" class="inline-flex items-center px-3 py-1.5 text-sm rounded bg-red-600 text-white hover:bg-red-700">Salir del grupo</button>
+            <button type="submit" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 touch-manipulation active:scale-95 transition min-h-[40px]">
+              <svg class="w-4 h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+              <span class="hidden sm:inline">Salir del grupo</span>
+              <span class="sm:hidden">Salir</span>
+            </button>
           </form>
         {% else %}
           {% if current_user.id == group.owner.id %}
             <form method="POST" action="{{ url_for('groups.remove', group_id=group.id, user_id=member.user.id) }}">
-              <button type="submit" class="inline-flex items-center px-3 py-1.5 text-sm rounded bg-red-600 text-white hover:bg-red-700">Eliminar</button>
+              <button type="submit" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 touch-manipulation active:scale-95 transition min-h-[40px]">
+                <svg class="w-4 h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                Eliminar
+              </button>
             </form>
           {% endif %}
         {% endif %}
       </div>
     </li>
     {% else %}
-    <li class="text-light-text-secondary dark:text-dark-text-secondary">Este grupo no tiene miembros.</li>
+    <li class="text-sm text-light-text-secondary dark:text-dark-text-secondary p-4 text-center bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border">Este grupo no tiene miembros.</li>
     {% endfor %}
   </ul>
-  <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center px-3 py-2 rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">Volver</a>
+  <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 touch-manipulation active:scale-95 transition min-h-[44px] text-sm">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+    Volver
+  </a>
 </div>
 {% endblock %}
