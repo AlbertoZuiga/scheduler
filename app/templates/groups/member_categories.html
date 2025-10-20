@@ -2,15 +2,15 @@
 
 {% block content %}
 <div class="w-full max-w-5xl mx-auto">
-  <h4 class="text-2xl font-bold mb-4">Categorías para: {{ member.user.email }}</h4>
+  <h4 class="text-xl sm:text-2xl font-bold mb-4">Categorías para: <span class="block sm:inline mt-1 sm:mt-0 break-all">{{ member.user.email }}</span></h4>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+  <div class="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
     {% for cat in categories %}
       <div>
-        <label class="flex items-center justify-between border border-light-border dark:border-dark-border rounded-lg p-3 cursor-pointer hover:bg-light-surface dark:hover:bg-dark-surface transition-colors bg-light-card dark:bg-dark-card">
-          <span>{{ cat.name }}</span>
+        <label class="flex items-center justify-between border-2 border-light-border dark:border-dark-border rounded-lg p-3 sm:p-4 cursor-pointer hover:bg-light-surface dark:hover:bg-dark-surface transition-colors bg-light-card dark:bg-dark-card touch-manipulation active:scale-[0.98] min-h-[56px]">
+          <span class="text-sm sm:text-base font-medium">{{ cat.name }}</span>
           {% if can_edit %}
-            <input class="ml-2 w-4 h-4 text-primary bg-light-muted/30 dark:bg-dark-muted/30 border-light-border dark:border-dark-border rounded focus:ring-2 focus:ring-primary" type="checkbox" value="{{ cat.id }}" {% if cat.id in assoc_ids %}checked{% endif %} data-cat-id="{{ cat.id }}">
+            <input class="ml-2 w-5 h-5 sm:w-4 sm:h-4 text-primary bg-light-muted/30 dark:bg-dark-muted/30 border-light-border dark:border-dark-border rounded focus:ring-2 focus:ring-primary cursor-pointer" type="checkbox" value="{{ cat.id }}" {% if cat.id in assoc_ids %}checked{% endif %} data-cat-id="{{ cat.id }}">
           {% else %}
             <span class="ml-2 px-2 py-1 text-xs rounded {% if cat.id in assoc_ids %}bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200{% else %}bg-light-muted/40 dark:bg-dark-muted/40 border border-light-border dark:border-dark-border{% endif %}">{% if cat.id in assoc_ids %}Asignada{% else %}No asignada{% endif %}</span>
           {% endif %}
@@ -18,13 +18,16 @@
       </div>
     {% else %}
       <div class="col-span-full">
-        <div class="text-light-text-secondary dark:text-dark-text-secondary">No hay categorías en el grupo.</div>
+        <div class="text-sm text-light-text-secondary dark:text-dark-text-secondary p-4 text-center bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border">No hay categorías en el grupo.</div>
       </div>
     {% endfor %}
   </div>
 
   <div class="mt-4">
-    <a href="{{ url_for('groups.members', group_id=group.id) }}" class="inline-flex items-center px-3 py-2 rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition-colors">Volver</a>
+    <a href="{{ url_for('groups.members', group_id=group.id) }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition-colors touch-manipulation active:scale-95 min-h-[44px] text-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+      Volver
+    </a>
   </div>
 </div>
 {% endblock %}

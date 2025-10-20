@@ -4,52 +4,52 @@
 
 {% block content %}
 <!-- Hero -->
-<section class="text-center mb-10">
-  <div class="py-12">
-    <h1 class="text-4xl sm:text-5xl font-extrabold mb-4">Bienvenido a Scheduler</h1>
-    <p class="text-lg text-light-text-secondary dark:text-dark-text-secondary max-w-2xl mx-auto mb-6">La plataforma moderna para coordinar horarios y gestionar tus grupos de manera eficiente.</p>
-    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+<section class="text-center mb-8 sm:mb-10">
+  <div class="py-8 sm:py-12">
+    <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold mb-3 sm:mb-4 px-2">Bienvenido a Scheduler</h1>
+    <p class="text-base sm:text-lg text-light-text-secondary dark:text-dark-text-secondary max-w-2xl mx-auto mb-4 sm:mb-6 px-4">La plataforma moderna para coordinar horarios y gestionar tus grupos de manera eficiente.</p>
+    <div class="flex flex-col sm:flex-row gap-3 justify-center px-4">
       {% if current_user.is_authenticated %}
-        <a href="{{ url_for('groups.index') }}" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border shadow hover:scale-105 transition">
+        <a href="{{ url_for('groups.index') }}" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border shadow hover:shadow-md transition-all touch-manipulation active:scale-95 min-h-[48px]">
           Ir a Mis Grupos
         </a>
-        <a href="{{ url_for('groups.create') }}" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-primary text-primary hover:bg-primary hover:text-white transition">
+        <a href="{{ url_for('groups.create') }}" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border-2 border-primary text-primary hover:bg-primary hover:text-white transition-all touch-manipulation active:scale-95 min-h-[48px]">
           Crear Grupo
         </a>
       {% else %}
-        <a href="{{ url_for('auth.login') }}" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-primary text-white shadow hover:opacity-90">Comenzar Ahora</a>
+        <a href="{{ url_for('auth.login') }}" class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-primary text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all touch-manipulation active:scale-95 min-h-[48px] text-lg font-semibold">Comenzar Ahora</a>
       {% endif %}
     </div>
   </div>
-  <div class="h-1 bg-gradient-to-r from-primary to-accent w-24 mx-auto rounded"></div>
-  </section>
+  <div class="h-1 bg-gradient-to-r from-primary to-accent w-20 sm:w-24 mx-auto rounded"></div>
+</section>
 
 <!-- Features -->
-<section class="mb-12">
-  <h2 class="text-center text-2xl font-bold mb-8">¿Por qué usar Scheduler?</h2>
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-    <div class="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border p-6 text-center shadow">
-      <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10 text-primary flex items-center justify-center">👥</div>
-      <h5 class="font-semibold mb-2">Gestión de Grupos</h5>
+<section class="mb-10 sm:mb-12 px-2 sm:px-0">
+  <h2 class="text-center text-xl sm:text-2xl font-bold mb-6 sm:mb-8">¿Por qué usar Scheduler?</h2>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+    <div class="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border p-5 sm:p-6 text-center shadow hover:shadow-md transition-all">
+      <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl">👥</div>
+      <h5 class="font-semibold mb-2 text-base">Gestión de Grupos</h5>
       <p class="text-light-text-secondary dark:text-dark-text-secondary text-sm">Crea y administra grupos con facilidad. Invita miembros con un enlace y gestiona roles de forma intuitiva.</p>
     </div>
-    <div class="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border p-6 text-center shadow">
-      <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10 text-primary flex items-center justify-center">📅</div>
-      <h5 class="font-semibold mb-2">Disponibilidad Compartida</h5>
+    <div class="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border p-5 sm:p-6 text-center shadow hover:shadow-md transition-all">
+      <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl">📅</div>
+      <h5 class="font-semibold mb-2 text-base">Disponibilidad Compartida</h5>
       <p class="text-light-text-secondary dark:text-dark-text-secondary text-sm">Visualiza disponibilidad en tiempo real y encuentra los mejores horarios para reuniones.</p>
     </div>
-    <div class="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border p-6 text-center shadow">
-      <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10 text-primary flex items-center justify-center">🔒</div>
-      <h5 class="font-semibold mb-2">Seguridad Garantizada</h5>
+    <div class="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border p-5 sm:p-6 text-center shadow hover:shadow-md transition-all sm:col-span-2 lg:col-span-1">
+      <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl">🔒</div>
+      <h5 class="font-semibold mb-2 text-base">Seguridad Garantizada</h5>
       <p class="text-light-text-secondary dark:text-dark-text-secondary text-sm">Autenticación con Google OAuth 2.0 y control de acceso basado en roles.</p>
     </div>
   </div>
 </section>
 
 <!-- Steps -->
-<section class="mb-12">
-  <h2 class="text-center text-2xl font-bold mb-8">¿Cómo funciona?</h2>
-  <div class="grid grid-cols-2 sm:grid-cols-4 gap-6">
+<section class="mb-10 sm:mb-12 px-2 sm:px-0">
+  <h2 class="text-center text-xl sm:text-2xl font-bold mb-6 sm:mb-8">¿Cómo funciona?</h2>
+  <div class="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
     {% for n, title, desc in [
       (1, 'Crea un Grupo', 'Registra tu grupo y define sus características'),
       (2, 'Invita Miembros', 'Comparte el enlace de invitación con tu equipo'),
@@ -57,9 +57,9 @@
       (4, 'Coordina', 'Encuentra los mejores momentos para reunirse')
     ] %}
     <div class="text-center">
-      <div class="w-20 h-20 mx-auto mb-3 rounded-full bg-primary text-white flex items-center justify-center text-2xl font-bold">{{ n }}</div>
-      <h5 class="font-semibold">{{ title }}</h5>
-      <p class="text-light-text-secondary dark:text-dark-text-secondary text-sm">{{ desc }}</p>
+      <div class="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 rounded-full bg-primary text-white flex items-center justify-center text-xl sm:text-2xl font-bold shadow-lg">{{ n }}</div>
+      <h5 class="font-semibold text-sm sm:text-base mb-1">{{ title }}</h5>
+      <p class="text-light-text-secondary dark:text-dark-text-secondary text-xs sm:text-sm px-2">{{ desc }}</p>
     </div>
     {% endfor %}
   </div>
@@ -67,11 +67,11 @@
 
 <!-- CTA -->
 {% if not current_user.is_authenticated %}
-<section class="my-12">
-  <div class="rounded-xl shadow-lg border border-light-border dark:border-dark-border text-center py-12 px-6 bg-gradient-to-tr from-primary to-accent text-white">
-    <h3 class="text-2xl font-bold mb-2">¿Listo para empezar?</h3>
-    <p class="mb-6">Únete a Scheduler y simplifica la coordinación de horarios</p>
-    <a href="{{ url_for('auth.login') }}" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-white text-primary hover:opacity-90">Iniciar Sesión con Google</a>
+<section class="my-10 sm:my-12 px-2 sm:px-0">
+  <div class="rounded-xl shadow-lg border border-light-border dark:border-dark-border text-center py-10 sm:py-12 px-4 sm:px-6 bg-gradient-to-tr from-primary to-accent text-white">
+    <h3 class="text-xl sm:text-2xl font-bold mb-2">¿Listo para empezar?</h3>
+    <p class="mb-4 sm:mb-6 text-sm sm:text-base">Únete a Scheduler y simplifica la coordinación de horarios</p>
+    <a href="{{ url_for('auth.login') }}" class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-primary hover:opacity-90 transition-all shadow-lg hover:shadow-xl touch-manipulation active:scale-95 font-semibold min-h-[48px]">Iniciar Sesión con Google</a>
   </div>
 </section>
 {% endif %}

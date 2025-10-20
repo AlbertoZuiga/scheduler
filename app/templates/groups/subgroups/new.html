@@ -159,146 +159,147 @@
 
 {% block content %}
 <div class="w-full max-w-7xl mx-auto">
-  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-    <div>
-      <h2 class="text-3xl font-bold text-light-text-primary dark:text-dark-text-primary flex items-center gap-2">
-        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-        Dividir Grupo: {{ group.name }}
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6">
+    <div class="flex-1">
+      <h2 class="text-xl sm:text-2xl md:text-3xl font-bold text-light-text-primary dark:text-dark-text-primary flex items-center gap-2">
+        <svg class="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+        <span class="hidden xs:inline">Dividir Grupo: {{ group.name }}</span>
+        <span class="xs:hidden">Dividir</span>
       </h2>
-      <p class="text-light-text-secondary dark:text-dark-text-secondary mt-1">Genera subgrupos optimizados basados en compatibilidad horaria y categorías</p>
+      <p class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary mt-1">Genera subgrupos optimizados basados en compatibilidad horaria y categorías</p>
     </div>
-    <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center gap-2 px-4 py-2 border border-light-border dark:border-dark-border rounded hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition-colors text-light-text-primary dark:text-dark-text-primary">
+    <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-4 py-3 border-2 border-light-border dark:border-dark-border rounded-lg hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition-colors text-light-text-primary dark:text-dark-text-primary touch-manipulation active:scale-95 min-h-[48px] text-sm w-full xs:w-auto">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
       Volver al Grupo
     </a>
   </div>
 
   <!-- Resumen visual de configuración -->
-  <div id="config-summary" class="mb-6 p-4 rounded-lg bg-indigo-100 dark:bg-indigo-900/70 border-2 border-indigo-300 dark:border-indigo-600 shadow-sm">
-    <div class="flex items-center gap-3 flex-wrap">
-      <span class="font-bold text-indigo-900 dark:text-indigo-100 text-base">Resumen de configuración:</span>
-  <span id="summary-num-groups" class="text-indigo-800 dark:text-indigo-200">Subgrupos: <b class="text-indigo-900 dark:text-dark-text-primary">3</b></span>
-  <span id="summary-max-size" class="text-indigo-800 dark:text-indigo-200">Máx. por subgrupo: <b class="text-indigo-900 dark:text-dark-text-primary">{{ (member_count // 3) + 1 }}</b></span>
-  <span id="summary-threshold" class="text-indigo-800 dark:text-indigo-200">Compatibilidad mínima: <b class="text-indigo-900 dark:text-dark-text-primary">50%</b></span>
+  <div id="config-summary" class="mb-4 sm:mb-6 p-3 sm:p-4 rounded-lg bg-indigo-100 dark:bg-indigo-900/70 border-2 border-indigo-300 dark:border-indigo-600 shadow-sm">
+    <div class="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-3 flex-wrap">
+      <span class="font-bold text-indigo-900 dark:text-indigo-100 text-sm sm:text-base">Resumen:</span>
+  <span id="summary-num-groups" class="text-xs sm:text-sm text-indigo-800 dark:text-indigo-200">Subgrupos: <b class="text-indigo-900 dark:text-dark-text-primary">3</b></span>
+  <span id="summary-max-size" class="text-xs sm:text-sm text-indigo-800 dark:text-indigo-200">Máx.: <b class="text-indigo-900 dark:text-dark-text-primary">{{ (member_count // 3) + 1 }}</b></span>
+  <span id="summary-threshold" class="text-xs sm:text-sm text-indigo-800 dark:text-indigo-200">Compatibilidad: <b class="text-indigo-900 dark:text-dark-text-primary">50%</b></span>
     </div>
-    <div class="text-sm text-indigo-700 dark:text-indigo-300 mt-2 italic">Las opciones seleccionadas se mostrarán aquí en tiempo real para que puedas revisar tu configuración antes de generar los subgrupos.</div>
+    <div class="text-xs sm:text-sm text-indigo-700 dark:text-indigo-300 mt-2 italic">Las opciones seleccionadas se mostrarán aquí en tiempo real para que puedas revisar tu configuración antes de generar los subgrupos.</div>
   </div>
 </div>
 
-<div class="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-4">
+<div class="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
   <!-- Panel de Configuración -->
   <div>
     <div class="bg-light-card dark:bg-dark-card rounded-lg shadow-sm border border-light-border dark:border-dark-border">
-  <div class="bg-indigo-600 dark:bg-indigo-500 text-white px-4 py-3 rounded-t-lg">
-        <h5 class="font-bold flex items-center gap-2">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+  <div class="bg-indigo-600 dark:bg-indigo-500 text-white px-3 sm:px-4 py-2 sm:py-3 rounded-t-lg">
+        <h5 class="font-bold flex items-center gap-2 text-sm sm:text-base">
+          <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
           Configuración de División
         </h5>
       </div>
-      <div class="p-4">
+      <div class="p-3 sm:p-4">
         <form id="division-form">
           <!-- Configuración Básica -->
 
           <div class="mb-3">
-            <label for="num_groups" class="block text-sm font-bold mb-1 text-light-text-primary dark:text-dark-text-primary flex items-center gap-1">
+            <label for="num_groups" class="block text-xs sm:text-sm font-bold mb-2 text-light-text-primary dark:text-dark-text-primary flex items-center gap-1">
               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
               Número de Subgrupos
               <span class="ml-1 cursor-pointer" title="¿Cuántos subgrupos quieres crear? Elige entre 2 y 20.">
                 <svg class="w-4 h-4 text-blue-400 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-8 4a1 1 0 100-2 1 1 0 000 2zm.93-7.412a1 1 0 00-1.858 0l-.518 1.036A1 1 0 008.618 9h2.764a1 1 0 00.964-1.376l-.518-1.036z"/></svg>
               </span>
             </label>
-            <input type="number" class="w-full px-3 py-2 rounded border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary" id="num_groups" min="2" max="20" value="3" required>
-            <small class="text-light-text-secondary dark:text-dark-text-secondary">Total de miembros activos: {{ member_count }}. <b>Recomendación:</b> Elige un número que permita grupos equilibrados.</small>
+            <input type="number" class="w-full px-3 py-3 rounded-lg text-base border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary focus:ring-2 focus:ring-primary touch-manipulation" id="num_groups" min="2" max="20" value="3" required>
+            <small class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Total de miembros activos: {{ member_count }}. <b>Recomendación:</b> Elige un número que permita grupos equilibrados.</small>
           </div>
 
 
           <div class="mb-3">
-            <label for="max_group_size" class="block text-sm font-bold mb-1 text-light-text-primary dark:text-dark-text-primary flex items-center gap-1">
+            <label for="max_group_size" class="block text-xs sm:text-sm font-bold mb-2 text-light-text-primary dark:text-dark-text-primary flex items-center gap-1">
               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"></path></svg>
               Tamaño Máximo por Subgrupo
               <span class="ml-1 cursor-pointer" title="¿Cuál es el máximo de personas permitido por subgrupo? Deja vacío para no limitar.">
                 <svg class="w-4 h-4 text-blue-400 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-8 4a1 1 0 100-2 1 1 0 000 2zm.93-7.412a1 1 0 00-1.858 0l-.518 1.036A1 1 0 008.618 9h2.764a1 1 0 00.964-1.376l-.518-1.036z"/></svg>
               </span>
             </label>
-            <input type="number" class="w-full px-3 py-2 rounded border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary" id="max_group_size" min="1" value="{{ (member_count // 3) + 1 }}" placeholder="Sin límite">
-            <small class="text-light-text-secondary dark:text-dark-text-secondary">Dejar vacío para no limitar el tamaño de los subgrupos.</small>
+            <input type="number" class="w-full px-3 py-3 rounded-lg text-base border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary focus:ring-2 focus:ring-primary touch-manipulation" id="max_group_size" min="1" value="{{ (member_count // 3) + 1 }}" placeholder="Sin límite">
+            <small class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Dejar vacío para no limitar el tamaño de los subgrupos.</small>
           </div>
 
 
           <div class="mb-3">
-            <label for="compatibility_threshold" class="block text-sm font-bold mb-1 text-light-text-primary dark:text-dark-text-primary flex items-center gap-1">
+            <label for="compatibility_threshold" class="block text-xs sm:text-sm font-bold mb-2 text-light-text-primary dark:text-dark-text-primary flex items-center gap-1">
               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clip-rule="evenodd"></path></svg>
               Umbral de Compatibilidad
               <span class="ml-1 cursor-pointer" title="Porcentaje mínimo de coincidencia de horarios entre miembros para considerarlos compatibles.">
                 <svg class="w-4 h-4 text-blue-400 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-8 4a1 1 0 100-2 1 1 0 000 2zm.93-7.412a1 1 0 00-1.858 0l-.518 1.036A1 1 0 008.618 9h2.764a1 1 0 00.964-1.376l-.518-1.036z"/></svg>
               </span>
             </label>
-            <input type="range" class="w-full" id="compatibility_threshold" min="0" max="100" value="50" step="5">
-            <div class="flex justify-between text-sm">
+            <input type="range" class="w-full touch-manipulation" style="min-height: 32px;" id="compatibility_threshold" min="0" max="100" value="50" step="5">
+            <div class="flex justify-between text-xs sm:text-sm">
               <small class="text-light-text-secondary dark:text-dark-text-secondary">0%</small>
               <small id="threshold_display" class="font-bold text-light-text-primary dark:text-dark-text-primary">50%</small>
               <small class="text-light-text-secondary dark:text-dark-text-secondary">100%</small>
             </div>
-            <small class="text-light-text-secondary dark:text-dark-text-secondary">Define el solapamiento mínimo de horarios requerido entre miembros para que puedan estar juntos en un subgrupo.</small>
+            <small class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Define el solapamiento mínimo de horarios requerido entre miembros para que puedan estar juntos en un subgrupo.</small>
           </div>
 
 
           <div class="mb-3">
-            <div class="flex items-center">
-              <input class="w-4 h-4 text-primary bg-light-muted/30 dark:bg-dark-muted/30 border-light-border dark:border-dark-border rounded focus:ring-2 focus:ring-primary" type="checkbox" id="allow_multiple_membership">
-              <label class="ml-2 text-sm text-light-text-primary dark:text-dark-text-primary flex items-center gap-1" for="allow_multiple_membership">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path></svg>
-                Permitir Membresía Múltiple
+            <div class="flex items-center min-h-[44px]">
+              <input class="w-5 h-5 text-primary bg-light-muted/30 dark:bg-dark-muted/30 border-light-border dark:border-dark-border rounded focus:ring-2 focus:ring-primary cursor-pointer touch-manipulation" type="checkbox" id="allow_multiple_membership">
+              <label class="ml-3 text-xs sm:text-sm text-light-text-primary dark:text-dark-text-primary flex items-center gap-1 cursor-pointer flex-1" for="allow_multiple_membership">
+                <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path></svg>
+                <span>Permitir Membresía Múltiple</span>
                 <span class="ml-1 cursor-pointer" title="Permite que un miembro esté en más de un subgrupo.">
                   <svg class="w-4 h-4 text-blue-400 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-8 4a1 1 0 100-2 1 1 0 000 2zm.93-7.412a1 1 0 00-1.858 0l-.518 1.036A1 1 0 008.618 9h2.764a1 1 0 00.964-1.376l-.518-1.036z"/></svg>
                 </span>
               </label>
             </div>
-            <small class="text-light-text-secondary dark:text-dark-text-secondary ml-6">Si está activado, un miembro puede pertenecer a varios subgrupos a la vez.</small>
+            <small class="text-xs text-light-text-secondary dark:text-dark-text-secondary ml-8">Si está activado, un miembro puede pertenecer a varios subgrupos a la vez.</small>
           </div>
 
 
           <div class="mb-3">
-            <div class="flex items-center">
-              <input class="w-4 h-4 text-primary bg-light-muted/30 dark:bg-dark-muted/30 border-light-border dark:border-dark-border rounded focus:ring-2 focus:ring-primary" type="checkbox" id="require_all_members" checked>
-              <label class="ml-2 text-sm text-light-text-primary dark:text-dark-text-primary flex items-center gap-1" for="require_all_members">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
-                Todos los miembros deben estar en al menos un grupo
+            <div class="flex items-center min-h-[44px]">
+              <input class="w-5 h-5 text-primary bg-light-muted/30 dark:bg-dark-muted/30 border-light-border dark:border-dark-border rounded focus:ring-2 focus:ring-primary cursor-pointer touch-manipulation" type="checkbox" id="require_all_members" checked>
+              <label class="ml-3 text-xs sm:text-sm text-light-text-primary dark:text-dark-text-primary flex items-center gap-1 cursor-pointer flex-1" for="require_all_members">
+                <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                <span>Todos los miembros deben estar en al menos un grupo</span>
                 <span class="ml-1 cursor-pointer" title="Si está activado, todos los miembros serán asignados a algún subgrupo.">
                   <svg class="w-4 h-4 text-blue-400 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-8 4a1 1 0 100-2 1 1 0 000 2zm.93-7.412a1 1 0 00-1.858 0l-.518 1.036A1 1 0 008.618 9h2.764a1 1 0 00.964-1.376l-.518-1.036z"/></svg>
                 </span>
               </label>
             </div>
-            <small class="text-light-text-secondary dark:text-dark-text-secondary ml-6">Garantiza que ningún miembro quede sin asignar a un subgrupo.</small>
+            <small class="text-xs text-light-text-secondary dark:text-dark-text-secondary ml-8">Garantiza que ningún miembro quede sin asignar a un subgrupo.</small>
           </div>
 
           <!-- Reglas de Categorías -->
 
           <hr class="my-4 border-light-border dark:border-dark-border">
           <div class="mb-3">
-            <div class="flex justify-between items-center mb-2">
-              <h6 class="font-bold text-light-text-primary dark:text-dark-text-primary flex items-center gap-1">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"></path></svg>
-                Requisitos de Categorías (Opcional)
+            <div class="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-2 mb-2">
+              <h6 class="font-bold text-sm sm:text-base text-light-text-primary dark:text-dark-text-primary flex items-center gap-1">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"></path></svg>
+                <span>Requisitos de Categorías</span>
               </h6>
-                            <button type="button" class="px-3 py-1 text-sm rounded bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 text-light-text-primary dark:text-dark-text-primary font-semibold transition-all shadow hover:shadow-md flex items-center gap-1" id="add-rule-btn">
+              <button type="button" class="px-3 py-2 text-xs sm:text-sm rounded-lg bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 text-white font-semibold transition-all shadow hover:shadow-md flex items-center gap-1 touch-manipulation active:scale-95 min-h-[44px] w-full xs:w-auto justify-center" id="add-rule-btn">
                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path></svg>
                 <span>Agregar Requisito</span>
               </button>
             </div>
             
             <!-- Explicación simplificada -->
-            <div class="bg-purple-50 dark:bg-purple-900/40 border-2 border-purple-200 dark:border-purple-700 rounded-lg p-4 mb-3 shadow-sm">
-              <div class="flex items-start gap-3">
-                <svg class="w-6 h-6 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
-                <div class="text-sm flex-1">
-                  <p class="font-bold mb-2 text-purple-900 dark:text-purple-100 text-base">¿Qué son los Requisitos?</p>
-                  <p class="text-purple-800 dark:text-purple-200 mb-3">Define cuántos miembros de ciertas categorías debe haber en cada subgrupo.</p>
-                  <div class="mt-2 text-sm bg-light-card dark:bg-purple-950/60 rounded-md p-3 border-2 border-purple-200 dark:border-purple-700">
+            <div class="bg-purple-50 dark:bg-purple-900/40 border-2 border-purple-200 dark:border-purple-700 rounded-lg p-3 sm:p-4 mb-3 shadow-sm">
+              <div class="flex items-start gap-2 sm:gap-3">
+                <svg class="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                <div class="text-xs sm:text-sm flex-1">
+                  <p class="font-bold mb-1 sm:mb-2 text-purple-900 dark:text-purple-100 text-sm sm:text-base">¿Qué son los Requisitos?</p>
+                  <p class="text-purple-800 dark:text-purple-200 mb-2 sm:mb-3">Define cuántos miembros de ciertas categorías debe haber en cada subgrupo.</p>
+                  <div class="mt-2 text-xs sm:text-sm bg-light-card dark:bg-purple-950/60 rounded-md p-2 sm:p-3 border-2 border-purple-200 dark:border-purple-700">
                     <strong class="text-purple-900 dark:text-purple-100">Ejemplo:</strong> 
                     <span class="text-purple-800 dark:text-purple-200">"Cada subgrupo debe tener mínimo 1 Líder y entre 2-4 Desarrolladores"</span>
                   </div>
-                  <p class="mt-3 text-sm italic text-purple-700 dark:text-purple-300">💡 Si no agregas requisitos, los subgrupos se crearán solo por compatibilidad horaria.</p>
+                  <p class="mt-2 sm:mt-3 text-xs italic text-purple-700 dark:text-purple-300">💡 Si no agregas requisitos, los subgrupos se crearán solo por compatibilidad horaria.</p>
                 </div>
               </div>
             </div>
