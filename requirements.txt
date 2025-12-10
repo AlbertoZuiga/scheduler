@@ -30,4 +30,4 @@ requests-oauthlib==2.0.0
 rsa==4.9.1
 SQLAlchemy==2.0.40
 typing_extensions==4.13.2
-urllib3==2.4.0
+urllib3>=2.6.0
