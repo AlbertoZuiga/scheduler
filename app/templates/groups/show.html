@@ -151,14 +151,12 @@
 </div>
 
 
+{% if can_manage %}
 <div class="mt-8">
   <div class="flex items-center justify-between mb-4">
     <h3 class="text-xl font-bold">Categorías</h3>
-    {% if can_manage %}
     <button id="openBulkAssign" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition">Asignar en bloque</button>
-    {% endif %}
   </div>
-  {% if can_manage %}
   <form id="createCategoryForm" class="flex flex-col sm:flex-row gap-2 mb-4" autocomplete="off" novalidate>
     <div class="flex-1">
       <input type="text" id="newCategoryName" class="w-full px-3 py-2 rounded border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background" placeholder="Nueva categoría (p. ej. Backend, Diseño)" required>
@@ -170,42 +168,42 @@
       </button>
     </div>
   </form>
-  {% endif %}
   <div id="categoriesList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 </div>
+{% endif %}
 
 {% if can_manage %}
-<!-- Modal Asignación en bloque (Tailwind) -->
-<div id="bulkAssignModal" class="fixed inset-0 z-50 hidden">
-  <div class="absolute inset-0 bg-black/40" data-close="true"></div>
-  <div class="relative mx-auto my-10 w-[95%] max-w-3xl bg-light-card dark:bg-dark-card rounded-xl shadow-lg border border-light-border dark:border-dark-border">
-    <div class="flex items-center justify-between px-4 py-3 border-b border-light-border dark:border-dark-border">
-      <h5 class="font-bold">Asignar categorías a miembros</h5>
-      <button class="p-2 rounded hover:bg-light-muted/30 dark:hover:bg-dark-muted/30" data-close="true" aria-label="Cerrar">✕</button>
+  <!-- Modal Asignación en bloque (Tailwind) -->
+  <div id="bulkAssignModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/40" data-close="true"></div>
+    <div class="relative mx-auto my-10 w-[95%] max-w-3xl bg-light-card dark:bg-dark-card rounded-xl shadow-lg border border-light-border dark:border-dark-border">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-light-border dark:border-dark-border">
+        <h5 class="font-bold">Asignar categorías a miembros</h5>
+        <button class="p-2 rounded hover:bg-light-muted/30 dark:hover:bg-dark-muted/30" data-close="true" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-auto">
+        <div>
+          <h6 class="mb-2 font-semibold">Miembros</h6>
+          <div id="bulkMembers" class="border border-light-border dark:border-dark-border rounded p-2 space-y-1 max-h-64 overflow-auto"></div>
+        </div>
+        <div>
+          <h6 class="mb-2 font-semibold">Categorías</h6>
+          <div id="bulkCategories" class="border border-light-border dark:border-dark-border rounded p-2 space-y-1 max-h-64 overflow-auto"></div>
+        </div>
+      </div>
+      <div class="flex items-center justify-between px-4 py-3 border-t border-light-border dark:border-dark-border">
+        <div class="space-x-2">
+          <button type="button" class="px-3 py-2 rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30" id="selectAllMembers">Todos miembros</button>
+          <button type="button" class="px-3 py-2 rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30" id="selectAllCategories">Todas categorías</button>
+        </div>
+        <div class="space-x-2">
+          <button type="button" class="px-3 py-2 rounded border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" id="unassignSelected">Desasignar</button>
+          <button type="button" class="px-3 py-2 rounded bg-primary text-white hover:opacity-90" id="assignSelected">Asignar</button>
+        </div>
+      </div>
     </div>
-    <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-auto">
-      <div>
-        <h6 class="mb-2 font-semibold">Miembros</h6>
-        <div id="bulkMembers" class="border border-light-border dark:border-dark-border rounded p-2 space-y-1 max-h-64 overflow-auto"></div>
-      </div>
-      <div>
-        <h6 class="mb-2 font-semibold">Categorías</h6>
-        <div id="bulkCategories" class="border border-light-border dark:border-dark-border rounded p-2 space-y-1 max-h-64 overflow-auto"></div>
-      </div>
-    </div>
-    <div class="flex items-center justify-between px-4 py-3 border-t border-light-border dark:border-dark-border">
-      <div class="space-x-2">
-        <button type="button" class="px-3 py-2 rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30" id="selectAllMembers">Todos miembros</button>
-        <button type="button" class="px-3 py-2 rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30" id="selectAllCategories">Todas categorías</button>
-      </div>
-      <div class="space-x-2">
-        <button type="button" class="px-3 py-2 rounded border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" id="unassignSelected">Desasignar</button>
-        <button type="button" class="px-3 py-2 rounded bg-primary text-white hover:opacity-90" id="assignSelected">Asignar</button>
-      </div>
-    </div>
+    <div class="h-10"></div>
   </div>
-  <div class="h-10"></div>
-</div>
 {% endif %}
 
 {% block script %}
