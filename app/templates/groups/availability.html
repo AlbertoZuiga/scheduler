@@ -13,6 +13,22 @@
   </div>
 
   <form method="POST" class="space-y-6">
+    <!-- Inputs canónicos: un solo set enviado al backend -->
+    <div class="hidden" aria-hidden="true">
+      {% for day in range(7) %}
+      {% for block_index, block_time in blocks %}
+      <input
+        type="checkbox"
+        id="availability_{{ day }}_{{ block_index }}"
+        name="day_{{ day }}_hour_{{ block_index }}"
+        class="availability-checkbox"
+        data-day="{{ day }}"
+        {% if (day, block_index) in selected %}checked{% endif %}
+      >
+      {% endfor %}
+      {% endfor %}
+    </div>
+
     <!-- Contador de selecciones -->
     <div class="bg-info/10 dark:bg-info/20 border border-info/30 dark:border-info/40 rounded-lg p-4">
       <div class="flex items-center gap-3">
@@ -67,22 +83,17 @@
             {% for day in range(7) %}
             <td class="border-l border-t border-light-border dark:border-dark-border p-2">
               <div class="flex items-center justify-center">
-                <input 
-                  type="checkbox" 
-                  id="cb_desktop_{{ day }}_{{ block_index }}" 
-                  name="day_{{ day }}_hour_{{ block_index }}" 
-                  class="availability-checkbox peer sr-only"
-                  {% if (day, block_index) in selected %}checked{% endif %}
+                <button
+                  type="button"
+                  data-target="availability_{{ day }}_{{ block_index }}"
+                  class="availability-toggle desktop-toggle cursor-pointer select-none flex items-center justify-center w-14 h-10 rounded-lg border-2 transition-all border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:border-primary hover:bg-primary/10 dark:hover:border-accent dark:hover:bg-accent/10 hover:scale-105 active:scale-95"
+                  aria-pressed="false"
                 >
-                <label 
-                  for="cb_desktop_{{ day }}_{{ block_index }}" 
-                  class="cursor-pointer select-none flex items-center justify-center w-14 h-10 rounded-lg border-2 transition-all border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:border-primary hover:bg-primary/10 dark:hover:border-accent dark:hover:bg-accent/10 hover:scale-105 active:scale-95 peer-checked:border-success peer-checked:bg-success peer-checked:text-white peer-checked:font-bold peer-checked:shadow-lg peer-checked:hover:bg-success-dark peer-checked:hover:border-success-dark"
-                >
-                  <svg class="w-5 h-5 hidden peer-checked:block" fill="currentColor" viewBox="0 0 20 20">
+                  <svg class="w-5 h-5 hidden" data-state="checked" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                   </svg>
-                  <span class="text-xs peer-checked:hidden text-light-text-secondary dark:text-dark-text-secondary">—</span>
-                </label>
+                  <span class="text-xs text-light-text-secondary dark:text-dark-text-secondary" data-state="unchecked">—</span>
+                </button>
               </div>
             </td>
             {% endfor %}
@@ -119,28 +130,22 @@
         <div class="p-4 grid grid-cols-2 gap-2">
           {% for block_index, block_time in blocks %}
           <div class="relative">
-            <input 
-              type="checkbox" 
-              id="cb_mobile_{{ day_index }}_{{ block_index }}" 
-              name="day_{{ day_index }}_hour_{{ block_index }}" 
-              class="availability-checkbox peer sr-only" 
-              data-day="{{ day_index }}"
-              {% if (day_index, block_index) in selected %}checked{% endif %}
+            <button
+              type="button"
+              data-target="availability_{{ day_index }}_{{ block_index }}"
+              class="availability-toggle mobile-toggle flex flex-col items-center justify-center gap-1 px-3 py-4 rounded-lg border-2 cursor-pointer transition-all select-none min-h-[72px] border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:border-primary hover:bg-primary/5 dark:hover:border-accent dark:hover:bg-accent/5 active:scale-95"
+              aria-pressed="false"
             >
-            <label 
-              for="cb_mobile_{{ day_index }}_{{ block_index }}" 
-              class="flex flex-col items-center justify-center gap-1 px-3 py-4 rounded-lg border-2 cursor-pointer transition-all select-none min-h-[72px] border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:border-primary hover:bg-primary/5 dark:hover:border-accent dark:hover:bg-accent/5 active:scale-95 peer-checked:border-success peer-checked:bg-gradient-to-br peer-checked:from-success peer-checked:to-success-light peer-checked:text-white peer-checked:font-semibold peer-checked:shadow-lg peer-checked:hover:from-success-dark peer-checked:hover:to-success"
-            >
-              <svg class="w-4 h-4 text-light-text-secondary dark:text-dark-text-secondary peer-checked:text-white hidden peer-checked:block" fill="currentColor" viewBox="0 0 20 20">
+              <svg class="w-4 h-4 text-light-text-secondary dark:text-dark-text-secondary hidden" data-state="checked" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
               </svg>
-              <svg class="w-4 h-4 text-light-text-secondary dark:text-dark-text-secondary peer-checked:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4 h-4 text-light-text-secondary dark:text-dark-text-secondary" data-state="unchecked" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span class="text-sm font-medium peer-checked:text-white text-light-text-primary dark:text-dark-text-primary">
+              <span class="text-sm font-medium text-light-text-primary dark:text-dark-text-primary">
                 {{ block_time }}
               </span>
-            </label>
+            </button>
           </div>
           {% endfor %}
         </div>
@@ -178,7 +183,24 @@
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     const checkboxes = document.querySelectorAll('.availability-checkbox');
+    const toggleButtons = document.querySelectorAll('.availability-toggle');
     const countDisplay = document.getElementById('selected-count');
+    const checkboxById = new Map(Array.from(checkboxes).map((checkbox) => [checkbox.id, checkbox]));
+
+    function updateVisualState(inputId, checked) {
+      const controls = document.querySelectorAll(`.availability-toggle[data-target="${inputId}"]`);
+      for (const control of controls) {
+        control.classList.toggle('is-checked', checked);
+        control.setAttribute('aria-pressed', checked ? 'true' : 'false');
+
+        for (const checkedState of control.querySelectorAll('[data-state="checked"]')) {
+          checkedState.classList.toggle('hidden', !checked);
+        }
+        for (const uncheckedState of control.querySelectorAll('[data-state="unchecked"]')) {
+          uncheckedState.classList.toggle('hidden', checked);
+        }
+      }
+    }
     
     // Función para actualizar contadores
     function updateCounters() {
@@ -195,9 +217,31 @@
       }
     }
     
-    // Agregar listeners a todos los checkboxes
+    // Inicializar estado visual con base en los inputs canónicos
     for (const checkbox of checkboxes) {
-      checkbox.addEventListener('change', updateCounters);
+      updateVisualState(checkbox.id, checkbox.checked);
+    }
+
+    // Manejar clicks en controles visuales (desktop y móvil)
+    for (const button of toggleButtons) {
+      button.addEventListener('click', (event) => {
+        const targetId = event.currentTarget.dataset.target;
+        const checkbox = checkboxById.get(targetId);
+        if (!checkbox) {
+          return;
+        }
+        checkbox.checked = !checkbox.checked;
+        updateVisualState(targetId, checkbox.checked);
+        updateCounters();
+      });
+    }
+
+    // Si un input cambia por código, refrescar su estado visual
+    for (const checkbox of checkboxes) {
+      checkbox.addEventListener('change', (event) => {
+        updateVisualState(event.target.id, event.target.checked);
+        updateCounters();
+      });
     }
     
     // Inicializar contadores
@@ -217,7 +261,7 @@
 
 <style>
   /* Mejoras táctiles para todas las plataformas */
-  label {
+  .availability-toggle {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
@@ -246,9 +290,38 @@
     }
   }
   
-  .availability-checkbox:checked ~ label,
-  .availability-checkbox:checked + label {
+  .availability-toggle.is-checked {
     animation: pulse 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .desktop-toggle.is-checked {
+    border-color: var(--color-success);
+    background-color: var(--color-success);
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  }
+
+  .desktop-toggle.is-checked:hover {
+    border-color: var(--color-success-dark);
+    background-color: var(--color-success-dark);
+  }
+
+  .mobile-toggle.is-checked {
+    border-color: var(--color-success);
+    background-image: linear-gradient(to bottom right, var(--color-success), var(--color-success-light));
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  }
+
+  .mobile-toggle.is-checked:hover {
+    background-image: linear-gradient(to bottom right, var(--color-success-dark), var(--color-success));
+  }
+
+  .mobile-toggle.is-checked span,
+  .desktop-toggle.is-checked span {
+    color: #fff;
   }
   
   /* Asegurar que la columna sticky tenga el z-index correcto en desktop */
