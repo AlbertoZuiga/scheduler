@@ -22,6 +22,7 @@ basándose en la disponibilidad individual de cada participante.
 ## 📋 Índice
 
 - [Características](#-características)
+- [Funcionamiento de Filtros y Búsqueda](#-funcionamiento-de-filtros-y-búsqueda)
 - [Inicio Rápido](#-inicio-rápido)
 - [Requisitos](#-requisitos)
 - [Instalación y Configuración](#️-instalación-y-configuración)
@@ -56,7 +57,58 @@ basándose en la disponibilidad individual de cada participante.
 - ✅ **Totalmente dockerizado** con PostgreSQL
 - ✅ **Interfaz web responsiva** y moderna
 - ✅ **Categorías personalizables** para miembros de grupos
+- ✅ **Filtros por categorías con operador lógico** (`AND` / `OR`) en vistas clave
 - ✅ **División automática en subgrupos** optimizados por compatibilidad horaria
+- ✅ **Búsqueda avanzada de miembros** (multi-palabra, parcial, sin acentos, case-insensitive)
+
+---
+
+## 🔎 Funcionamiento de Filtros y Búsqueda
+
+### 1) Filtros por categoría (AND / OR)
+
+En las vistas de horarios y miembros puedes elegir el operador lógico de los
+filtros por categoría:
+
+- `OR`: un usuario coincide si cumple al menos una condición activa.
+- `AND`: un usuario coincide solo si cumple todas las condiciones activas.
+
+También puedes combinar categorías con la opción **Sin categoría**:
+
+- En modo `OR`, basta con cumplir alguna condición seleccionada.
+- En modo `AND`, el usuario debe cumplir todas las condiciones activas al mismo
+tiempo.
+
+### 2) Horarios parciales ordenados por disponibilidad
+
+En la sección **"Horarios en los que no pueden todos"**, los bloques se ordenan
+por:
+
+1. Cantidad de personas disponibles (de mayor a menor).
+2. Como desempate, día y hora.
+
+Esto prioriza primero los bloques con mayor probabilidad de acuerdo.
+
+### 3) Búsqueda de miembros
+
+La búsqueda de miembros funciona sobre nombre y correo electrónico con estas reglas:
+
+- Soporta múltiples palabras: ejemplo `maca zuniga`.
+- Coincidencia parcial por palabra (no exige coincidencia exacta).
+- Ignora acentos/tildes: `zuniga` encuentra `Zúñiga`.
+- No distingue mayúsculas y minúsculas.
+
+### 4) Selección persistente y "Solo seleccionados"
+
+En gestión de miembros, la selección por checkbox se mantiene al cambiar
+búsqueda o filtros.
+
+Si activas **Solo seleccionados**:
+
+- Se muestran únicamente los miembros actualmente seleccionados.
+- Puedes seguir aplicando búsqueda y filtros de categoría sobre ese subconjunto.
+- Al limpiar selección, la vista vuelve a mostrar todos los miembros que cumplan
+los filtros activos.
 
 ---
 
@@ -432,6 +484,7 @@ La aplicación estará disponible en:
    - Ve a "Gestionar Categorías"
    - Crea categorías como: "Frontend", "Backend", "QA"
    - Asigna categorías a cada miembro del equipo
+   - En filtros de categorías puedes usar operador `AND` o `OR` según tu criterio
 
 5. **Agregar disponibilidad**
    - Cada miembro accede a "Mi Disponibilidad"
@@ -444,7 +497,16 @@ La aplicación estará disponible en:
 6. **Encontrar horarios comunes**
    - El owner/admin puede ver la disponibilidad consolidada
    - La aplicación muestra automáticamente los slots donde todos están disponibles
+     - En horarios parciales, los bloques se ordenan por mayor cantidad de
+       personas disponibles
+     - Puedes filtrar resultados por categorías con `AND` / `OR`
    - Selecciona el mejor horario para la reunión
+
+7. **Filtrar y gestionar miembros rápidamente**
+   - Usa búsqueda avanzada por nombre/email con múltiples palabras
+   - La búsqueda ignora acentos y mayúsculas/minúsculas
+   - Si seleccionas miembros, puedes activar "Solo seleccionados" para enfocarte
+     en ese subconjunto
 
 ### Gestión de roles
 
@@ -914,7 +976,7 @@ Resultado esperado: 10 grupos de 6-10 personas cada uno, con:
 
 - La reparación automática de reglas tiene un límite de 50 iteraciones
 - En grupos muy pequeños (< 6 miembros) algunas reglas pueden ser imposibles de
-cumplir
+  cumplir
 - El algoritmo es heurístico (greedy), no garantiza la solución óptima global
 - Si las reglas son muy restrictivas, algunos miembros pueden quedar sin asignar
 
