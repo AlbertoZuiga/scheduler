@@ -34,3 +34,5 @@ htmlcov/
 
 # Local env variants
 .env.*
+
+.markdownlint.json

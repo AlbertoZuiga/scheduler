@@ -2,12 +2,17 @@
 
 > **Una aplicación web moderna para coordinar disponibilidad horaria en grupos**
 
-Scheduler es una aplicación Flask full-stack diseñada para simplificar la coordinación de horarios entre múltiples personas. Con autenticación segura mediante Google OAuth 2.0, permite crear grupos, gestionar miembros con diferentes roles de acceso, y encontrar los mejores momentos para reunirse basándose en la disponibilidad individual de cada participante.
+Scheduler es una aplicación Flask full-stack diseñada para simplificar la
+coordinación de horarios entre múltiples personas. Con autenticación segura
+mediante Google OAuth 2.0, permite crear grupos, gestionar miembros con
+diferentes roles de acceso, y encontrar los mejores momentos para reunirse
+basándose en la disponibilidad individual de cada participante.
 
-### ✨ ¿Por qué usar Scheduler?
+## ✨ ¿Por qué usar Scheduler?
 
 - 🎯 **Fácil de usar**: Interfaz intuitiva para crear grupos y marcar disponibilidad
-- 🔐 **Seguro**: Sistema robusto de autenticación y control de acceso basado en roles
+- 🔐 **Seguro**: Sistema robusto de autenticación y control de acceso basado en
+  roles
 - 🚀 **Listo para producción**: Completamente dockerizado con PostgreSQL
 - 🎨 **Responsive**: Diseño adaptable a cualquier dispositivo
 - 👥 **Colaborativo**: Gestión de grupos con roles (Owner, Admin, Member)
@@ -82,19 +87,20 @@ docker exec -it backend_container python -m app.db.seed
 
 🎉 **¡Listo!** Abre tu navegador en [http://localhost:5050](http://localhost:5050)
 
-> **Nota**: Primero necesitas configurar las credenciales OAuth de Google (ver [Configurar Google OAuth](#2-configurar-google-oauth))
+> **Nota**: Primero necesitas configurar las credenciales OAuth de Google
+> (ver [Configurar Google OAuth](#2-configurar-google-oauth))
 
 ---
 
 ## 📦 Requisitos
 
-### Para ejecutar con Docker (Recomendado):
+### Para ejecutar con Docker (Recomendado)
 
 - **Docker Desktop** (macOS/Windows) o **Docker Engine + Docker Compose** (Linux)
 - **Git**
 - Credenciales de **Google OAuth 2.0**
 
-### Para ejecutar localmente (Sin Docker):
+### Para ejecutar localmente (Sin Docker)
 
 - **Python 3.11+**
 - **PostgreSQL** (recomendado) o **MySQL**
@@ -124,10 +130,12 @@ Para habilitar la autenticación con Google, necesitas crear credenciales OAuth 
 6. Configura:
    - **Name:** Scheduler (o el nombre que prefieras)
    - **Authorized redirect URIs:**
-     ```
+
+     ```bash
      http://localhost:5050/auth/google/callback
      http://127.0.0.1:5000/auth/google/callback
      ```
+
 7. Guarda el **Client ID** y **Client Secret**
 
 ### 3. Variables de Entorno
@@ -174,20 +182,22 @@ PORT=5000
 # DATABASE_URI=mysql+pymysql://usuario:password@host:3306/database
 ```
 
-#### 📝 Notas Importantes:
+#### 📝 Notas Importantes
 
 **Variables Obligatorias:**
 
 - ✅ `GOOGLE_CLIENT_ID`: Tu Client ID de Google OAuth
 - ✅ `GOOGLE_CLIENT_SECRET`: Tu Client Secret de Google OAuth
-- ✅ `SECRET_KEY`: Clave para firmar sesiones (en producción, usa una clave fuerte y aleatoria)
+- ✅ `SECRET_KEY`: Clave para firmar sesiones (en producción, usa una clave
+  fuerte y aleatoria)
 - ✅ `URL`: URL base de tu aplicación
 
 **Variables Opcionales:**
 
 - `DEBUG`: Activa modo debug (solo para desarrollo, **NO usar en producción**)
 - `DB_*`: Solo necesarias para ejecución local sin Docker
-- `DATABASE_URI`: Sobrescribe la configuración de base de datos (útil para servicios como Render)
+- `DATABASE_URI`: Sobrescribe la configuración de base de datos
+  (útil para servicios como Render)
 - `HOST` y `PORT`: Configuración del servidor Flask
 
 **⚠️ Seguridad:**
@@ -195,6 +205,7 @@ PORT=5000
 - El archivo `.env` está en `.gitignore` y **NO se subirá a Git**
 - **NUNCA** compartas tu `GOOGLE_CLIENT_SECRET` o `SECRET_KEY`
 - Para generar un `SECRET_KEY` seguro, usa:
+
   ```bash
   python -c "import secrets; print(secrets.token_hex(32))"
   ```
@@ -386,7 +397,8 @@ python run.py
 # HOST=0.0.0.0 PORT=8000 python run.py
 ```
 
-La aplicación estará disponible en: **[http://localhost:5000](http://localhost:5000)** (o el puerto que hayas configurado)
+La aplicación estará disponible en:
+**[http://localhost:5000](http://localhost:5000)** (o el puerto que hayas configurado)
 
 ---
 
@@ -395,14 +407,13 @@ La aplicación estará disponible en: **[http://localhost:5000](http://localhost
 ### Caso de uso: Coordinar reuniones de equipo
 
 1. **Iniciar sesión con Google**
-
    - Accede a la aplicación
    - Haz clic en "Iniciar sesión con Google"
    - Autoriza la aplicación
 
 2. **Crear un grupo**
 
-   ```
+   ```bash
    Nombre: "Equipo de Desarrollo"
    Descripción: "Coordinación de reuniones semanales"
    ```
@@ -412,20 +423,17 @@ La aplicación estará disponible en: **[http://localhost:5000](http://localhost
    - Completa el formulario y envía
 
 3. **Invitar miembros**
-
    - Abre el grupo recién creado
    - Copia el **código de invitación** (token)
    - Comparte el código con tu equipo
    - Los miembros pueden unirse usando el código
 
 4. **Configurar categorías** (opcional)
-
    - Ve a "Gestionar Categorías"
    - Crea categorías como: "Frontend", "Backend", "QA"
    - Asigna categorías a cada miembro del equipo
 
 5. **Agregar disponibilidad**
-
    - Cada miembro accede a "Mi Disponibilidad"
    - Selecciona días y horas disponibles:
      - Lunes: 9:00 AM - 12:00 PM
@@ -448,7 +456,7 @@ La aplicación estará disponible en: **[http://localhost:5000](http://localhost
 
 ## 📁 Estructura del Proyecto
 
-```
+```bash
 scheduler/
 ├── app/
 │   ├── __init__.py              # Factory de la aplicación Flask
@@ -537,7 +545,7 @@ scheduler/
 
 ### Modelos y Relaciones
 
-```
+```bash
 User (Usuarios)
   ↓ 1:N
 GroupMember (Membresía con rol)
@@ -597,7 +605,8 @@ DB_PASSWORD=tu_password
 DB_NAME=scheduler_db
 ```
 
-La aplicación detecta automáticamente qué motor usar según el `DATABASE_URI` o construye uno a partir de las variables `DB_*`.
+La aplicación detecta automáticamente qué motor usar según el `DATABASE_URI` o
+construye uno a partir de las variables `DB_*`.
 
 ### Scripts de Base de Datos
 
@@ -625,9 +634,14 @@ python -m app.db.migrate
 
 ## 🎯 División Automática de Subgrupos
 
-> ✨ **Actualización importante**: Sistema de **condiciones independientes** con rangos min/max específicos por cada condición. Cada combinación de categorías puede tener su propio rango, permitiendo un control granular sobre la distribución de miembros.
+> ✨ **Actualización importante**: Sistema de **condiciones independientes** con
+> rangos min/max específicos por cada condición. Cada combinación de categorías
+> puede tener su propio rango, permitiendo un control granular sobre la
+> distribución de miembros.
 
-Una de las funcionalidades más potentes de Scheduler es la capacidad de dividir grupos grandes en **subgrupos optimizados** basados en compatibilidad horaria y reglas de categorías personalizables.
+Una de las funcionalidades más potentes de Scheduler es la capacidad de dividir
+grupos grandes en **subgrupos optimizados** basados en compatibilidad horaria
+y reglas de categorías personalizables.
 
 ### ¿Para qué sirve?
 
@@ -641,19 +655,16 @@ Ideal para:
 ### 🧠 Cómo funciona el algoritmo
 
 1. **Análisis de compatibilidad horaria**
-
    - Calcula el solapamiento de disponibilidades entre todos los miembros
    - Usa el índice de Jaccard para medir compatibilidad (0% - 100%)
    - Considera solo los slots de tiempo donde ambos usuarios están disponibles
 
 2. **Asignación inteligente**
-
    - Algoritmo greedy que prioriza compatibilidad promedio por grupo
    - Respeta tamaños máximos y mínimos configurables
    - Permite o prohíbe membresía múltiple según configuración
 
 3. **Validación de reglas de categorías**
-
    - Evalúa condiciones lógicas AND/OR sin usar `eval()` (seguro)
    - Verifica mínimos y máximos por regla en cada subgrupo
    - Intenta reparar automáticamente grupos que no cumplen reglas
@@ -675,7 +686,8 @@ Ideal para:
 
 ### 🏗️ Builder visual de reglas
 
-La interfaz incluye un **constructor intuitivo** que permite crear reglas complejas sin escribir código:
+La interfaz incluye un **constructor intuitivo** que permite crear reglas
+complejas sin escribir código:
 
 **Ejemplo de regla:**
 
@@ -710,45 +722,40 @@ Esto se traduce automáticamente a JSON:
    Hay **tres formas** de acceder a la funcionalidad:
 
    **Opción A: Desde la lista de grupos**
-
    1. Ve a "Mis Grupos" (`/groups`)
    2. En la tarjeta del grupo, haz clic en **"División Automática"**
 
    **Opción B: Desde el detalle del grupo**
-
    1. Entra a un grupo específico
    2. Haz clic en el botón **"🎯 División Automática"**
 
    **Opción C: URL directa**
 
-   ```
+   ```bash
    /groups/<id>/subgroups/new
    ```
 
-   > ⚠️ **Permisos requeridos**: Solo Owners y Admins pueden crear divisiones. Los miembros regulares pueden ver los subgrupos existentes en **"📋 Ver Subgrupos"**.
+   > ⚠️ **Permisos requeridos**: Solo Owners y Admins pueden crear divisiones.
+   > Los miembros regulares pueden ver los subgrupos existentes en **"📋 Ver Subgrupos"**.
 
 2. **Configurar parámetros básicos**
-
    - Número de subgrupos deseados
    - Tamaño máximo por subgrupo
    - Umbral de compatibilidad horaria
    - Permitir membresía múltiple (opcional)
 
 3. **Crear reglas de categorías (opcional)**
-
    - Clic en "Agregar Regla"
    - Seleccionar categorías requeridas
    - Elegir operador (AND/OR)
    - Definir mínimo y máximo
 
 4. **Generar preview**
-
    - Clic en "Generar Subgrupos"
    - El algoritmo procesa en ~2-5 segundos (hasta 200 miembros)
    - Se muestra preview con métricas
 
 5. **Revisar resultados**
-
    - Ver compatibilidad promedio por subgrupo
    - Verificar cumplimiento de reglas
    - Revisar distribución de miembros
@@ -771,9 +778,11 @@ El archivo CSV incluye:
 
 ### 🧪 Ejemplo de configuración completa
 
-**⚠️ IMPORTANTE: Sistema de Condiciones Independientes**
+⚠️ IMPORTANTE: **Sistema de Condiciones Independientes**
 
-Desde la versión actual, **cada condición tiene su propio rango min/max independiente**, no se comparte a nivel de regla. Esto permite un control granular sobre cada combinación de categorías.
+Desde la versión actual,
+**cada condición tiene su propio rango min/max independiente**, no se comparte
+a nivel de regla. Esto permite un control granular sobre cada combinación de categorías.
 
 ```json
 {
@@ -904,7 +913,8 @@ Resultado esperado: 10 grupos de 6-10 personas cada uno, con:
 ### ⚠️ Limitaciones conocidas
 
 - La reparación automática de reglas tiene un límite de 50 iteraciones
-- En grupos muy pequeños (< 6 miembros) algunas reglas pueden ser imposibles de cumplir
+- En grupos muy pequeños (< 6 miembros) algunas reglas pueden ser imposibles de
+cumplir
 - El algoritmo es heurístico (greedy), no garantiza la solución óptima global
 - Si las reglas son muy restrictivas, algunos miembros pueden quedar sin asignar
 
@@ -912,7 +922,8 @@ Resultado esperado: 10 grupos de 6-10 personas cada uno, con:
 
 ## 🔒 Seguridad y Control de Acceso
 
-La aplicación implementa múltiples capas de seguridad para proteger los datos y prevenir accesos no autorizados.
+La aplicación implementa múltiples capas de seguridad para proteger los datos y
+prevenir accesos no autorizados.
 
 ### Sistema de Roles
 
@@ -1002,8 +1013,9 @@ def show_group(group_id):
 
 **Síntoma:** Al ejecutar la aplicación o seed, aparece el error:
 
-```
-sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedTable) relation "user" does not exist
+```bash
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedTable) relation
+"user" does not exist
 ```
 
 **Causa:** Las tablas de la base de datos no han sido creadas.
@@ -1023,24 +1035,31 @@ docker exec -it backend_container python -m app.db.setup
 
 ### ❌ Error 400: redirect_uri_mismatch (Google OAuth)
 
-**Síntoma:** Al intentar iniciar sesión con Google, aparece un error de URI de redirección no válida.
+**Síntoma:** Al intentar iniciar sesión con Google, aparece un error de URI de
+redirección no válida.
 
-**Causa:** La URI de redirección no coincide con la configurada en Google Cloud Console.
+**Causa:** La URI de redirección no coincide con la configurada en
+Google Cloud Console.
 
 **Solución:**
 
 1. Ve a [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials)
 2. Edita tu OAuth 2.0 Client ID
 3. Asegúrate de tener estas URIs en **Authorized redirect URIs**:
-   ```
+
+   ```bash
    http://localhost:5050/auth/google/callback
    http://127.0.0.1:5000/auth/google/callback
    ```
+
 4. Verifica que en tu `.env` tengas:
+
    ```bash
    URL=http://localhost:5050
    ```
+
 5. Reinicia el contenedor:
+
    ```bash
    docker compose restart backend
    ```
@@ -1086,6 +1105,7 @@ docker compose ps
    ```
 
 3. **Problemas de construcción:**
+
    ```bash
    # Limpiar y reconstruir desde cero
    docker compose down -v
@@ -1131,6 +1151,7 @@ docker compose logs db
    ```
 
 3. **Base de datos no inicializada:**
+
    ```bash
    # Inicializar tablas
    docker exec -it backend_container python -m app.db.setup
@@ -1169,6 +1190,7 @@ docker compose logs db
    ```
 
 4. **Variables en docker-compose.yml:**
+
    ```yaml
    environment:
      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}" # Lee desde .env
@@ -1183,7 +1205,6 @@ docker compose logs db
 **Causas y soluciones:**
 
 1. **No eres miembro del grupo:**
-
    - Solicita al owner/admin que te comparta el código de invitación
    - Únete usando el token en `/join/<token>`
 
@@ -1316,7 +1337,7 @@ cat backup.sql | docker exec -i postgres_container psql -U postgres -d scheduler
 - [ ] **SSL/TLS** automático con Let's Encrypt
 - [ ] **Backups automáticos** de base de datos
 
-### � Frontend y UX
+### 🎨 Frontend y UX
 
 - [ ] **Diseño responsive mejorado** (mobile-first)
 - [ ] **Modo oscuro** / claro
@@ -1346,18 +1367,24 @@ cat backup.sql | docker exec -i postgres_container psql -U postgres -d scheduler
 
 1. **Fork** el repositorio
 2. **Crea una rama** para tu feature:
+
    ```bash
    git checkout -b feature/AmazingFeature
    ```
+
 3. **Realiza tus cambios** siguiendo las convenciones del proyecto
 4. **Commit** tus cambios con mensajes descriptivos:
+
    ```bash
    git commit -m 'feat: Add amazing feature'
    ```
+
 5. **Push** a tu rama:
+
    ```bash
    git push origin feature/AmazingFeature
    ```
+
 6. **Abre un Pull Request** describiendo tus cambios
 
 ### Convenciones de Commits
@@ -1393,16 +1420,16 @@ Si encuentras un bug:
 
 ---
 
-## � Licencia
+## 📄 Licencia
 
-Este proyecto es de código abierto bajo la licencia **MIT**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
+Este proyecto es de código abierto bajo la licencia **MIT**. Consulta el archivo
+[LICENSE](LICENSE) para más detalles.
 
 ---
 
-## �📧 Contacto
+## 📧 Contacto
 
-**Alberto Zúñiga**
+Nombre: **Alberto Zúñiga**
 
-- 📧 Email: azuiga@miuandes.cl
+- 📧 Email: [azuiga@miuandes.cl](mailto:azuiga@miuandes.cl)
 - 💼 GitHub: [@AlbertoZuiga](https://github.com/AlbertoZuiga)
-- 🔗 Repositorio: [github.com/AlbertoZuiga/scheduler](https://github.com/AlbertoZuiga/scheduler)
