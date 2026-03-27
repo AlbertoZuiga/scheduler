@@ -69,7 +69,12 @@
   <section class="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-lg p-4 space-y-3">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <p class="text-sm font-semibold">Filtro de categorías en horarios</p>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
+        <label for="scheduleFilterMode" class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Operador</label>
+        <select id="scheduleFilterMode" class="px-2 py-1 text-xs rounded border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background">
+          <option value="or" selected>OR (al menos una)</option>
+          <option value="and">AND (todas)</option>
+        </select>
         <span id="scheduleFilterStats" class="text-xs text-light-text-secondary dark:text-dark-text-secondary"></span>
         <button type="button" id="clearScheduleFilters" class="px-2 py-1 text-xs rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">Limpiar</button>
       </div>
@@ -187,7 +192,6 @@
 <div class="mt-8">
   <div class="flex items-center justify-between mb-4">
     <h3 class="text-xl font-bold">Categorías</h3>
-    <button id="openBulkAssign" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition">Asignar en bloque</button>
   </div>
   <form id="createCategoryForm" class="flex flex-col sm:flex-row gap-2 mb-4" autocomplete="off" novalidate>
     <div class="flex-1">
@@ -202,40 +206,6 @@
   </form>
   <div id="categoriesList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 </div>
-{% endif %}
-
-{% if can_manage %}
-  <!-- Modal Asignación en bloque (Tailwind) -->
-  <div id="bulkAssignModal" class="fixed inset-0 z-50 hidden">
-    <div class="absolute inset-0 bg-black/40" data-close="true"></div>
-    <div class="relative mx-auto my-10 w-[95%] max-w-3xl bg-light-card dark:bg-dark-card rounded-xl shadow-lg border border-light-border dark:border-dark-border">
-      <div class="flex items-center justify-between px-4 py-3 border-b border-light-border dark:border-dark-border">
-        <h5 class="font-bold">Asignar categorías a miembros</h5>
-        <button class="p-2 rounded hover:bg-light-muted/30 dark:hover:bg-dark-muted/30" data-close="true" aria-label="Cerrar">✕</button>
-      </div>
-      <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-auto">
-        <div>
-          <h6 class="mb-2 font-semibold">Miembros</h6>
-          <div id="bulkMembers" class="border border-light-border dark:border-dark-border rounded p-2 space-y-1 max-h-64 overflow-auto"></div>
-        </div>
-        <div>
-          <h6 class="mb-2 font-semibold">Categorías</h6>
-          <div id="bulkCategories" class="border border-light-border dark:border-dark-border rounded p-2 space-y-1 max-h-64 overflow-auto"></div>
-        </div>
-      </div>
-      <div class="flex items-center justify-between px-4 py-3 border-t border-light-border dark:border-dark-border">
-        <div class="space-x-2">
-          <button type="button" class="px-3 py-2 rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30" id="selectAllMembers">Todos miembros</button>
-          <button type="button" class="px-3 py-2 rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30" id="selectAllCategories">Todas categorías</button>
-        </div>
-        <div class="space-x-2">
-          <button type="button" class="px-3 py-2 rounded border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" id="unassignSelected">Desasignar</button>
-          <button type="button" class="px-3 py-2 rounded bg-primary text-white hover:opacity-90" id="assignSelected">Asignar</button>
-        </div>
-      </div>
-    </div>
-    <div class="h-10"></div>
-  </div>
 {% endif %}
 
 {% block script %}
@@ -287,6 +257,7 @@
   function setupScheduleCategoryFiltering() {
     const chips = Array.from(document.querySelectorAll('.availability-user-chip'));
     const filterButtons = Array.from(document.querySelectorAll('.schedule-filter-chip'));
+    const filterModeSelect = document.getElementById('scheduleFilterMode');
     const stats = document.getElementById('scheduleFilterStats');
     const allList = document.getElementById('availabilityAllList');
     const partialList = document.getElementById('availabilityPartialList');
@@ -300,6 +271,7 @@
 
     const selectedCategoryIds = new Set();
     let includeNoCategory = false;
+    let filterMode = (filterModeSelect?.value || 'or').toLowerCase() === 'and' ? 'and' : 'or';
 
     const weekdayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
     const memberByUserId = new Map(
@@ -323,14 +295,29 @@
       return categories.map((value) => Number.parseInt(value)).filter((value) => Number.isInteger(value));
     };
 
-    const userMatchesSelectedCategories = (userId, categoryIds) => {
+    const userMatchesSelectedCategories = (categoryIds) => {
       if (selectedCategoryIds.size === 0 && !includeNoCategory) {
         return true;
       }
+
       const categories = Array.isArray(categoryIds) ? categoryIds : [];
       const hasNoCategory = categories.length === 0;
-      const matchesAnySelected = categories.some((id) => selectedCategoryIds.has(id));
-      return matchesAnySelected || (includeNoCategory && hasNoCategory);
+      const conditions = [];
+
+      for (const categoryId of selectedCategoryIds) {
+        conditions.push(categories.includes(categoryId));
+      }
+      if (includeNoCategory) {
+        conditions.push(hasNoCategory);
+      }
+
+      if (conditions.length === 0) {
+        return true;
+      }
+
+      return filterMode === 'and'
+        ? conditions.every(Boolean)
+        : conditions.some(Boolean);
     };
 
     const buildUserVisibilityMap = () => {
@@ -339,7 +326,7 @@
         const userId = Number.parseInt(member.user_id);
         if (!Number.isInteger(userId)) continue;
         const categories = getCategoryIdsByUserId(userId);
-        visibility.set(userId, userMatchesSelectedCategories(userId, categories));
+        visibility.set(userId, userMatchesSelectedCategories(categories));
       }
       return visibility;
     };
@@ -437,7 +424,11 @@
         }
       }
 
-      partialSlots.sort((a, b) => (a.weekday - b.weekday) || (a.hour - b.hour));
+      partialSlots.sort((a, b) => {
+        const byCount = b.users.length - a.users.length;
+        if (byCount !== 0) return byCount;
+        return (a.weekday - b.weekday) || (a.hour - b.hour);
+      });
 
       if (partialSlots.length === 0) {
         partialList.innerHTML = '<div class="text-xs text-light-text-secondary dark:text-dark-text-secondary">No hay bloques parciales con los filtros actuales.</div>';
@@ -505,10 +496,15 @@
       if (stats) {
         const activeCount = selectedCategoryIds.size + (includeNoCategory ? 1 : 0);
         stats.textContent = activeCount > 0
-          ? `${visibleChips} coincidencia(s) con ${activeCount} filtro(s)`
+          ? `${visibleChips} coincidencia(s) con ${activeCount} filtro(s) en modo ${filterMode.toUpperCase()}`
           : 'Sin filtros activos';
       }
     };
+
+    filterModeSelect?.addEventListener('change', () => {
+      filterMode = (filterModeSelect.value || 'or').toLowerCase() === 'and' ? 'and' : 'or';
+      applyFilters();
+    });
 
     for (const button of filterButtons) {
       button.addEventListener('click', () => {
@@ -540,6 +536,10 @@
     document.getElementById('clearScheduleFilters')?.addEventListener('click', () => {
       selectedCategoryIds.clear();
       includeNoCategory = false;
+      filterMode = 'or';
+      if (filterModeSelect) {
+        filterModeSelect.value = 'or';
+      }
       for (const button of filterButtons) {
         clearButtonActiveStyles(button);
       }

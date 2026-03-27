@@ -48,9 +48,22 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
       <div>
         <label for="memberSearch" class="block text-xs font-semibold mb-1 text-light-text-secondary dark:text-dark-text-secondary">Buscar miembro</label>
-        <input id="memberSearch" type="text" class="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background" placeholder="Nombre o email...">
+        <input id="memberSearch" type="text" class="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background" placeholder="Nombre o email (múltiples palabras)...">
       </div>
-      <div class="flex items-end">
+      <div class="flex items-end gap-2 flex-wrap">
+        <div>
+          <label for="categoryFilterMode" class="block text-xs font-semibold mb-1 text-light-text-secondary dark:text-dark-text-secondary">Operador de categorías</label>
+          <select id="categoryFilterMode" class="px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background text-sm">
+            <option value="or" selected>OR (al menos una)</option>
+            <option value="and">AND (todas)</option>
+          </select>
+        </div>
+        {% if can_manage %}
+        <label class="inline-flex items-center gap-2 text-sm px-3 py-2 rounded-lg border border-light-border dark:border-dark-border">
+          <input id="showSelectedOnly" type="checkbox" class="w-4 h-4 accent-primary">
+          <span>Solo seleccionados</span>
+        </label>
+        {% endif %}
         <button type="button" id="clearFilters" class="px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 text-sm">Limpiar filtros</button>
       </div>
     </div>
@@ -243,6 +256,8 @@
     const selectedFilters = new Set();
     let includeNoCategory = false;
     let searchTerm = '';
+    let categoryFilterMode = 'or';
+    let showSelectedOnly = false;
     const selectedMembers = new Set();
     const selectedBulkCategories = new Set();
 
@@ -289,6 +304,16 @@
     function categoryName(categoryId) {
       return categoryById.get(Number.parseInt(categoryId))?.name || `Categoría ${categoryId}`;
     }
+
+    const normalizeForSearch = (value) => String(value || '')
+      .normalize('NFD')
+      .replaceAll(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
+    const tokenizeSearch = (value) => normalizeForSearch(value)
+        .split(/\s+/)
+        .map((token) => token.trim())
+        .filter(Boolean);
 
     function updateRowDataset(memberId) {
       const row = document.querySelector(`.member-row[data-member-id="${memberId}"]`);
@@ -370,8 +395,16 @@
     }
 
     function memberMatches(member) {
-      const searchable = `${member.name} ${member.email}`.toLowerCase();
-      if (searchTerm && !searchable.includes(searchTerm)) {
+      const searchable = normalizeForSearch(`${member.name} ${member.email}`);
+      const searchTokens = tokenizeSearch(searchTerm);
+      if (searchTokens.length > 0) {
+        const matchesText = searchTokens.every((token) => searchable.includes(token));
+        if (!matchesText) {
+          return false;
+        }
+      }
+
+      if (showSelectedOnly && canManage && !selectedMembers.has(Number.parseInt(member.group_member_id))) {
         return false;
       }
 
@@ -380,8 +413,22 @@
       }
 
       const hasNoCategory = member.categories.length === 0;
-      const matchesCategory = member.categories.some((categoryId) => selectedFilters.has(categoryId));
-      return matchesCategory || (includeNoCategory && hasNoCategory);
+      const conditions = [];
+
+      for (const categoryId of selectedFilters) {
+        conditions.push(member.categories.includes(categoryId));
+      }
+      if (includeNoCategory) {
+        conditions.push(hasNoCategory);
+      }
+
+      if (conditions.length === 0) {
+        return true;
+      }
+
+      return categoryFilterMode === 'and'
+        ? conditions.every(Boolean)
+        : conditions.some(Boolean);
     }
 
     function applyFilters() {
@@ -671,7 +718,19 @@
 
     const searchInput = document.getElementById('memberSearch');
     searchInput?.addEventListener('input', (event) => {
-      searchTerm = String(event.target.value || '').trim().toLowerCase();
+      searchTerm = String(event.target.value || '').trim();
+      applyFilters();
+    });
+
+    const categoryModeSelect = document.getElementById('categoryFilterMode');
+    categoryModeSelect?.addEventListener('change', (event) => {
+      categoryFilterMode = String(event.target.value || 'or').toLowerCase() === 'and' ? 'and' : 'or';
+      applyFilters();
+    });
+
+    const showSelectedOnlyInput = document.getElementById('showSelectedOnly');
+    showSelectedOnlyInput?.addEventListener('change', (event) => {
+      showSelectedOnly = !!event.target.checked;
       applyFilters();
     });
 
@@ -681,6 +740,14 @@
       if (searchInput) searchInput.value = '';
       selectedFilters.clear();
       includeNoCategory = false;
+      categoryFilterMode = 'or';
+      if (categoryModeSelect) {
+        categoryModeSelect.value = 'or';
+      }
+      showSelectedOnly = false;
+      if (showSelectedOnlyInput) {
+        showSelectedOnlyInput.checked = false;
+      }
       for (const chip of document.querySelectorAll('.filter-chip')) {
         clearFilterActiveStyles(chip);
       }
@@ -753,6 +820,9 @@
             selectedMembers.delete(memberId);
           }
           updateBulkPanel();
+          if (showSelectedOnly) {
+            applyFilters();
+          }
         });
       }
 
@@ -765,6 +835,9 @@
           selectedMembers.add(Number.parseInt(checkbox.value));
         }
         updateBulkPanel();
+        if (showSelectedOnly) {
+          applyFilters();
+        }
       });
 
       document.getElementById('clearSelectedMembers')?.addEventListener('click', () => {
@@ -773,6 +846,9 @@
           checkbox.checked = false;
         }
         updateBulkPanel();
+        if (showSelectedOnly) {
+          applyFilters();
+        }
       });
 
       document.getElementById('bulkAssignBtn')?.addEventListener('click', () => runBulk('assign'));
