@@ -4,7 +4,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for,
 from flask_login import current_user, login_required
 
 from app.extensions import scheduler_db
-from app.models import Availability, Group, GroupMember, RoleEnum, UserAvailability
+from app.models import Availability, Category, Group, GroupMember, RoleEnum, UserAvailability
 from app.authz import (
     require_group_member,
     require_group_admin_or_owner,
@@ -192,6 +192,13 @@ def show(group_id):
 
     can_manage = (group.owner_id == current_user.id) or is_admin
 
+    group_categories = Category.query.filter_by(group_id=group.id).all()
+    member_category_map = {
+        gm.id: [assoc.category_id for assoc in gm.categories]
+        for gm in group_members
+    }
+    user_gm_map = {gm.user_id: gm.id for gm in group_members}
+
     return render_template(
         "groups/show.html",
         group=group,
@@ -204,6 +211,9 @@ def show(group_id):
         user_info_map=user_info_map,
         is_admin=is_admin,
         can_manage=can_manage,
+        group_categories=group_categories,
+        member_category_map=member_category_map,
+        user_gm_map=user_gm_map,
     )
 
 
@@ -266,7 +276,17 @@ def join(token):
 def members(group_id):
     group, membership = require_group_member(group_id)
     group_members = GroupMember.query.filter_by(group_id=group.id).all()
-    return render_template("groups/members.html", group=group, members=group_members, membership=membership)
+    can_manage = (group.owner_id == current_user.id) or (membership.role == RoleEnum.ADMIN)
+    categories = Category.query.filter_by(group_id=group.id).all()
+
+    return render_template(
+        "groups/members.html",
+        group=group,
+        members=group_members,
+        membership=membership,
+        categories=categories,
+        can_manage=can_manage,
+    )
 
 
 @group_bp.route("/<int:group_id>/availability", methods=["GET", "POST"])
@@ -275,7 +295,7 @@ def availability(group_id):
     blocks = _generate_time_blocks()
 
     # Debe ser miembro para ver o editar disponibilidad
-    group, _ = require_group_member(group_id)
+    _, _ = require_group_member(group_id)
 
     if request.method == "POST":
         _clear_existing_availability(group_id, current_user.id)
@@ -336,7 +356,7 @@ def delete(group_id):
 @group_bp.route("/<int:group_id>/leave", methods=["POST"])
 @login_required
 def leave(group_id):
-    group = Group.query.get_or_404(group_id)
+    Group.query.get_or_404(group_id)
     membership = GroupMember.query.filter_by(user_id=current_user.id, group_id=group_id).first()
     if not membership:
         flash("⚠️ No perteneces a este grupo.", "warning")
@@ -421,7 +441,6 @@ def update_role(group_id, user_id):
         flash("⚠️ No puedes cambiar el rol del propietario del grupo.", "warning")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
     
-    old_role = member.role.value
     member.role = RoleEnum[role_str]
     scheduler_db.session.commit()
 

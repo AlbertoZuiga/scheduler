@@ -1,80 +1,788 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="w-full max-w-3xl mx-auto">
-  <h2 class="text-xl sm:text-2xl font-bold mb-4">Miembros del Grupo: <span class="block sm:inline mt-1 sm:mt-0">{{ group.name }}</span></h2>
-  <ul class="space-y-3 mb-4">
+{% set categories_for_embed = [] %}
+{% for cat in categories %}
+  {% set _ = categories_for_embed.append({'id': cat.id, 'name': cat.name}) %}
+{% endfor %}
+
+{% set members_for_embed = [] %}
+{% for member in members %}
+  {% set member_categories = [] %}
+  {% for gmc in member.categories %}
+    {% set _ = member_categories.append(gmc.category_id) %}
+  {% endfor %}
+  {% set _ = members_for_embed.append({
+    'group_member_id': member.id,
+    'user_id': member.user.id,
+    'name': member.user.name,
+    'email': member.user.email,
+    'role': member.role.name,
+    'is_owner': member.user.id == group.owner_id,
+    'is_self': member.user.id == current_user.id,
+    'can_edit_categories': can_manage or (member.user.id == current_user.id),
+    'categories': member_categories
+  }) %}
+{% endfor %}
+
+{% set embed_data = {
+  'group_id': group.id,
+  'can_manage': can_manage,
+  'categories': categories_for_embed,
+  'members': members_for_embed
+} %}
+
+<div class="w-full max-w-5xl mx-auto space-y-4">
+  <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+    <div>
+      <h2 class="text-xl sm:text-2xl font-bold">Miembros: {{ group.name }}</h2>
+      <p class="text-sm text-light-text-secondary dark:text-dark-text-secondary">Filtra por categoría, busca por nombre/email y edita categorías en línea.</p>
+    </div>
+    <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition min-h-[40px] text-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+      Volver
+    </a>
+  </div>
+
+  <section class="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border p-3 sm:p-4 space-y-3">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div>
+        <label for="memberSearch" class="block text-xs font-semibold mb-1 text-light-text-secondary dark:text-dark-text-secondary">Buscar miembro</label>
+        <input id="memberSearch" type="text" class="w-full px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background" placeholder="Nombre o email...">
+      </div>
+      <div class="flex items-end">
+        <button type="button" id="clearFilters" class="px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 text-sm">Limpiar filtros</button>
+      </div>
+    </div>
+
+    <div class="space-y-2">
+      <p class="text-xs font-semibold text-light-text-secondary dark:text-dark-text-secondary">Filtrar por categorías (múltiple)</p>
+      <div id="categoryFilters" class="flex flex-wrap gap-2">
+        <button type="button" data-filter-none="true" class="filter-chip inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">Sin categoría</button>
+        {% for cat in categories %}
+          <button type="button" data-filter-category-id="{{ cat.id }}" class="filter-chip inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">{{ cat.name }}</button>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if can_manage %}
+    <div class="space-y-2">
+      <p class="text-xs font-semibold text-light-text-secondary dark:text-dark-text-secondary">Editar miembros por categoría</p>
+      <div class="flex flex-wrap gap-2">
+        {% for cat in categories %}
+          <button type="button" data-open-category-modal="{{ cat.id }}" class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">
+            {{ cat.name }}
+            <span class="text-light-text-secondary dark:text-dark-text-secondary">Editar</span>
+          </button>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </section>
+
+  {% if can_manage %}
+  <section id="bulkPanel" class="hidden bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border p-3 sm:p-4 space-y-3">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <p class="text-sm font-semibold"><span id="bulkSelectedCount">0</span> miembro(s) seleccionado(s)</p>
+      <button type="button" id="selectVisibleMembers" class="text-xs px-2 py-1 rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">Seleccionar visibles</button>
+    </div>
+    <div class="space-y-2">
+      <p class="text-xs font-semibold text-light-text-secondary dark:text-dark-text-secondary">Categorías para acción masiva</p>
+      <div id="bulkCategoryChoices" class="flex flex-wrap gap-2"></div>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <button type="button" id="bulkAssignBtn" class="px-3 py-2 rounded-lg bg-primary text-white text-sm hover:opacity-90">Agregar categorías</button>
+      <button type="button" id="bulkRemoveBtn" class="px-3 py-2 rounded-lg border border-red-300 text-red-600 text-sm hover:bg-red-50 dark:hover:bg-red-900/20">Quitar categorías</button>
+      <button type="button" id="clearSelectedMembers" class="px-3 py-2 rounded-lg border border-light-border dark:border-dark-border text-sm hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">Limpiar selección</button>
+    </div>
+  </section>
+  {% endif %}
+
+  <ul id="membersList" class="space-y-3">
     {% for member in members %}
-    <li class="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border p-3 sm:p-4">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-        <div class="flex items-center gap-2 flex-wrap">
-          <strong class="text-sm sm:text-base break-all">{{ member.user.email }}</strong>
-          {% if member.role.name == 'ADMIN' %}<span class="inline-flex items-center px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">Admin</span>{% endif %}
-          {% if member.user.id == group.owner_id %}<span class="inline-flex items-center px-2 py-0.5 text-xs rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200">Owner</span>{% endif %}
-        </div>
-        <div class="flex items-center gap-2">
-          {% if current_user.id == group.owner.id or membership.role.name == 'ADMIN' %}
-            <a href="{{ url_for('categories.member_categories', group_member_id=member.id) }}" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 touch-manipulation active:scale-95 transition min-h-[40px]">
-              <span class="hidden xs:inline">Gestionar categorías</span>
-              <span class="xs:hidden">Categorías</span>
-            </a>
-          {% elif member.user == current_user %}
-            <a href="{{ url_for('categories.member_categories', group_member_id=member.id) }}" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 touch-manipulation active:scale-95 transition min-h-[40px]">
-              <span class="hidden xs:inline">Mis categorías</span>
-              <span class="xs:hidden">Categorías</span>
-            </a>
-          {% endif %}
-        </div>
-      </div>
-      <div class="mt-2">
-        {% set assigned = member.categories | map(attribute='category') | list %}
-        {% if assigned and assigned|length > 0 %}
-          <div class="flex flex-wrap gap-1">
-            {% for gmc in member.categories %}
-              <span class="inline-block text-xs rounded px-2 py-1 bg-light-muted/40 dark:bg-dark-muted/40 text-light-text-primary dark:text-dark-text-primary">{{ gmc.category.name }}</span>
-            {% endfor %}
+      {% set can_edit_member = can_manage or (member.user.id == current_user.id) %}
+      {% set cat_ids = member.categories | map(attribute='category_id') | list %}
+      <li class="member-row bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border p-3 sm:p-4"
+          data-member-id="{{ member.id }}"
+          data-user-id="{{ member.user.id }}"
+          data-name="{{ member.user.name|lower }}"
+          data-email="{{ member.user.email|lower }}"
+          data-category-ids="{{ cat_ids|join(',') }}">
+        <div class="flex flex-col gap-3">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-start gap-2 min-w-0">
+              {% if can_manage %}
+              <div class="mt-0.5">
+                <input id="member-select-{{ member.id }}" type="checkbox" class="member-select w-4 h-4 accent-primary" value="{{ member.id }}">
+              </div>
+              {% endif %}
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <strong class="text-sm sm:text-base">{{ member.user.name }}</strong>
+                  {% if member.role.name == 'ADMIN' %}<span class="inline-flex items-center px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">Admin</span>{% endif %}
+                  {% if member.user.id == group.owner_id %}<span class="inline-flex items-center px-2 py-0.5 text-xs rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200">Owner</span>{% endif %}
+                </div>
+                <p class="text-xs sm:text-sm break-all text-light-text-secondary dark:text-dark-text-secondary">{{ member.user.email }}</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              {% if can_edit_member %}
+              <button type="button" class="open-add-category inline-flex items-center justify-center w-8 h-8 rounded-full border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30" data-member-id="{{ member.id }}" aria-label="Agregar categoría">+</button>
+              <div class="relative">
+                <div class="add-category-menu hidden absolute right-0 mt-2 w-48 max-h-40 overflow-y-auto rounded-lg border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background shadow-lg z-20" data-member-menu="{{ member.id }}"></div>
+              </div>
+              {% endif %}
+            </div>
           </div>
-        {% else %}
-          <span class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary">Sin categorías</span>
-        {% endif %}
-      </div>
-      <div class="flex flex-wrap items-center gap-2 mt-3">
-        {% if current_user.id == group.owner.id %}
-          <form method="POST" action="{{ url_for('groups.update_role', group_id=group.id, user_id=member.user.id) }}" class="flex-shrink-0">
-            <label for="role_{{ member.user.id }}" class="sr-only">Rol</label>
-            <select id="role_{{ member.user.id }}" name="role" class="px-3 py-2 text-sm rounded-lg border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background touch-manipulation min-h-[40px]" onchange="this.form.submit()">
-              <option value="ADMIN" {% if member.role.name == 'ADMIN' %}selected{% endif %}>Admin</option>
-              <option value="MEMBER" {% if member.role.name == 'MEMBER' %}selected{% endif %}>Miembro</option>
-            </select>
-          </form>
-        {% endif %}
-        {% if member.user == current_user %}
-          <form method="POST" action="{{ url_for('groups.leave', group_id=group.id) }}" onsubmit="return confirm('¿Estás seguro de que deseas abandonar este grupo?');">
-            <button type="submit" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 touch-manipulation active:scale-95 transition min-h-[40px]">
-              <svg class="w-4 h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-              <span class="hidden sm:inline">Salir del grupo</span>
-              <span class="sm:hidden">Salir</span>
-            </button>
-          </form>
-        {% else %}
-          {% if current_user.id == group.owner.id %}
-            <form method="POST" action="{{ url_for('groups.remove', group_id=group.id, user_id=member.user.id) }}">
-              <button type="submit" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 touch-manipulation active:scale-95 transition min-h-[40px]">
-                <svg class="w-4 h-4 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                Eliminar
-              </button>
+
+          <div class="space-y-2">
+            <div class="member-categories flex flex-wrap gap-2" data-member-chips="{{ member.id }}">
+              {% if member.categories|length > 0 %}
+                {% for gmc in member.categories %}
+                <button type="button"
+                        class="member-cat-chip inline-flex items-center gap-1 text-xs rounded-full px-2 py-1 border border-light-border dark:border-dark-border"
+                        data-member-id="{{ member.id }}"
+                        data-category-id="{{ gmc.category_id }}"
+                        {% if not can_edit_member %}disabled{% endif %}
+                        title="{% if can_edit_member %}Click para quitar{% else %}Categoría asignada{% endif %}">
+                  <span>{{ gmc.category.name }}</span>
+                  {% if can_edit_member %}<span aria-hidden="true">x</span>{% endif %}
+                </button>
+                {% endfor %}
+              {% else %}
+                <span class="member-empty-cat text-xs text-light-text-secondary dark:text-dark-text-secondary" data-empty-for="{{ member.id }}">Sin categorías</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            {% if current_user.id == group.owner.id %}
+            <form method="POST" action="{{ url_for('groups.update_role', group_id=group.id, user_id=member.user.id) }}" class="flex-shrink-0">
+              <label for="role_{{ member.user.id }}" class="sr-only">Rol</label>
+              <select id="role_{{ member.user.id }}" name="role" class="px-3 py-2 text-sm rounded-lg border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background min-h-[40px]" onchange="this.form.submit()">
+                <option value="ADMIN" {% if member.role.name == 'ADMIN' %}selected{% endif %}>Admin</option>
+                <option value="MEMBER" {% if member.role.name == 'MEMBER' %}selected{% endif %}>Miembro</option>
+              </select>
             </form>
-          {% endif %}
-        {% endif %}
-      </div>
-    </li>
+            {% endif %}
+
+            {% if member.user == current_user %}
+            <form method="POST" action="{{ url_for('groups.leave', group_id=group.id) }}" onsubmit="return confirm('¿Estás seguro de que deseas abandonar este grupo?');">
+              <button type="submit" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition min-h-[40px]">Salir</button>
+            </form>
+            {% elif current_user.id == group.owner.id %}
+            <form method="POST" action="{{ url_for('groups.remove', group_id=group.id, user_id=member.user.id) }}">
+              <button type="submit" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition min-h-[40px]">Eliminar</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      </li>
     {% else %}
-    <li class="text-sm text-light-text-secondary dark:text-dark-text-secondary p-4 text-center bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border">Este grupo no tiene miembros.</li>
+      <li class="text-sm text-light-text-secondary dark:text-dark-text-secondary p-4 text-center bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border">Este grupo no tiene miembros.</li>
     {% endfor %}
   </ul>
-  <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 touch-manipulation active:scale-95 transition min-h-[44px] text-sm">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-    Volver
-  </a>
+
+  <div id="membersEmptyState" class="hidden p-6 text-center text-sm text-light-text-secondary dark:text-dark-text-secondary bg-light-card dark:bg-dark-card rounded-lg border border-dashed border-light-border dark:border-dark-border">
+    No hay miembros que coincidan con los filtros.
+  </div>
 </div>
+
+{% if can_manage %}
+<div id="categoryMembersModal" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/40" data-close-category-modal="true"></div>
+  <div class="relative mx-auto my-10 w-[95%] max-w-2xl bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border shadow-lg">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-light-border dark:border-dark-border">
+      <h4 id="categoryModalTitle" class="font-bold">Categoría</h4>
+      <button type="button" class="p-2 rounded hover:bg-light-muted/30 dark:hover:bg-dark-muted/30" data-close-category-modal="true">x</button>
+    </div>
+    <div class="p-4 space-y-3 max-h-[60vh] overflow-auto">
+      <div class="flex items-center justify-between">
+        <p class="text-sm text-light-text-secondary dark:text-dark-text-secondary">Selecciona miembros de esta categoría</p>
+        <button type="button" id="toggleAllCategoryMembers" class="px-2 py-1 text-xs rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">Seleccionar todos</button>
+      </div>
+      <div id="categoryModalMembers" class="space-y-2"></div>
+    </div>
+    <div class="flex justify-end gap-2 px-4 py-3 border-t border-light-border dark:border-dark-border">
+      <button type="button" class="px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30" data-close-category-modal="true">Cancelar</button>
+      <button type="button" id="saveCategoryMembers" class="px-3 py-2 rounded-lg bg-primary text-white hover:opacity-90">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script type="application/json" id="members-embed-data">{{ embed_data | tojson }}</script>
+{% endblock %}
+
+{% block script %}
+{{ super() }}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const data = JSON.parse(document.getElementById('members-embed-data').textContent || '{}');
+    const groupId = Number.parseInt(data.group_id);
+    const canManage = !!data.can_manage;
+    const categories = Array.isArray(data.categories) ? data.categories : [];
+    const members = Array.isArray(data.members) ? data.members : [];
+
+    const colorPalette = [
+      'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200',
+      'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-200',
+      'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200',
+      'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200',
+      'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-200',
+      'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-200'
+    ];
+
+    const membersById = new Map(members.map((m) => [Number.parseInt(m.group_member_id), {
+      ...m,
+      categories: Array.isArray(m.categories) ? m.categories.map((id) => Number.parseInt(id)) : []
+    }]));
+    const categoryById = new Map(categories.map((c) => [Number.parseInt(c.id), c]));
+
+    const selectedFilters = new Set();
+    let includeNoCategory = false;
+    let searchTerm = '';
+    const selectedMembers = new Set();
+    const selectedBulkCategories = new Set();
+
+    const activeFilterPalette = [
+      'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-200 dark:ring-blue-900/40',
+      'bg-green-600 text-white border-green-600 ring-2 ring-green-200 dark:ring-green-900/40',
+      'bg-amber-500 text-white border-amber-500 ring-2 ring-amber-200 dark:ring-amber-700',
+      'bg-indigo-600 text-white border-indigo-600 ring-2 ring-indigo-200 dark:ring-indigo-900/40',
+      'bg-teal-600 text-white border-teal-600 ring-2 ring-teal-300 dark:ring-teal-900/40',
+      'bg-purple-600 text-white border-purple-600 ring-2 ring-purple-200 dark:ring-purple-900/40',
+    ];
+
+    function alertInline(message, type = 'success') {
+      const container = document.querySelector('main');
+      const el = document.createElement('div');
+      const styleMap = {
+        success: 'bg-green-50 text-green-800 border-green-200',
+        danger: 'bg-red-50 text-red-800 border-red-200',
+        warning: 'bg-yellow-50 text-yellow-800 border-yellow-200',
+      };
+      el.className = `mb-3 rounded-lg border px-3 py-2 text-sm ${styleMap[type] || 'bg-blue-50 text-blue-800 border-blue-200'}`;
+      el.textContent = message;
+      container?.prepend(el);
+      setTimeout(() => el.remove(), 3000);
+    }
+
+    function getCategoryStyle(categoryId) {
+      return colorPalette[Number.parseInt(categoryId) % colorPalette.length];
+    }
+
+    function paintFilterAsActive(button) {
+      const id = Number.parseInt(button.dataset.filterCategoryId || '0');
+      const style = activeFilterPalette[Math.abs(id) % activeFilterPalette.length];
+      button.classList.add(...style.split(' '));
+    }
+
+    function clearFilterActiveStyles(button) {
+      for (const style of activeFilterPalette) {
+        button.classList.remove(...style.split(' '));
+      }
+      button.classList.remove('bg-primary', 'text-white', 'border-primary', 'ring-2', 'ring-amber-200', 'dark:ring-amber-700');
+    }
+
+    function categoryName(categoryId) {
+      return categoryById.get(Number.parseInt(categoryId))?.name || `Categoría ${categoryId}`;
+    }
+
+    function updateRowDataset(memberId) {
+      const row = document.querySelector(`.member-row[data-member-id="${memberId}"]`);
+      const member = membersById.get(Number.parseInt(memberId));
+      if (!row || !member) return;
+      row.dataset.categoryIds = member.categories.join(',');
+    }
+
+    function renderMemberChips(memberId) {
+      const member = membersById.get(Number.parseInt(memberId));
+      const container = document.querySelector(`[data-member-chips="${memberId}"]`);
+      if (!member || !container) return;
+
+      container.innerHTML = '';
+      if (member.categories.length === 0) {
+        const empty = document.createElement('span');
+        empty.className = 'member-empty-cat text-xs text-light-text-secondary dark:text-dark-text-secondary';
+        empty.textContent = 'Sin categorías';
+        container.appendChild(empty);
+      } else {
+        for (const categoryId of member.categories) {
+          const chip = document.createElement('button');
+          chip.type = 'button';
+          chip.dataset.memberId = memberId;
+          chip.dataset.categoryId = categoryId;
+          chip.className = `member-cat-chip inline-flex items-center gap-1 text-xs rounded-full px-2 py-1 border border-light-border dark:border-dark-border ${getCategoryStyle(categoryId)} ${member.can_edit_categories ? 'cursor-pointer' : 'cursor-default'}`;
+          chip.title = member.can_edit_categories ? 'Click para quitar' : 'Categoría asignada';
+          chip.disabled = !member.can_edit_categories;
+          chip.innerHTML = `<span>${categoryName(categoryId)}</span>${member.can_edit_categories ? '<span aria-hidden="true">x</span>' : ''}`;
+          container.appendChild(chip);
+        }
+      }
+
+      updateRowDataset(memberId);
+      applyFilters();
+    }
+
+    async function updateCategory(memberId, categoryId, shouldAssign) {
+      const member = membersById.get(Number.parseInt(memberId));
+      if (!member) return;
+      const hasCategory = member.categories.includes(Number.parseInt(categoryId));
+      if (shouldAssign && hasCategory) return;
+      if (!shouldAssign && !hasCategory) return;
+
+      const optimistic = shouldAssign
+        ? [...member.categories, Number.parseInt(categoryId)]
+        : member.categories.filter((id) => id !== Number.parseInt(categoryId));
+
+      const previous = [...member.categories];
+      member.categories = optimistic;
+      renderMemberChips(memberId);
+
+      try {
+        const endpoint = `/categories/group_member/${memberId}`;
+        const response = await fetch(endpoint, {
+          method: shouldAssign ? 'POST' : 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ category_id: Number.parseInt(categoryId) })
+        });
+
+        if (!response.ok) {
+          member.categories = previous;
+          renderMemberChips(memberId);
+          const errorBody = await response.json().catch(() => ({}));
+          alertInline(errorBody.message || 'No se pudo actualizar la categoría.', 'danger');
+          return;
+        }
+
+        alertInline(shouldAssign ? 'Categoría agregada.' : 'Categoría removida.', 'success');
+      } catch (error) {
+        console.error('updateCategory error:', error);
+        member.categories = previous;
+        renderMemberChips(memberId);
+        alertInline('Error de red al actualizar la categoría.', 'danger');
+      }
+    }
+
+    function memberMatches(member) {
+      const searchable = `${member.name} ${member.email}`.toLowerCase();
+      if (searchTerm && !searchable.includes(searchTerm)) {
+        return false;
+      }
+
+      if (selectedFilters.size === 0 && !includeNoCategory) {
+        return true;
+      }
+
+      const hasNoCategory = member.categories.length === 0;
+      const matchesCategory = member.categories.some((categoryId) => selectedFilters.has(categoryId));
+      return matchesCategory || (includeNoCategory && hasNoCategory);
+    }
+
+    function applyFilters() {
+      const rows = Array.from(document.querySelectorAll('.member-row'));
+      let visible = 0;
+
+      for (const row of rows) {
+        const memberId = Number.parseInt(row.dataset.memberId);
+        const member = membersById.get(memberId);
+        if (!member) continue;
+        const isVisible = memberMatches(member);
+        row.classList.toggle('hidden', !isVisible);
+        if (isVisible) visible += 1;
+      }
+
+      const empty = document.getElementById('membersEmptyState');
+      if (empty) {
+        empty.classList.toggle('hidden', visible > 0);
+      }
+    }
+
+    function closeAllAddMenus() {
+      for (const menu of document.querySelectorAll('.add-category-menu')) {
+        menu.classList.add('hidden');
+      }
+    }
+
+    function buildAddMenu(memberId) {
+      const member = membersById.get(Number.parseInt(memberId));
+      const menu = document.querySelector(`[data-member-menu="${memberId}"]`);
+      if (!member || !menu) return;
+
+      const available = categories.filter((c) => !member.categories.includes(Number.parseInt(c.id)));
+      menu.innerHTML = '';
+
+      if (available.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'px-3 py-2 text-xs text-light-text-secondary dark:text-dark-text-secondary';
+        empty.textContent = 'Sin categorías disponibles';
+        menu.appendChild(empty);
+      } else {
+        for (const cat of available) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = `w-full text-left px-3 py-2 text-xs hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 ${getCategoryStyle(cat.id)}`;
+          btn.textContent = cat.name;
+          btn.addEventListener('click', async () => {
+            await updateCategory(memberId, cat.id, true);
+            buildAddMenu(memberId);
+          });
+          menu.appendChild(btn);
+        }
+      }
+    }
+
+    function updateBulkPanel() {
+      const panel = document.getElementById('bulkPanel');
+      if (!panel || !canManage) return;
+      const count = selectedMembers.size;
+      panel.classList.toggle('hidden', count === 0);
+      const countEl = document.getElementById('bulkSelectedCount');
+      if (countEl) countEl.textContent = String(count);
+    }
+
+    function renderBulkCategoryChoices() {
+      const container = document.getElementById('bulkCategoryChoices');
+      if (!container) return;
+      container.innerHTML = '';
+
+      for (const cat of categories) {
+        const btn = document.createElement('button');
+        const active = selectedBulkCategories.has(Number.parseInt(cat.id));
+        btn.type = 'button';
+        btn.dataset.bulkCategoryId = cat.id;
+        btn.className = `inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border ${active ? 'border-primary bg-primary text-white' : 'border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:bg-light-muted/30 dark:hover:bg-dark-muted/30'} ${active ? '' : getCategoryStyle(cat.id)}`;
+        btn.textContent = cat.name;
+        btn.addEventListener('click', () => {
+          const id = Number.parseInt(cat.id);
+          if (selectedBulkCategories.has(id)) {
+            selectedBulkCategories.delete(id);
+          } else {
+            selectedBulkCategories.add(id);
+          }
+          renderBulkCategoryChoices();
+        });
+        container.appendChild(btn);
+      }
+    }
+
+    function applyBulkUpdates(memberIds, categoryIds, action) {
+      for (const memberId of memberIds) {
+        const member = membersById.get(Number.parseInt(memberId));
+        if (!member) continue;
+
+        if (action === 'assign') {
+          for (const categoryId of categoryIds) {
+            if (!member.categories.includes(Number.parseInt(categoryId))) {
+              member.categories.push(Number.parseInt(categoryId));
+            }
+          }
+        } else {
+          member.categories = member.categories.filter((id) => !categoryIds.includes(Number.parseInt(id)));
+        }
+
+        renderMemberChips(memberId);
+      }
+    }
+
+    async function requestBulkAction(memberIds, categoryIds, action) {
+      const response = await fetch('/categories/bulk_assign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          group_id: groupId,
+          member_ids: memberIds,
+          category_ids: categoryIds,
+          action
+        })
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.message || 'No se pudo completar la acción masiva.');
+      }
+    }
+
+    async function runBulk(action) {
+      if (selectedMembers.size === 0 || selectedBulkCategories.size === 0) {
+        alertInline('Selecciona miembros y categorías para la acción masiva.', 'warning');
+        return;
+      }
+
+      const memberIds = Array.from(selectedMembers);
+      const categoryIds = Array.from(selectedBulkCategories);
+
+      try {
+        await requestBulkAction(memberIds, categoryIds, action);
+        applyBulkUpdates(memberIds, categoryIds, action);
+
+        selectedBulkCategories.clear();
+        renderBulkCategoryChoices();
+        alertInline(action === 'assign' ? 'Categorías agregadas en bloque.' : 'Categorías removidas en bloque.', 'success');
+      } catch (error) {
+        console.error('runBulk error:', error);
+        alertInline(error?.message || 'Error de red al ejecutar la acción masiva.', 'danger');
+      }
+    }
+
+    function setupCategoryModal() {
+      if (!canManage) return;
+
+      const modal = document.getElementById('categoryMembersModal');
+      const modalTitle = document.getElementById('categoryModalTitle');
+      const modalMembers = document.getElementById('categoryModalMembers');
+      const saveBtn = document.getElementById('saveCategoryMembers');
+      const toggleAllBtn = document.getElementById('toggleAllCategoryMembers');
+
+      if (!modal || !modalTitle || !modalMembers || !saveBtn || !toggleAllBtn) return;
+
+      let activeCategoryId = null;
+      let originalSelection = new Set();
+
+      function closeModal() {
+        modal.classList.add('hidden');
+      }
+
+      function openModal(categoryId) {
+        activeCategoryId = Number.parseInt(categoryId);
+        const category = categoryById.get(activeCategoryId);
+        modalTitle.textContent = `Categoría: ${category ? category.name : activeCategoryId}`;
+
+        modalMembers.innerHTML = '';
+        originalSelection = new Set();
+
+        for (const member of membersById.values()) {
+          const checked = member.categories.includes(activeCategoryId);
+          if (checked) originalSelection.add(member.group_member_id);
+
+          const item = document.createElement('label');
+          item.className = 'flex items-center justify-between gap-2 rounded-lg border border-light-border dark:border-dark-border p-2 hover:bg-light-muted/30 dark:hover:bg-dark-muted/30';
+          item.innerHTML = `
+            <div>
+              <p class="text-sm font-medium">${member.name}</p>
+              <p class="text-xs text-light-text-secondary dark:text-dark-text-secondary">${member.email}</p>
+            </div>
+            <input type="checkbox" class="category-modal-member accent-primary w-4 h-4" value="${member.group_member_id}" ${checked ? 'checked' : ''}>
+          `;
+          modalMembers.appendChild(item);
+        }
+
+        modal.classList.remove('hidden');
+      }
+
+      for (const openBtn of document.querySelectorAll('[data-open-category-modal]')) {
+        openBtn.addEventListener('click', () => openModal(openBtn.dataset.openCategoryModal));
+      }
+
+      for (const closeBtn of modal.querySelectorAll('[data-close-category-modal="true"]')) {
+        closeBtn.addEventListener('click', closeModal);
+      }
+
+      modal.addEventListener('click', (event) => {
+        if (event.target?.dataset?.closeCategoryModal === 'true') {
+          closeModal();
+        }
+      });
+
+      toggleAllBtn.addEventListener('click', () => {
+        const inputs = modalMembers.querySelectorAll('.category-modal-member');
+        const allChecked = Array.from(inputs).every((i) => i.checked);
+        for (const input of inputs) {
+          input.checked = !allChecked;
+        }
+        toggleAllBtn.textContent = allChecked ? 'Seleccionar todos' : 'Deseleccionar todos';
+      });
+
+      saveBtn.addEventListener('click', async () => {
+        if (!activeCategoryId) return;
+
+        const currentSelection = new Set(
+          Array.from(modalMembers.querySelectorAll('.category-modal-member:checked')).map((input) => Number.parseInt(input.value))
+        );
+
+        const toAssign = Array.from(currentSelection).filter((id) => !originalSelection.has(id));
+        const toUnassign = Array.from(originalSelection).filter((id) => !currentSelection.has(id));
+
+        try {
+          if (toAssign.length > 0) {
+            await fetch('/categories/bulk_assign', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify({
+                group_id: groupId,
+                member_ids: toAssign,
+                category_ids: [activeCategoryId],
+                action: 'assign'
+              })
+            });
+          }
+
+          if (toUnassign.length > 0) {
+            await fetch('/categories/bulk_assign', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify({
+                group_id: groupId,
+                member_ids: toUnassign,
+                category_ids: [activeCategoryId],
+                action: 'unassign'
+              })
+            });
+          }
+
+          for (const memberId of toAssign) {
+            const member = membersById.get(Number.parseInt(memberId));
+            if (member && !member.categories.includes(activeCategoryId)) {
+              member.categories.push(activeCategoryId);
+              renderMemberChips(memberId);
+            }
+          }
+
+          for (const memberId of toUnassign) {
+            const member = membersById.get(Number.parseInt(memberId));
+            if (member) {
+              member.categories = member.categories.filter((id) => id !== activeCategoryId);
+              renderMemberChips(memberId);
+            }
+          }
+
+          alertInline('Miembros actualizados para la categoría.', 'success');
+          closeModal();
+        } catch (error) {
+          console.error('saveCategoryMembers error:', error);
+          alertInline('No se pudo guardar el cambio de categoría.', 'danger');
+        }
+      });
+    }
+
+    const searchInput = document.getElementById('memberSearch');
+    searchInput?.addEventListener('input', (event) => {
+      searchTerm = String(event.target.value || '').trim().toLowerCase();
+      applyFilters();
+    });
+
+    const clearFiltersBtn = document.getElementById('clearFilters');
+    clearFiltersBtn?.addEventListener('click', () => {
+      searchTerm = '';
+      if (searchInput) searchInput.value = '';
+      selectedFilters.clear();
+      includeNoCategory = false;
+      for (const chip of document.querySelectorAll('.filter-chip')) {
+        clearFilterActiveStyles(chip);
+      }
+      applyFilters();
+    });
+
+    for (const filterBtn of document.querySelectorAll('.filter-chip')) {
+      filterBtn.addEventListener('click', () => {
+        if (filterBtn.dataset.filterNone === 'true') {
+          includeNoCategory = !includeNoCategory;
+          if (includeNoCategory) {
+            filterBtn.classList.add('bg-amber-500', 'text-white', 'border-amber-500', 'ring-2', 'ring-amber-200', 'dark:ring-amber-700');
+          } else {
+            clearFilterActiveStyles(filterBtn);
+          }
+          applyFilters();
+          return;
+        }
+
+        const categoryId = Number.parseInt(filterBtn.dataset.filterCategoryId);
+        if (selectedFilters.has(categoryId)) {
+          selectedFilters.delete(categoryId);
+          clearFilterActiveStyles(filterBtn);
+        } else {
+          selectedFilters.add(categoryId);
+          paintFilterAsActive(filterBtn);
+        }
+        applyFilters();
+      });
+    }
+
+    for (const chip of document.querySelectorAll('.member-cat-chip')) {
+      chip.classList.add(...getCategoryStyle(chip.dataset.categoryId).split(' '));
+    }
+
+    document.addEventListener('click', async (event) => {
+      const removeChip = event.target.closest('.member-cat-chip');
+      if (removeChip) {
+        if (removeChip.disabled) return;
+        await updateCategory(removeChip.dataset.memberId, removeChip.dataset.categoryId, false);
+        return;
+      }
+
+      const openAdd = event.target.closest('.open-add-category');
+      if (openAdd) {
+        const memberId = openAdd.dataset.memberId;
+        const menu = document.querySelector(`[data-member-menu="${memberId}"]`);
+        if (!menu) return;
+        const isHidden = menu.classList.contains('hidden');
+        closeAllAddMenus();
+        if (isHidden) {
+          buildAddMenu(memberId);
+          menu.classList.remove('hidden');
+        }
+        return;
+      }
+
+      if (!event.target.closest('.add-category-menu')) {
+        closeAllAddMenus();
+      }
+    });
+
+    if (canManage) {
+      for (const checkbox of document.querySelectorAll('.member-select')) {
+        checkbox.addEventListener('change', () => {
+          const memberId = Number.parseInt(checkbox.value);
+          if (checkbox.checked) {
+            selectedMembers.add(memberId);
+          } else {
+            selectedMembers.delete(memberId);
+          }
+          updateBulkPanel();
+        });
+      }
+
+      document.getElementById('selectVisibleMembers')?.addEventListener('click', () => {
+        for (const row of document.querySelectorAll('.member-row')) {
+          if (row.classList.contains('hidden')) continue;
+          const checkbox = row.querySelector('.member-select');
+          if (!checkbox) continue;
+          checkbox.checked = true;
+          selectedMembers.add(Number.parseInt(checkbox.value));
+        }
+        updateBulkPanel();
+      });
+
+      document.getElementById('clearSelectedMembers')?.addEventListener('click', () => {
+        selectedMembers.clear();
+        for (const checkbox of document.querySelectorAll('.member-select')) {
+          checkbox.checked = false;
+        }
+        updateBulkPanel();
+      });
+
+      document.getElementById('bulkAssignBtn')?.addEventListener('click', () => runBulk('assign'));
+      document.getElementById('bulkRemoveBtn')?.addEventListener('click', () => runBulk('unassign'));
+
+      renderBulkCategoryChoices();
+      setupCategoryModal();
+    }
+
+    applyFilters();
+  });
+</script>
 {% endblock %}
