@@ -190,6 +190,23 @@ def show(group_id):
 
     availability_data = get_availability_data(group_id)
 
+    responded_user_ids = {
+        user_id
+        for (user_id,) in (
+            scheduler_db.session.query(UserAvailability.user_id)
+            .join(Availability, UserAvailability.availability_id == Availability.id)
+            .filter(Availability.group_id == group.id)
+            .distinct()
+            .all()
+        )
+    }
+    users_without_availability = [
+        member.user
+        for member in group_members
+        if member.user.id not in responded_user_ids
+    ]
+    members_with_availability_count = len(responded_user_ids)
+
     can_manage = (group.owner_id == current_user.id) or is_admin
 
     group_categories = Category.query.filter_by(group_id=group.id).all()
@@ -214,6 +231,9 @@ def show(group_id):
         group_categories=group_categories,
         member_category_map=member_category_map,
         user_gm_map=user_gm_map,
+        users_without_availability=users_without_availability,
+        members_with_availability_count=members_with_availability_count,
+        responded_user_ids=sorted(responded_user_ids),
     )
 
 

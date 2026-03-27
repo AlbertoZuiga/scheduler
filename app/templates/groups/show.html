@@ -88,13 +88,16 @@
   </section>
   {% endif %}
 
-  {% if (current_user.id == group.owner_id or is_admin) and availability_data %}
+  {% if current_user.id == group.owner_id or is_admin %}
   <section class="space-y-4">
     <details class="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-lg p-4" open>
       <summary class="cursor-pointer font-semibold">Horarios en los que pueden todos</summary>
       <ul id="availabilityAllList" class="mt-3 list-disc list-inside text-sm text-light-text-secondary dark:text-dark-text-secondary">
+        {% if members_with_availability_count == 0 %}
+          <li class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Aún no hay personas con horario seleccionado.</li>
+        {% endif %}
         {% for availability_id, data in availability_data.items() %}
-          {% if data.count_users == user_info_map|length %}
+          {% if members_with_availability_count > 0 and data.count_users == members_with_availability_count %}
             <li class="availability-summary-row availability-all-row"
                 data-availability-id="{{ availability_id }}"
                 data-weekday="{{ data.availability.weekday }}"
@@ -107,7 +110,7 @@
       <summary class="cursor-pointer font-semibold">Horarios en los que no pueden todos</summary>
       <div id="availabilityPartialList" class="mt-3 space-y-3">
         {% for availability_id, data in availability_data.items() %}
-          {% if data.count_users < user_info_map|length %}
+          {% if members_with_availability_count > 0 and data.count_users < members_with_availability_count %}
           <details class="bg-light-surface dark:bg-dark-surface border border-light-border dark:border-dark-border rounded p-3 availability-partial-card"
                    data-availability-id="{{ availability_id }}"
                    data-weekday="{{ data.availability.weekday }}"
@@ -135,6 +138,24 @@
           {% endif %}
         {% endfor %}
       </div>
+    </details>
+    <details class="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-lg p-4" open>
+      <summary class="cursor-pointer font-semibold">Personas sin horario seleccionado</summary>
+      <ul id="availabilityMissingUsersList" class="mt-3 list-disc list-inside text-sm text-light-text-secondary dark:text-dark-text-secondary">
+        {% if users_without_availability %}
+          {% for user in users_without_availability %}
+            {% set gm_id = user_gm_map.get(user.id) %}
+            {% set gm_categories = member_category_map.get(gm_id, []) if gm_id else [] %}
+            <li class="availability-missing-user"
+                data-user-id="{{ user.id }}"
+                data-gm-id="{{ gm_id if gm_id else '' }}"
+                data-category-ids="{{ gm_categories|join(',') }}">{{ user.name }} {{ user.email }}</li>
+          {% endfor %}
+          <li id="availabilityMissingUsersFilterEmpty" class="hidden text-xs text-light-text-secondary dark:text-dark-text-secondary">No hay personas sin horario que coincidan con el filtro.</li>
+        {% else %}
+          <li class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Todas las personas del grupo ya han marcado su horario.</li>
+        {% endif %}
+      </ul>
     </details>
   </section>
   {% endif %}
@@ -227,7 +248,8 @@
   'categories': group_categories | map(attribute='name') | list,
   'member_category_map': member_category_map,
   'user_gm_map': user_gm_map,
-  'availability': availability | map('list') | list
+  'availability': availability | map('list') | list,
+  'responded_user_ids': responded_user_ids
 } %}
 <script type="application/json" id="embed-data">{{ embed_data | tojson }}</script>
 
@@ -256,18 +278,25 @@
 
   function setupScheduleCategoryFiltering() {
     const chips = Array.from(document.querySelectorAll('.availability-user-chip'));
+    const missingUserItems = Array.from(document.querySelectorAll('.availability-missing-user'));
     const filterButtons = Array.from(document.querySelectorAll('.schedule-filter-chip'));
     const filterModeSelect = document.getElementById('scheduleFilterMode');
     const stats = document.getElementById('scheduleFilterStats');
     const allList = document.getElementById('availabilityAllList');
     const partialList = document.getElementById('availabilityPartialList');
-    if (chips.length === 0 || filterButtons.length === 0) {
+    const missingUsersFilterEmpty = document.getElementById('availabilityMissingUsersFilterEmpty');
+    if (filterButtons.length === 0) {
       return;
     }
 
     const userToGroupMember = globalThis.__EMBED__.user_gm_map || {};
     const memberToCategories = globalThis.__EMBED__.member_category_map || {};
     const availabilityRows = Array.isArray(globalThis.__EMBED__.availability) ? globalThis.__EMBED__.availability : [];
+    const respondedUserIds = new Set(
+      (Array.isArray(globalThis.__EMBED__.responded_user_ids) ? globalThis.__EMBED__.responded_user_ids : [])
+        .map((value) => Number.parseInt(value))
+        .filter((value) => Number.isInteger(value))
+    );
 
     const selectedCategoryIds = new Set();
     let includeNoCategory = false;
@@ -324,7 +353,7 @@
       const visibility = new Map();
       for (const member of (globalThis.__GROUP_MEMBERS__ || [])) {
         const userId = Number.parseInt(member.user_id);
-        if (!Number.isInteger(userId)) continue;
+        if (!Number.isInteger(userId) || !respondedUserIds.has(userId)) continue;
         const categories = getCategoryIdsByUserId(userId);
         visibility.set(userId, userMatchesSelectedCategories(categories));
       }
@@ -471,20 +500,59 @@
       }
     };
 
-    const applyFilters = () => {
+    const updateVisibleScheduleUsers = (visibilityByUser) => {
       const filteredUsers = new Set();
-      const visibilityByUser = buildUserVisibilityMap();
-
       let visibleChips = 0;
+
       for (const chip of chips) {
         const userId = Number.parseInt(chip.dataset.userId);
         const show = visibilityByUser.get(userId) === true;
         chip.style.display = show ? '' : 'none';
+
         if (show && Number.isInteger(userId)) {
           filteredUsers.add(userId);
+          visibleChips += 1;
         }
-        if (show) visibleChips += 1;
       }
+
+      return { filteredUsers, visibleChips };
+    };
+
+    const updateVisibleMissingUsers = () => {
+      let visibleMissingUsers = 0;
+
+      for (const missingUserItem of missingUserItems) {
+        const userId = Number.parseInt(missingUserItem.dataset.userId);
+        const categories = getCategoryIdsByUserId(userId);
+        const show = userMatchesSelectedCategories(categories);
+        missingUserItem.classList.toggle('hidden', !show);
+        if (show) {
+          visibleMissingUsers += 1;
+        }
+      }
+
+      if (missingUsersFilterEmpty) {
+        missingUsersFilterEmpty.classList.toggle('hidden', visibleMissingUsers > 0);
+      }
+
+      return visibleMissingUsers;
+    };
+
+    const updateFilterStats = (visibleChips, visibleMissingUsers) => {
+      if (!stats) {
+        return;
+      }
+
+      const activeCount = selectedCategoryIds.size + (includeNoCategory ? 1 : 0);
+      stats.textContent = activeCount > 0
+        ? `${visibleChips} coincidencia(s) en horarios y ${visibleMissingUsers} sin horario con ${activeCount} filtro(s) en modo ${filterMode.toUpperCase()}`
+        : 'Sin filtros activos';
+    };
+
+    const applyFilters = () => {
+      const visibilityByUser = buildUserVisibilityMap();
+      const { filteredUsers, visibleChips } = updateVisibleScheduleUsers(visibilityByUser);
+      const visibleMissingUsers = updateVisibleMissingUsers();
 
       // En la grilla solo ocultamos nombres que no cumplen filtro, sin cambiar fondo de celdas.
       resetTableCellVisuals();
@@ -493,12 +561,7 @@
       renderAllSection(availabilityBySlot, filteredUsers.size);
       renderPartialSection(availabilityBySlot, filteredUsers);
 
-      if (stats) {
-        const activeCount = selectedCategoryIds.size + (includeNoCategory ? 1 : 0);
-        stats.textContent = activeCount > 0
-          ? `${visibleChips} coincidencia(s) con ${activeCount} filtro(s) en modo ${filterMode.toUpperCase()}`
-          : 'Sin filtros activos';
-      }
+      updateFilterStats(visibleChips, visibleMissingUsers);
     };
 
     filterModeSelect?.addEventListener('change', () => {
