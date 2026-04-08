@@ -154,11 +154,40 @@
     border: 1px solid var(--tw-prose-border-dark, theme('colors.dark-border'));
     color: var(--tw-prose-text-dark, theme('colors.dark-text-primary'));
   }
+
+  .dark .subgroup-divider-page .text-light-text-secondary,
+  .dark .subgroup-divider-page .text-indigo-700,
+  .dark .subgroup-divider-page .text-indigo-800,
+  .dark .subgroup-divider-page .text-purple-700,
+  .dark .subgroup-divider-page .text-purple-800,
+  .dark .subgroup-divider-page .text-teal-700,
+  .dark .subgroup-divider-page .text-gray-600,
+  .dark .subgroup-divider-page .text-gray-700,
+  .dark .subgroup-divider-page .text-gray-800 {
+    color: theme('colors.slate.200');
+  }
+
+  .dark .subgroup-divider-page .text-light-text-muted,
+  .dark .subgroup-divider-page .text-light-text-secondary\/70,
+  .dark .subgroup-divider-page .text-indigo-200,
+  .dark .subgroup-divider-page .text-purple-200,
+  .dark .subgroup-divider-page .text-amber-200,
+  .dark .subgroup-divider-page .text-teal-200 {
+    color: theme('colors.slate.100');
+  }
+
+  .dark .subgroup-divider-page .border-light-border,
+  .dark .subgroup-divider-page .border-indigo-300,
+  .dark .subgroup-divider-page .border-purple-200,
+  .dark .subgroup-divider-page .border-amber-200,
+  .dark .subgroup-divider-page .border-teal-300 {
+    border-color: theme('colors.slate.600');
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="w-full max-w-7xl mx-auto">
+<div class="subgroup-divider-page w-full max-w-7xl mx-auto">
   <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6">
     <div class="flex-1">
       <h2 class="text-xl sm:text-2xl md:text-3xl font-bold text-light-text-primary dark:text-dark-text-primary flex items-center gap-2">
@@ -181,6 +210,7 @@
   <span id="summary-num-groups" class="text-xs sm:text-sm text-indigo-800 dark:text-indigo-200">Subgrupos: <b class="text-indigo-900 dark:text-dark-text-primary">3</b></span>
   <span id="summary-max-size" class="text-xs sm:text-sm text-indigo-800 dark:text-indigo-200">Máx.: <b class="text-indigo-900 dark:text-dark-text-primary">{{ (member_count // 3) + 1 }}</b></span>
   <span id="summary-threshold" class="text-xs sm:text-sm text-indigo-800 dark:text-indigo-200">Compatibilidad: <b class="text-indigo-900 dark:text-dark-text-primary">3 bloques</b></span>
+  <span id="summary-together-groups" class="text-xs sm:text-sm text-indigo-800 dark:text-indigo-200">Grupos juntos: <b class="text-indigo-900 dark:text-dark-text-primary">0</b></span>
     </div>
     <div class="text-xs sm:text-sm text-indigo-700 dark:text-indigo-300 mt-2 italic">Las opciones seleccionadas se mostrarán aquí en tiempo real para que puedas revisar tu configuración antes de generar los subgrupos.</div>
   </div>
@@ -266,6 +296,54 @@
               </label>
             </div>
             <small class="text-xs text-light-text-secondary dark:text-dark-text-secondary ml-8">Garantiza que ningún miembro quede sin asignar a un subgrupo.</small>
+          </div>
+
+          <div class="mb-3 rounded-lg border-2 border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/30 p-3 sm:p-4">
+            <div class="flex flex-col xs:flex-row xs:items-center justify-between gap-2 mb-3">
+              <div>
+                <h6 class="font-bold text-sm sm:text-base text-light-text-primary dark:text-dark-text-primary flex items-center gap-1">
+                  <svg class="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 dark:text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M8.5 3a5.5 5.5 0 00-4.9 8.02L3 14l2.98-.6A5.5 5.5 0 108.5 3z"></path></svg>
+                  Usuarios que deben permanecer juntos
+                </h6>
+                <p class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary mt-1">Selecciona dos o más miembros y agrúpalos. El motor los tratará como una sola unidad durante la división automática.</p>
+              </div>
+              <button type="button" id="add-together-group-btn" class="px-3 py-2 text-xs sm:text-sm rounded-lg bg-amber-600 dark:bg-amber-500 hover:bg-amber-700 dark:hover:bg-amber-600 text-white font-semibold transition-all shadow hover:shadow-md touch-manipulation active:scale-95 min-h-[44px] w-full xs:w-auto justify-center flex items-center gap-1">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path></svg>
+                Crear grupo
+              </button>
+            </div>
+            <div class="mb-3">
+              <label for="together-member-search" class="sr-only">Buscar usuarios</label>
+              <div class="relative">
+                <input
+                  type="search"
+                  id="together-member-search"
+                  class="w-full rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm text-light-text-primary dark:text-slate-100 placeholder:text-light-text-secondary dark:placeholder:text-slate-400 focus:ring-2 focus:ring-amber-500"
+                  placeholder="Buscar por nombre o correo"
+                  autocomplete="off"
+                >
+                <div id="together-member-dropdown" class="hidden absolute left-0 right-0 mt-2 rounded-lg border border-amber-200 dark:border-amber-700 bg-white dark:bg-slate-900 shadow-lg z-30">
+                  <p id="together-member-filter-status" class="px-3 py-2 text-xs text-light-text-secondary dark:text-dark-text-secondary border-b border-amber-100 dark:border-amber-800">Mostrando usuarios.</p>
+                  <div id="together-member-list" class="max-h-64 overflow-y-auto p-2 space-y-2">
+                    {% for member in members_json %}
+                    <label class="flex items-start gap-3 rounded-lg border border-amber-200 dark:border-amber-700 bg-white dark:bg-slate-900/80 px-3 py-2 cursor-pointer hover:bg-amber-100/70 dark:hover:bg-slate-800/90 transition-colors together-member-item" data-member-search="{{ (member.name ~ ' ' ~ member.email)|lower }}">
+                      <input type="checkbox" class="together-member-checkbox mt-1 accent-amber-600" value="{{ member.id }}">
+                      <span class="min-w-0 flex-1">
+                        <span class="block text-sm font-semibold text-light-text-primary dark:text-slate-100 truncate">{{ member.name }}</span>
+                        <span class="block text-xs text-light-text-secondary dark:text-slate-300 truncate">{{ member.email }}</span>
+                      </span>
+                    </label>
+                    {% endfor %}
+                  </div>
+                  <p id="together-member-empty" class="hidden px-3 py-2 text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary italic">No se encontraron usuarios con ese criterio.</p>
+                </div>
+              </div>
+              <p class="mt-1 text-xs text-light-text-secondary dark:text-dark-text-secondary">Escribe para filtrar por nombre completo, nombres o apellido.</p>
+            </div>
+            <div class="mt-3">
+              <p id="no-together-groups-msg" class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary italic">No hay grupos manuales definidos.</p>
+              <div id="together-groups-list" class="space-y-2"></div>
+            </div>
           </div>
 
           <!-- Reglas de Categorías -->
@@ -366,6 +444,7 @@
           <li><strong class="text-light-text-primary dark:text-dark-text-primary">Reglas AND:</strong> El miembro debe tener TODAS las categorías especificadas.</li>
           <li><strong class="text-light-text-primary dark:text-dark-text-primary">Reglas OR:</strong> El miembro debe tener AL MENOS una de las categorías.</li>
           <li><strong class="text-light-text-primary dark:text-dark-text-primary">Mín/Máx:</strong> Cantidad requerida de miembros que cumplan la regla por subgrupo.</li>
+          <li><strong class="text-light-text-primary dark:text-dark-text-primary">Usuarios juntos:</strong> Los miembros definidos manualmente se asignan como una sola unidad y no se separan durante el proceso automático.</li>
         </ul>
         
         <h6 class="font-bold text-light-text-primary dark:text-dark-text-primary mt-4 mb-2 text-base">Categorías Disponibles:</h6>
@@ -481,7 +560,8 @@
 <script id="group-data" type="application/json">
 {
   "groupId": {{ group.id }},
-  "categories": {{ categories_json|tojson }}
+  "categories": {{ categories_json|tojson }},
+  "members": {{ members_json|tojson }}
 }
 </script>
 
@@ -491,6 +571,7 @@
     const groupData = JSON.parse(document.getElementById('group-data').textContent);
     globalThis.GROUP_ID = groupData.groupId;
     globalThis.CATEGORIES = groupData.categories;
+    globalThis.MEMBERS = groupData.members;
   })();
 
   // Actualizar resumen visual en tiempo real
@@ -501,22 +582,14 @@
     const summaryNumGroups = document.getElementById('summary-num-groups');
     const summaryMaxSize = document.getElementById('summary-max-size');
     const summaryThreshold = document.getElementById('summary-threshold');
-<<<<<<< Updated upstream
-    const thresholdDisplay = document.getElementById('threshold_display');
-=======
     const summaryTogetherGroups = document.getElementById('summary-together-groups');
->>>>>>> Stashed changes
 
     function updateSummary() {
       summaryNumGroups.innerHTML = 'Subgrupos: <b>' + (numGroups.value || '-') + '</b>';
       summaryMaxSize.innerHTML = 'Máx. por subgrupo: <b>' + (maxGroupSize.value || 'Sin límite') + '</b>';
       summaryThreshold.innerHTML = 'Compatibilidad mínima: <b>' + (threshold.value || '-') + ' bloques</b>';
-<<<<<<< Updated upstream
-      if (thresholdDisplay) thresholdDisplay.textContent = threshold.value + ' bloques';
-=======
       const manualCount = document.querySelectorAll('#together-groups-list .together-group-chip').length;
       if (summaryTogetherGroups) summaryTogetherGroups.innerHTML = 'Grupos juntos: <b>' + manualCount + '</b>';
->>>>>>> Stashed changes
     }
     if (numGroups) numGroups.addEventListener('input', updateSummary);
     if (maxGroupSize) maxGroupSize.addEventListener('input', updateSummary);

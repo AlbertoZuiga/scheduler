@@ -7,6 +7,13 @@
 
   let ruleCounter = 0;
   let currentJobId = null;
+  let manualGroupCounter = 0;
+  let manualGroups = [];
+
+  const members = Array.isArray(globalThis.MEMBERS) ? globalThis.MEMBERS : [];
+  const membersById = new Map(
+    members.map((member) => [Number.parseInt(member.id), member]),
+  );
 
   // Referencias a elementos del DOM
   const form = document.getElementById("division-form");
@@ -16,20 +23,28 @@
   const previewPanel = document.getElementById("preview-panel");
   const previewContent = document.getElementById("preview-content");
   const loadingOverlay = document.getElementById("loading-overlay");
-<<<<<<< Updated upstream
-  const thresholdSlider = document.getElementById("compatibility_threshold");
-  const thresholdDisplay = document.getElementById("threshold_display");
-=======
   const compatibilityThresholdInput = document.getElementById(
     "compatibility_threshold",
   );
   const addTogetherGroupBtn = document.getElementById("add-together-group-btn");
   const togetherGroupsList = document.getElementById("together-groups-list");
   const noTogetherGroupsMsg = document.getElementById("no-together-groups-msg");
+  const togetherMemberDropdown = document.getElementById(
+    "together-member-dropdown",
+  );
+  const togetherMemberList = document.getElementById("together-member-list");
+  const togetherMemberSearchInput = document.getElementById(
+    "together-member-search",
+  );
+  const togetherMemberFilterStatus = document.getElementById(
+    "together-member-filter-status",
+  );
+  const togetherMemberEmptyMsg = document.getElementById(
+    "together-member-empty",
+  );
   const summaryTogetherGroups = document.getElementById(
     "summary-together-groups",
   );
->>>>>>> Stashed changes
 
   // Botones de acción del preview
   const confirmBtn = document.getElementById("confirm-btn");
@@ -40,6 +55,7 @@
   // Templates
   const ruleTemplate = document.getElementById("rule-template");
   const conditionTemplate = document.getElementById("condition-template");
+  const togetherMemberEntries = [];
 
   /**
    * Inicialización
@@ -48,24 +64,154 @@
     // Event listeners
     addRuleBtn.addEventListener("click", addRule);
     form.addEventListener("submit", handleFormSubmit);
+    if (addTogetherGroupBtn) {
+      addTogetherGroupBtn.addEventListener("click", addTogetherGroup);
+    }
+    if (togetherMemberSearchInput) {
+      togetherMemberSearchInput.addEventListener(
+        "input",
+        filterTogetherMembers,
+      );
+      togetherMemberSearchInput.addEventListener(
+        "focus",
+        openTogetherMemberDropdown,
+      );
+      togetherMemberSearchInput.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeTogetherMemberDropdown();
+          togetherMemberSearchInput.blur();
+        }
+      });
+    }
+    if (togetherMemberList) {
+      togetherMemberList.addEventListener("change", filterTogetherMembers);
+    }
+    document.addEventListener("click", (event) => {
+      if (!togetherMemberDropdown || !togetherMemberSearchInput) return;
+
+      const clickedInsideInput = togetherMemberSearchInput.contains(
+        event.target,
+      );
+      const clickedInsideDropdown = togetherMemberDropdown.contains(
+        event.target,
+      );
+      if (!clickedInsideInput && !clickedInsideDropdown) {
+        closeTogetherMemberDropdown();
+      }
+    });
+
+    setupTogetherMemberSearch();
+    closeTogetherMemberDropdown();
 
     confirmBtn.addEventListener("click", confirmDivision);
     redoBtn.addEventListener("click", redoDivision);
     exportBtn.addEventListener("click", exportResults);
     undoBtn.addEventListener("click", undoLastDivision);
 
-<<<<<<< Updated upstream
-    updateThresholdDisplay();
+    renderTogetherGroups();
+    filterTogetherMembers();
   }
 
-  /**
-   * Actualiza el display del threshold
-   */
-  function updateThresholdDisplay() {
-    thresholdDisplay.textContent = `${thresholdSlider.value} bloques`;
-=======
-    renderTogetherGroups();
->>>>>>> Stashed changes
+  function normalizeSearchText(value) {
+    return String(value || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/ñ/g, "n")
+      .replace(/[^a-z0-9\s@._-]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function setupTogetherMemberSearch() {
+    if (!togetherMemberList) return;
+
+    togetherMemberEntries.length = 0;
+    const items = togetherMemberList.querySelectorAll(".together-member-item");
+    items.forEach((item) => {
+      const baseText = item.dataset.memberSearch || item.textContent;
+      const normalizedText = normalizeSearchText(baseText);
+      const tokens = normalizedText.split(" ").filter(Boolean);
+      togetherMemberEntries.push({
+        element: item,
+        normalizedText,
+        tokens,
+      });
+    });
+  }
+
+  function memberMatchesQuery(entry, queryTokens) {
+    if (queryTokens.length === 0) return true;
+
+    return queryTokens.every((token) => {
+      if (entry.normalizedText.includes(token)) return true;
+      return entry.tokens.some(
+        (memberToken) =>
+          memberToken.startsWith(token) || memberToken.includes(token),
+      );
+    });
+  }
+
+  function openTogetherMemberDropdown() {
+    if (!togetherMemberDropdown) return;
+    togetherMemberDropdown.classList.remove("hidden");
+    filterTogetherMembers();
+  }
+
+  function closeTogetherMemberDropdown() {
+    if (!togetherMemberDropdown) return;
+    togetherMemberDropdown.classList.add("hidden");
+  }
+
+  function updateFilterStatus(
+    visibleCount = 0,
+    totalCount = 0,
+    hasQuery = false,
+  ) {
+    if (!togetherMemberFilterStatus) return;
+
+    const selectedCount = document.querySelectorAll(
+      ".together-member-checkbox:checked",
+    ).length;
+
+    if (!hasQuery) {
+      togetherMemberFilterStatus.textContent = `Mostrando ${totalCount} usuarios. Seleccionados: ${selectedCount}.`;
+      return;
+    }
+
+    togetherMemberFilterStatus.textContent = `Resultados: ${visibleCount} de ${totalCount}. Seleccionados: ${selectedCount}.`;
+  }
+
+  function filterTogetherMembers() {
+    if (!togetherMemberList) return;
+
+    const normalizedQuery = normalizeSearchText(
+      togetherMemberSearchInput?.value || "",
+    );
+    const queryTokens = normalizedQuery.split(" ").filter(Boolean);
+    let visibleCount = 0;
+    const totalCount = togetherMemberEntries.length;
+
+    togetherMemberEntries.forEach((entry) => {
+      const isMatch = memberMatchesQuery(entry, queryTokens);
+      entry.element.style.display = isMatch ? "flex" : "none";
+      if (isMatch) {
+        visibleCount += 1;
+      }
+    });
+
+    updateFilterStatus(visibleCount, totalCount, queryTokens.length > 0);
+
+    if (togetherMemberEmptyMsg) {
+      togetherMemberEmptyMsg.classList.toggle("hidden", visibleCount > 0);
+    }
+
+    if (
+      togetherMemberDropdown &&
+      document.activeElement === togetherMemberSearchInput
+    ) {
+      togetherMemberDropdown.classList.remove("hidden");
+    }
   }
 
   /**
@@ -125,6 +271,117 @@
     conditionsContainer.appendChild(conditionDiv);
   }
 
+  function getSelectedTogetherMemberIds() {
+    return Array.from(
+      document.querySelectorAll(".together-member-checkbox:checked"),
+    )
+      .map((input) => Number.parseInt(input.value))
+      .filter((value) => Number.isInteger(value));
+  }
+
+  function memberLabel(memberId) {
+    const member = membersById.get(Number.parseInt(memberId));
+    if (!member) return `Usuario ${memberId}`;
+    return `${member.name} (${member.email})`;
+  }
+
+  function renderTogetherGroups() {
+    if (!togetherGroupsList) return;
+
+    if (manualGroups.length === 0) {
+      togetherGroupsList.innerHTML = "";
+      if (noTogetherGroupsMsg) {
+        noTogetherGroupsMsg.style.display = "block";
+      }
+      if (summaryTogetherGroups) {
+        summaryTogetherGroups.innerHTML = "Grupos juntos: <b>0</b>";
+      }
+      return;
+    }
+
+    togetherGroupsList.innerHTML = manualGroups
+      .map((group) => {
+        const membersText = group.memberIds
+          .map((memberId) => memberLabel(memberId))
+          .join(", ");
+        return `
+          <div class="together-group-chip flex items-start justify-between gap-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900/80 px-3 py-2 shadow-sm">
+            <div>
+              <div class="text-sm font-semibold text-light-text-primary dark:text-slate-100">Grupo manual ${group.id}</div>
+              <div class="text-xs text-light-text-secondary dark:text-slate-300">${membersText}</div>
+            </div>
+            <button type="button" class="remove-together-group-btn shrink-0 px-2 py-1 text-xs rounded border border-red-300 dark:border-red-700 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/40 transition-colors" data-group-id="${group.id}">
+              Quitar
+            </button>
+          </div>
+        `;
+      })
+      .join("");
+
+    if (noTogetherGroupsMsg) {
+      noTogetherGroupsMsg.style.display = "none";
+    }
+
+    if (summaryTogetherGroups) {
+      summaryTogetherGroups.innerHTML = `Grupos juntos: <b>${manualGroups.length}</b>`;
+    }
+
+    for (const button of document.querySelectorAll(
+      ".remove-together-group-btn",
+    )) {
+      button.addEventListener("click", () => {
+        removeTogetherGroup(Number.parseInt(button.dataset.groupId));
+      });
+    }
+  }
+
+  function clearTogetherSelection(memberIds) {
+    for (const memberId of memberIds) {
+      const input = document.querySelector(
+        `.together-member-checkbox[value="${memberId}"]`,
+      );
+      if (input) {
+        input.checked = false;
+      }
+    }
+  }
+
+  function addTogetherGroup() {
+    const selectedMemberIds = getSelectedTogetherMemberIds();
+
+    if (selectedMemberIds.length < 2) {
+      alert("Selecciona al menos dos miembros para crear un grupo manual.");
+      return;
+    }
+
+    const alreadyUsed = selectedMemberIds.filter((memberId) =>
+      manualGroups.some((group) => group.memberIds.includes(memberId)),
+    );
+
+    if (alreadyUsed.length > 0) {
+      alert("Uno o más miembros ya pertenecen a otro grupo manual.");
+      return;
+    }
+
+    manualGroupCounter += 1;
+    manualGroups.push({
+      id: manualGroupCounter,
+      memberIds: selectedMemberIds,
+    });
+
+    clearTogetherSelection(selectedMemberIds);
+    if (togetherMemberSearchInput) {
+      togetherMemberSearchInput.focus();
+    }
+    filterTogetherMembers();
+    renderTogetherGroups();
+  }
+
+  function removeTogetherGroup(groupId) {
+    manualGroups = manualGroups.filter((group) => group.id !== groupId);
+    renderTogetherGroups();
+  }
+
   /**
    * Serializa el formulario a JSON
    */
@@ -134,17 +391,13 @@
       max_group_size:
         parseInt(document.getElementById("max_group_size").value) || null,
       allow_multiple_membership: document.getElementById(
-        "allow_multiple_membership"
+        "allow_multiple_membership",
       ).checked,
       require_all_members: document.getElementById("require_all_members")
         .checked,
-<<<<<<< Updated upstream
-      compatibility_threshold: parseFloat(thresholdSlider.value) / 10,
-=======
       compatibility_threshold:
         parseFloat(compatibilityThresholdInput.value) / 10,
       together_groups: manualGroups.map((group) => group.memberIds),
->>>>>>> Stashed changes
       category_rules: [],
     };
 
@@ -163,7 +416,7 @@
         const maxInput = condDiv.querySelector(".condition-max");
 
         const selectedCategories = Array.from(
-          categoriesSelect.selectedOptions
+          categoriesSelect.selectedOptions,
         ).map((opt) => opt.value);
 
         if (selectedCategories.length > 0) {
@@ -221,7 +474,7 @@
             "Content-Type": "application/json",
           },
           body: JSON.stringify(config),
-        }
+        },
       );
 
       const data = await response.json();
@@ -266,6 +519,26 @@
       </div>
     `;
 
+    if (data.together_groups && data.together_groups.length > 0) {
+      html += `
+        <div class="mb-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30 p-3">
+          <small class="text-gray-600 dark:text-gray-300 block mb-2">Grupos manuales preservados:</small>
+          <div class="flex flex-col gap-2">
+            ${data.together_groups
+              .map(
+                (group, index) => `
+                  <div class="rounded border border-amber-200 dark:border-amber-700 bg-white dark:bg-slate-900/80 px-3 py-2 text-sm">
+                    <span class="font-semibold text-gray-900 dark:text-slate-100">Grupo manual ${index + 1}:</span>
+                    <span class="text-gray-700 dark:text-slate-200">${group.member_names.join(", ")}</span>
+                  </div>
+                `,
+              )
+              .join("")}
+          </div>
+        </div>
+      `;
+    }
+
     // Renderizar cada subgrupo
     data.groups.forEach((group, idx) => {
       const compatPercent = Math.round(group.compatibility_avg * 100);
@@ -275,23 +548,23 @@
         <div class="rounded-lg border-2 mb-3 overflow-hidden shadow-md ${
           idx === 0
             ? "preview-card border-indigo-500 dark:border-indigo-400"
-            : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+            : "border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900/80"
         }">
           <div class="px-4 py-3 font-semibold ${
             idx === 0
               ? "bg-indigo-100 dark:bg-indigo-900 text-indigo-900 dark:text-indigo-100 border-b-2 border-indigo-500 dark:border-indigo-400"
-              : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-b border-gray-300 dark:border-gray-600"
+              : "bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-b border-gray-300 dark:border-slate-700"
           }">
             <div class="flex items-center justify-between">
               <span class="flex items-center gap-2">
                 <i class="bi bi-people-fill"></i> ${group.name}
               </span>
-              <span class="inline-block px-3 py-1 rounded-full bg-gray-600 dark:bg-gray-500 text-white text-sm font-medium">${
+              <span class="inline-block px-3 py-1 rounded-full bg-gray-600 dark:bg-slate-600 text-white text-sm font-medium">${
                 group.members.length
               } miembros</span>
             </div>
           </div>
-          <div class="px-4 py-3 bg-white dark:bg-gray-800">
+          <div class="px-4 py-3 bg-white dark:bg-slate-950">
             <!-- Compatibilidad -->
             <div class="mb-3">
               <small class="text-gray-600 dark:text-gray-300 block mb-1">Compatibilidad Promedio: <strong class="text-gray-900 dark:text-white">${compatPercent}%</strong></small>
@@ -318,7 +591,7 @@
                       } 
                       ${r.fulfilled ? "✓" : "✗"}
                     </span>
-                  `
+                  `,
                     )
                     .join("")}
                 </div>
@@ -330,12 +603,12 @@
             <!-- Lista de Miembros -->
             <div>
               <small class="text-gray-600 dark:text-gray-300 block mb-2">Miembros:</small>
-              <div class="rounded border border-gray-300 dark:border-gray-600 overflow-hidden" style="max-height: 200px; overflow-y: auto;">
+              <div class="rounded border border-gray-300 dark:border-slate-700 overflow-hidden" style="max-height: 200px; overflow-y: auto;">
                 ${group.members
                   .map(
                     (member) => `
-                  <div class="px-3 py-2 text-sm border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <div class="flex items-center gap-2 text-gray-900 dark:text-white font-medium">
+                  <div class="px-3 py-2 text-sm border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                    <div class="flex items-center gap-2 text-gray-900 dark:text-slate-100 font-medium">
                       <i class="bi bi-person"></i> ${member.name}
                     </div>
                     ${
@@ -345,7 +618,7 @@
                         ${member.categories
                           .map(
                             (cat) =>
-                              `<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100">${cat}</span>`
+                              `<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-slate-100">${cat}</span>`,
                           )
                           .join(" ")}
                       </div>
@@ -353,7 +626,7 @@
                         : ""
                     }
                   </div>
-                `
+                `,
                   )
                   .join("")}
               </div>
@@ -389,7 +662,7 @@
 
     if (
       !confirm(
-        "¿Estás seguro de confirmar esta división? Se crearán los subgrupos en la base de datos."
+        "¿Estás seguro de confirmar esta división? Se crearán los subgrupos en la base de datos.",
       )
     ) {
       return;
@@ -406,7 +679,7 @@
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ job_id: currentJobId }),
-        }
+        },
       );
 
       const data = await response.json();
@@ -456,7 +729,7 @@
   async function undoLastDivision() {
     if (
       !confirm(
-        "¿Estás seguro de deshacer la última división confirmada? Esto eliminará todos los subgrupos creados."
+        "¿Estás seguro de deshacer la última división confirmada? Esto eliminará todos los subgrupos creados.",
       )
     ) {
       return;
@@ -472,7 +745,7 @@
           headers: {
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       const data = await response.json();

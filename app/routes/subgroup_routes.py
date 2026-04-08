@@ -15,8 +15,9 @@ from app.services.subgroup_service import SubGroupService
 
 subgroup_bp = Blueprint("subgroups", __name__)
 
+GROUP_SHOW_ENDPOINT = 'groups.show'
 
-@subgroup_bp.route('/groups/<int:group_id>/subgroups/new')
+@subgroup_bp.route('/groups/<int:group_id>/subgroups/new', methods=['GET'])
 @login_required
 def new(group_id):
     """
@@ -33,15 +34,24 @@ def new(group_id):
     categories_list = [{'id': cat.id, 'name': cat.name} for cat in categories]
     
     # Contar miembros del grupo
-    member_count = GroupMember.query.filter_by(
-        group_id=group_id
-    ).count()
+    group_members = GroupMember.query.filter_by(group_id=group_id).all()
+    member_count = len(group_members)
+    members_list = [
+        {
+            'id': member.user.id,
+            'name': member.user.name,
+            'email': member.user.email,
+            'member_id': member.id,
+        }
+        for member in group_members
+    ]
     
     return render_template(
         'groups/subgroups/new.html',
         group=group,
         categories=categories,
         categories_json=categories_list,
+        members_json=members_list,
         member_count=member_count
     )
 
@@ -86,6 +96,10 @@ def generate(group_id):
         preview['job_id'] = job.id
         
         return jsonify(preview), 200
+
+    except ValueError as e:
+        scheduler_db.session.rollback()
+        return jsonify({'error': str(e)}), 400
         
     except Exception as e:
         scheduler_db.session.rollback()
@@ -157,7 +171,7 @@ def confirm(group_id):
         return jsonify({
             'success': True,
             'subgroups': created_subgroups,
-            'redirect_url': url_for('groups.show', group_id=group_id)
+            'redirect_url': url_for(GROUP_SHOW_ENDPOINT, group_id=group_id)
         }), 200
         
     except Exception as e:
@@ -209,7 +223,7 @@ def undo(group_id):
         return jsonify({'error': f'Error al deshacer división: {str(e)}'}), 500
 
 
-@subgroup_bp.route('/groups/<int:group_id>/subgroups/export')
+@subgroup_bp.route('/groups/<int:group_id>/subgroups/export', methods=['GET'])
 @login_required
 def export(group_id):
     """
@@ -270,7 +284,7 @@ def export(group_id):
             
             if not subgroups:
                 flash('No hay subgrupos para exportar.', 'warning')
-                return redirect(url_for('groups.show', group_id=group_id))
+                return redirect(url_for(GROUP_SHOW_ENDPOINT, group_id=group_id))
             
             output = io.StringIO()
             writer = csv.writer(output)
@@ -304,10 +318,10 @@ def export(group_id):
         
     except Exception as e:
         flash(f'Error al exportar: {str(e)}', 'danger')
-        return redirect(url_for('groups.show', group_id=group_id))
+        return redirect(url_for(GROUP_SHOW_ENDPOINT, group_id=group_id))
 
 
-@subgroup_bp.route('/groups/<int:group_id>/subgroups')
+@subgroup_bp.route('/groups/<int:group_id>/subgroups', methods=['GET'])
 @login_required
 def index(group_id):
     """
