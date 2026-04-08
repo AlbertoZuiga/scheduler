@@ -67,44 +67,44 @@ class SubGroupService:
     def calculate_compatibility_matrix(self):
         """
         Calcula la matriz de compatibilidad horaria entre todos los usuarios.
-        
+        La compatibilidad se mide ahora como el número de bloques en común
+        entre los usuarios.
+
         Returns:
-            Dict con pares de usuarios y su compatibilidad
+            Dict con pares de usuarios y su compatibilidad (conteo de bloques comunes)
         """
         user_ids = [m['id'] for m in self.members]
-        
+
         # Cargar todas las disponibilidades de una vez
         availabilities = UserAvailability.query.filter(
             UserAvailability.user_id.in_(user_ids)
         ).all()
-        
+
         # Organizar por usuario
         user_avails = defaultdict(set)
         for avail in availabilities:
             # Crear identificador único para el slot (día + hora)
             slot_id = f"{avail.availability.weekday}_{avail.availability.hour}"
             user_avails[avail.user_id].add(slot_id)
-        
+
         # Calcular compatibilidad entre cada par
         self.compatibility_matrix = {}
-        
+
         for i, user1_id in enumerate(user_ids):
             for user2_id in user_ids[i+1:]:
                 avails1 = user_avails[user1_id]
                 avails2 = user_avails[user2_id]
-                
+
                 if not avails1 or not avails2:
-                    compatibility = 0.0
+                    common = 0
                 else:
-                    # Solapamiento de Jaccard
-                    intersection = len(avails1 & avails2)
-                    union = len(avails1 | avails2)
-                    compatibility = intersection / union if union > 0 else 0.0
-                
+                    # Conteo de bloques comunes
+                    common = len(avails1 & avails2)
+
                 # Guardar en ambas direcciones
-                self.compatibility_matrix[(user1_id, user2_id)] = compatibility
-                self.compatibility_matrix[(user2_id, user1_id)] = compatibility
-        
+                self.compatibility_matrix[(user1_id, user2_id)] = common
+                self.compatibility_matrix[(user2_id, user1_id)] = common
+
         return self.compatibility_matrix
 
     def get_compatibility(self, user1_id: int, user2_id: int) -> float:
@@ -261,7 +261,7 @@ class SubGroupService:
         max_group_size = config.get('max_group_size', None)
         allow_multiple = config.get('allow_multiple_membership', False)
         require_all = config.get('require_all_members', True)
-        threshold = config.get('compatibility_threshold', 0.0)
+        threshold = config.get('compatibility_threshold', 3)
         rules = config.get('category_rules', [])
 
         # Cargar miembros y calcular compatibilidad

@@ -16,8 +16,20 @@
   const previewPanel = document.getElementById("preview-panel");
   const previewContent = document.getElementById("preview-content");
   const loadingOverlay = document.getElementById("loading-overlay");
+<<<<<<< Updated upstream
   const thresholdSlider = document.getElementById("compatibility_threshold");
   const thresholdDisplay = document.getElementById("threshold_display");
+=======
+  const compatibilityThresholdInput = document.getElementById(
+    "compatibility_threshold",
+  );
+  const addTogetherGroupBtn = document.getElementById("add-together-group-btn");
+  const togetherGroupsList = document.getElementById("together-groups-list");
+  const noTogetherGroupsMsg = document.getElementById("no-together-groups-msg");
+  const summaryTogetherGroups = document.getElementById(
+    "summary-together-groups",
+  );
+>>>>>>> Stashed changes
 
   // Botones de acción del preview
   const confirmBtn = document.getElementById("confirm-btn");
@@ -34,7 +46,6 @@
    */
   function init() {
     // Event listeners
-    thresholdSlider.addEventListener("input", updateThresholdDisplay);
     addRuleBtn.addEventListener("click", addRule);
     form.addEventListener("submit", handleFormSubmit);
 
@@ -43,6 +54,7 @@
     exportBtn.addEventListener("click", exportResults);
     undoBtn.addEventListener("click", undoLastDivision);
 
+<<<<<<< Updated upstream
     updateThresholdDisplay();
   }
 
@@ -50,7 +62,10 @@
    * Actualiza el display del threshold
    */
   function updateThresholdDisplay() {
-    thresholdDisplay.textContent = `${thresholdSlider.value}%`;
+    thresholdDisplay.textContent = `${thresholdSlider.value} bloques`;
+=======
+    renderTogetherGroups();
+>>>>>>> Stashed changes
   }
 
   /**
@@ -123,7 +138,13 @@
       ).checked,
       require_all_members: document.getElementById("require_all_members")
         .checked,
-      compatibility_threshold: parseFloat(thresholdSlider.value) / 100,
+<<<<<<< Updated upstream
+      compatibility_threshold: parseFloat(thresholdSlider.value) / 10,
+=======
+      compatibility_threshold:
+        parseFloat(compatibilityThresholdInput.value) / 10,
+      together_groups: manualGroups.map((group) => group.memberIds),
+>>>>>>> Stashed changes
       category_rules: [],
     };
 

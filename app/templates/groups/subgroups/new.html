@@ -180,7 +180,7 @@
       <span class="font-bold text-indigo-900 dark:text-indigo-100 text-sm sm:text-base">Resumen:</span>
   <span id="summary-num-groups" class="text-xs sm:text-sm text-indigo-800 dark:text-indigo-200">Subgrupos: <b class="text-indigo-900 dark:text-dark-text-primary">3</b></span>
   <span id="summary-max-size" class="text-xs sm:text-sm text-indigo-800 dark:text-indigo-200">Máx.: <b class="text-indigo-900 dark:text-dark-text-primary">{{ (member_count // 3) + 1 }}</b></span>
-  <span id="summary-threshold" class="text-xs sm:text-sm text-indigo-800 dark:text-indigo-200">Compatibilidad: <b class="text-indigo-900 dark:text-dark-text-primary">50%</b></span>
+  <span id="summary-threshold" class="text-xs sm:text-sm text-indigo-800 dark:text-indigo-200">Compatibilidad: <b class="text-indigo-900 dark:text-dark-text-primary">3 bloques</b></span>
     </div>
     <div class="text-xs sm:text-sm text-indigo-700 dark:text-indigo-300 mt-2 italic">Las opciones seleccionadas se mostrarán aquí en tiempo real para que puedas revisar tu configuración antes de generar los subgrupos.</div>
   </div>
@@ -208,7 +208,7 @@
                 <svg class="w-4 h-4 text-blue-400 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-8 4a1 1 0 100-2 1 1 0 000 2zm.93-7.412a1 1 0 00-1.858 0l-.518 1.036A1 1 0 008.618 9h2.764a1 1 0 00.964-1.376l-.518-1.036z"/></svg>
               </span>
             </label>
-            <input type="number" class="w-full px-3 py-3 rounded-lg text-base border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary focus:ring-2 focus:ring-primary touch-manipulation" id="num_groups" min="2" max="20" value="3" required>
+            <input type="number" class="w-full px-3 py-3 rounded-lg text-base border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary focus:ring-2 focus:ring-primary touch-manipulation" id="num_groups" min="2" value="3" required>
             <small class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Total de miembros activos: {{ member_count }}. <b>Recomendación:</b> Elige un número que permita grupos equilibrados.</small>
           </div>
 
@@ -229,17 +229,12 @@
           <div class="mb-3">
             <label for="compatibility_threshold" class="block text-xs sm:text-sm font-bold mb-2 text-light-text-primary dark:text-dark-text-primary flex items-center gap-1">
               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clip-rule="evenodd"></path></svg>
-              Umbral de Compatibilidad
-              <span class="ml-1 cursor-pointer" title="Porcentaje mínimo de coincidencia de horarios entre miembros para considerarlos compatibles.">
+              Umbral de Compatibilidad (bloques)
+              <span class="ml-1 cursor-pointer" title="Número mínimo de bloques de horario compartidos entre miembros para considerarlos compatibles.">
                 <svg class="w-4 h-4 text-blue-400 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-8 4a1 1 0 100-2 1 1 0 000 2zm.93-7.412a1 1 0 00-1.858 0l-.518 1.036A1 1 0 008.618 9h2.764a1 1 0 00.964-1.376l-.518-1.036z"/></svg>
               </span>
             </label>
-            <input type="range" class="w-full touch-manipulation" style="min-height: 32px;" id="compatibility_threshold" min="0" max="100" value="50" step="5">
-            <div class="flex justify-between text-xs sm:text-sm">
-              <small class="text-light-text-secondary dark:text-dark-text-secondary">0%</small>
-              <small id="threshold_display" class="font-bold text-light-text-primary dark:text-dark-text-primary">50%</small>
-              <small class="text-light-text-secondary dark:text-dark-text-secondary">100%</small>
-            </div>
+            <input type="number" class="w-full px-3 py-3 rounded-lg text-base border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary focus:ring-2 focus:ring-primary touch-manipulation" id="compatibility_threshold" min="1" value="3" step="1" required>
             <small class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Define el solapamiento mínimo de horarios requerido entre miembros para que puedan estar juntos en un subgrupo.</small>
           </div>
 
@@ -506,13 +501,22 @@
     const summaryNumGroups = document.getElementById('summary-num-groups');
     const summaryMaxSize = document.getElementById('summary-max-size');
     const summaryThreshold = document.getElementById('summary-threshold');
+<<<<<<< Updated upstream
     const thresholdDisplay = document.getElementById('threshold_display');
+=======
+    const summaryTogetherGroups = document.getElementById('summary-together-groups');
+>>>>>>> Stashed changes
 
     function updateSummary() {
       summaryNumGroups.innerHTML = 'Subgrupos: <b>' + (numGroups.value || '-') + '</b>';
       summaryMaxSize.innerHTML = 'Máx. por subgrupo: <b>' + (maxGroupSize.value || 'Sin límite') + '</b>';
-      summaryThreshold.innerHTML = 'Compatibilidad mínima: <b>' + (threshold.value || '-') + '%</b>';
-      if (thresholdDisplay) thresholdDisplay.textContent = threshold.value + '%';
+      summaryThreshold.innerHTML = 'Compatibilidad mínima: <b>' + (threshold.value || '-') + ' bloques</b>';
+<<<<<<< Updated upstream
+      if (thresholdDisplay) thresholdDisplay.textContent = threshold.value + ' bloques';
+=======
+      const manualCount = document.querySelectorAll('#together-groups-list .together-group-chip').length;
+      if (summaryTogetherGroups) summaryTogetherGroups.innerHTML = 'Grupos juntos: <b>' + manualCount + '</b>';
+>>>>>>> Stashed changes
     }
     if (numGroups) numGroups.addEventListener('input', updateSummary);
     if (maxGroupSize) maxGroupSize.addEventListener('input', updateSummary);
