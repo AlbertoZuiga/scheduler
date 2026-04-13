@@ -1,6 +1,8 @@
 import uuid
+import csv
+import io
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for, abort
+from flask import Blueprint, flash, redirect, render_template, request, url_for, abort, make_response
 from flask_login import current_user, login_required
 
 from app.extensions import scheduler_db
@@ -307,6 +309,35 @@ def members(group_id):
         categories=categories,
         can_manage=can_manage,
     )
+
+
+@group_bp.route("/<int:group_id>/members/export.csv", methods=["GET"])
+@login_required
+def export_members_csv(group_id):
+    group, _ = require_group_member(group_id)
+    group_members = GroupMember.query.filter_by(group_id=group.id).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Nombre", "Correo", "Categorias"])
+
+    for member in group_members:
+        category_names = sorted(
+            assoc.category.name
+            for assoc in member.categories
+            if assoc.category and assoc.category.name
+        )
+        writer.writerow([
+            member.user.name if member.user else "",
+            member.user.email if member.user else "",
+            ", ".join(category_names),
+        ])
+
+    output.seek(0)
+    response = make_response(output.getvalue())
+    response.headers["Content-Type"] = "text/csv; charset=utf-8"
+    response.headers["Content-Disposition"] = f"attachment; filename=group_{group_id}_members.csv"
+    return response
 
 
 @group_bp.route("/<int:group_id>/availability", methods=["GET", "POST"])

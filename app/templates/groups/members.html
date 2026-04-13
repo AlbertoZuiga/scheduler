@@ -38,10 +38,16 @@
       <h2 class="text-xl sm:text-2xl font-bold">Miembros: {{ group.name }}</h2>
       <p class="text-sm text-light-text-secondary dark:text-dark-text-secondary">Filtra por categoría, busca por nombre/email y edita categorías en línea.</p>
     </div>
-    <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition min-h-[40px] text-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-      Volver
-    </a>
+    <div class="flex items-center gap-2">
+      <a href="{{ url_for('groups.export_members_csv', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-primary text-white hover:opacity-90 transition min-h-[40px] text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
+        Descargar CSV
+      </a>
+      <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition min-h-[40px] text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+        Volver
+      </a>
+    </div>
   </div>
 
   <section class="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border p-3 sm:p-4 space-y-3">
