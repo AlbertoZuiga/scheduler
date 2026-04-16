@@ -319,7 +319,7 @@ def export_members_csv(group_id):
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Nombre", "Correo", "Categorias"])
+    writer.writerow(["Nombre", "Correo", "Categorias", "Cantidad de horarios disponibles"])
 
     for member in group_members:
         category_names = sorted(
@@ -327,10 +327,20 @@ def export_members_csv(group_id):
             for assoc in member.categories
             if assoc.category and assoc.category.name
         )
+        availability_count = (
+            scheduler_db.session.query(UserAvailability)
+            .join(Availability)
+            .filter(
+                UserAvailability.user_id == member.user.id,
+                Availability.group_id == group.id
+            )
+            .count()
+        )
         writer.writerow([
             member.user.name if member.user else "",
             member.user.email if member.user else "",
             ", ".join(category_names),
+            availability_count,
         ])
 
     output.seek(0)
