@@ -63,24 +63,6 @@
           <span class="truncate">{{ subgroup.created_at.strftime('%d/%m/%Y %H:%M') if subgroup.created_at else 'N/A' }}</span>
         </p>
       </div>
-
-      <!-- Métricas (si está disponible en meta) -->
-      {% if subgroup.meta %}
-      <div class="mb-3">
-        {% if subgroup.meta.get('compatibility_avg') %}
-        <div class="mb-2">
-          <small class="text-light-text-secondary dark:text-dark-text-secondary block mb-1 text-xs">Compatibilidad Promedio</small>
-          <div class="w-full bg-light-muted/30 dark:bg-dark-muted/30 rounded-full h-5 sm:h-6">
-            <div class="bg-green-500 h-5 sm:h-6 rounded-full flex items-center justify-center text-white text-xs font-bold" 
-                 style="width: {{ (subgroup.meta.compatibility_avg * 100)|int }}%">
-              {{ (subgroup.meta.compatibility_avg * 100)|int }}%
-            </div>
-          </div>
-        </div>
-        {% endif %}
-      </div>
-      {% endif %}
-
       <!-- Lista de miembros -->
       <div class="mb-2">
         <small class="text-light-text-secondary dark:text-dark-text-secondary block mb-2 text-xs sm:text-sm"><strong>Miembros:</strong></small>
