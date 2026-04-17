@@ -7,6 +7,7 @@ from flask_login import current_user, login_required
 
 from app.extensions import scheduler_db
 from app.models import Availability, Category, Group, GroupMember, RoleEnum, UserAvailability
+from app.models.subgroup import SubGroup
 from app.authz import (
     require_group_member,
     require_group_admin_or_owner,
@@ -217,6 +218,24 @@ def show(group_id):
         for gm in group_members
     }
     user_gm_map = {gm.user_id: gm.id for gm in group_members}
+    subgroups = (
+        SubGroup.query.filter_by(parent_group_id=group.id, auto_generated=True)
+        .order_by(SubGroup.created_at.desc(), SubGroup.id.asc())
+        .all()
+    )
+    group_subgroups = []
+    user_subgroup_map = {}
+
+    for subgroup in subgroups:
+        group_subgroups.append(
+            {
+                "id": subgroup.id,
+                "name": subgroup.name,
+                "member_count": len(subgroup.members),
+            }
+        )
+        for subgroup_member in subgroup.members:
+            user_subgroup_map.setdefault(subgroup_member.user_id, []).append(subgroup.id)
 
     return render_template(
         "groups/show.html",
@@ -231,7 +250,9 @@ def show(group_id):
         is_admin=is_admin,
         can_manage=can_manage,
         group_categories=group_categories,
+        group_subgroups=group_subgroups,
         member_category_map=member_category_map,
+        user_subgroup_map=user_subgroup_map,
         user_gm_map=user_gm_map,
         users_without_availability=users_without_availability,
         members_with_availability_count=members_with_availability_count,

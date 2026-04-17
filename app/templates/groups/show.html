@@ -67,10 +67,13 @@
 <div class="mt-6 space-y-6">
   {% if current_user.id == group.owner_id or is_admin %}
   <section class="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-lg p-4 space-y-3">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-      <p class="text-sm font-semibold">Filtro de categorías en horarios</p>
+    <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+      <div class="space-y-1">
+        <p class="text-sm font-semibold">Filtros en horarios</p>
+        <p class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Puedes filtrar por categorías y, si existen, por los subgrupos generados. Si activas ambos tipos, el resultado cruza los dos filtros.</p>
+      </div>
       <div class="flex items-center gap-2 flex-wrap">
-        <label for="scheduleFilterMode" class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Operador</label>
+        <label for="scheduleFilterMode" class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Coincidencia dentro de cada tipo</label>
         <select id="scheduleFilterMode" class="px-2 py-1 text-xs rounded border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background">
           <option value="or" selected>OR (al menos una)</option>
           <option value="and">AND (todas)</option>
@@ -79,11 +82,27 @@
         <button type="button" id="clearScheduleFilters" class="px-2 py-1 text-xs rounded border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">Limpiar</button>
       </div>
     </div>
-    <div id="scheduleCategoryFilters" class="flex flex-wrap gap-2">
-      <button type="button" data-schedule-filter-none="true" class="schedule-filter-chip inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">Sin categoría</button>
-      {% for category in group_categories %}
-      <button type="button" data-schedule-filter-category="{{ category.id }}" data-category-color-index="{{ loop.index0 }}" class="schedule-filter-chip inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">{{ category.name }}</button>
-      {% endfor %}
+    <div id="scheduleCategoryFilters" class="space-y-3">
+      <div class="space-y-2">
+        <p class="text-[11px] font-semibold uppercase tracking-wide text-light-text-secondary dark:text-dark-text-secondary">Categorías</p>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" data-schedule-filter-none="true" class="schedule-filter-chip inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">Sin categoría</button>
+          {% for category in group_categories %}
+          <button type="button" data-schedule-filter-category="{{ category.id }}" data-filter-color-index="{{ loop.index0 }}" class="schedule-filter-chip inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">{{ category.name }}</button>
+          {% endfor %}
+        </div>
+      </div>
+      {% if group_subgroups %}
+      <div class="space-y-2">
+        <p class="text-[11px] font-semibold uppercase tracking-wide text-light-text-secondary dark:text-dark-text-secondary">Subgrupos generados</p>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" data-schedule-filter-no-subgroup="true" class="schedule-filter-chip inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">Sin subgrupo</button>
+          {% for subgroup in group_subgroups %}
+          <button type="button" data-schedule-filter-subgroup="{{ subgroup.id }}" data-filter-color-index="{{ loop.index0 + (group_categories|length) }}" class="schedule-filter-chip inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">{{ subgroup.name }} ({{ subgroup.member_count }})</button>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
     </div>
   </section>
   {% endif %}
@@ -125,11 +144,13 @@
                 {% if user_id in user_info_map %}
                 {% set gm_id = user_gm_map.get(user_id) %}
                 {% set gm_categories = member_category_map.get(gm_id, []) if gm_id else [] %}
+                {% set user_subgroups = user_subgroup_map.get(user_id, []) %}
                 <li>
                   <span class="inline-block text-xs px-2 py-1 rounded bg-light-muted/40 dark:bg-dark-muted/40 availability-user-chip"
                         data-user-id="{{ user_id }}"
                         data-gm-id="{{ gm_id if gm_id else '' }}"
-                        data-category-ids="{{ gm_categories|join(',') }}">{{ user_info_map[user_id].name }} {{ user_info_map[user_id].email }}</span>
+                        data-category-ids="{{ gm_categories|join(',') }}"
+                        data-subgroup-ids="{{ user_subgroups|join(',') }}">{{ user_info_map[user_id].name }} {{ user_info_map[user_id].email }}</span>
                 </li>
                 {% endif %}
               {% endfor %}
@@ -146,10 +167,12 @@
           {% for user in users_without_availability %}
             {% set gm_id = user_gm_map.get(user.id) %}
             {% set gm_categories = member_category_map.get(gm_id, []) if gm_id else [] %}
+            {% set user_subgroups = user_subgroup_map.get(user.id, []) %}
             <li class="availability-missing-user"
                 data-user-id="{{ user.id }}"
                 data-gm-id="{{ gm_id if gm_id else '' }}"
-                data-category-ids="{{ gm_categories|join(',') }}">{{ user.name }} {{ user.email }}</li>
+                data-category-ids="{{ gm_categories|join(',') }}"
+                data-subgroup-ids="{{ user_subgroups|join(',') }}">{{ user.name }} {{ user.email }}</li>
           {% endfor %}
           <li id="availabilityMissingUsersFilterEmpty" class="hidden text-xs text-light-text-secondary dark:text-dark-text-secondary">No hay personas sin horario que coincidan con el filtro.</li>
         {% else %}
@@ -187,10 +210,12 @@
                   {% set color = color_map[user_id] %}
                   {% set gm_id = user_gm_map.get(user_id) %}
                   {% set gm_categories = member_category_map.get(gm_id, []) if gm_id else [] %}
+                  {% set user_subgroups = user_subgroup_map.get(user_id, []) %}
                   <span class="inline-block text-xs px-2 py-0.5 rounded availability-user-chip {{ 'bg-blue-500 text-white' if 'bg-primary' in color else 'bg-light-muted/40 dark:bg-dark-muted/40' }}"
                         data-user-id="{{ user_id }}"
                         data-gm-id="{{ gm_id if gm_id else '' }}"
-                        data-category-ids="{{ gm_categories|join(',') }}">{{ user_name }}</span>
+                        data-category-ids="{{ gm_categories|join(',') }}"
+                        data-subgroup-ids="{{ user_subgroups|join(',') }}">{{ user_name }}</span>
                 {% endif %}
               {% endfor %}
             {% else %}
@@ -246,7 +271,9 @@
   'can_manage': True if can_manage else False,
   'members': members_data,
   'categories': group_categories | map(attribute='name') | list,
+  'subgroups': group_subgroups,
   'member_category_map': member_category_map,
+  'user_subgroup_map': user_subgroup_map,
   'user_gm_map': user_gm_map,
   'availability': availability | map('list') | list,
   'responded_user_ids': responded_user_ids
@@ -276,7 +303,7 @@
     setTimeout(() => el.remove(), 4000);
   }
 
-  function setupScheduleCategoryFiltering() {
+  function setupScheduleFiltering() {
     const chips = Array.from(document.querySelectorAll('.availability-user-chip'));
     const missingUserItems = Array.from(document.querySelectorAll('.availability-missing-user'));
     const filterButtons = Array.from(document.querySelectorAll('.schedule-filter-chip'));
@@ -291,6 +318,7 @@
 
     const userToGroupMember = globalThis.__EMBED__.user_gm_map || {};
     const memberToCategories = globalThis.__EMBED__.member_category_map || {};
+    const userToSubgroups = globalThis.__EMBED__.user_subgroup_map || {};
     const availabilityRows = Array.isArray(globalThis.__EMBED__.availability) ? globalThis.__EMBED__.availability : [];
     const respondedUserIds = new Set(
       (Array.isArray(globalThis.__EMBED__.responded_user_ids) ? globalThis.__EMBED__.responded_user_ids : [])
@@ -299,7 +327,9 @@
     );
 
     const selectedCategoryIds = new Set();
+    const selectedSubgroupIds = new Set();
     let includeNoCategory = false;
+    let includeNoSubgroup = false;
     let filterMode = (filterModeSelect?.value || 'or').toLowerCase() === 'and' ? 'and' : 'or';
 
     const weekdayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -315,29 +345,43 @@
       'bg-teal-600 text-white border-teal-600 ring-2 ring-teal-300 dark:ring-teal-900/40',
       'bg-purple-600 text-white border-purple-600 ring-2 ring-purple-200 dark:ring-purple-900/40',
     ];
+    const neutralActiveStyles = 'bg-primary text-white border-primary ring-2 ring-amber-200 dark:ring-amber-700';
+
+    const normalizeIdList = (values) => {
+      if (!Array.isArray(values)) {
+        return [];
+      }
+      return values
+        .map((value) => Number.parseInt(value))
+        .filter((value) => Number.isInteger(value));
+    };
 
     const getCategoryIdsByUserId = (userId) => {
       const gmId = userToGroupMember[String(userId)] ?? userToGroupMember[userId];
       if (!gmId) return [];
       const categories = memberToCategories[String(gmId)] ?? memberToCategories[gmId] ?? [];
-      if (!Array.isArray(categories)) return [];
-      return categories.map((value) => Number.parseInt(value)).filter((value) => Number.isInteger(value));
+      return normalizeIdList(categories);
     };
 
-    const userMatchesSelectedCategories = (categoryIds) => {
-      if (selectedCategoryIds.size === 0 && !includeNoCategory) {
+    const getSubgroupIdsByUserId = (userId) => {
+      const subgroups = userToSubgroups[String(userId)] ?? userToSubgroups[userId] ?? [];
+      return normalizeIdList(subgroups);
+    };
+
+    const matchesFilterGroup = (values, selectedValues, includeEmptyValue) => {
+      if (selectedValues.size === 0 && !includeEmptyValue) {
         return true;
       }
 
-      const categories = Array.isArray(categoryIds) ? categoryIds : [];
-      const hasNoCategory = categories.length === 0;
+      const normalizedValues = normalizeIdList(values);
+      const hasNoValue = normalizedValues.length === 0;
       const conditions = [];
 
-      for (const categoryId of selectedCategoryIds) {
-        conditions.push(categories.includes(categoryId));
+      for (const selectedValue of selectedValues) {
+        conditions.push(normalizedValues.includes(selectedValue));
       }
-      if (includeNoCategory) {
-        conditions.push(hasNoCategory);
+      if (includeEmptyValue) {
+        conditions.push(hasNoValue);
       }
 
       if (conditions.length === 0) {
@@ -349,13 +393,38 @@
         : conditions.some(Boolean);
     };
 
+    const userMatchesSelectedFilters = (userId) => {
+      const hasCategoryFilters = selectedCategoryIds.size > 0 || includeNoCategory;
+      const hasSubgroupFilters = selectedSubgroupIds.size > 0 || includeNoSubgroup;
+
+      if (!hasCategoryFilters && !hasSubgroupFilters) {
+        return true;
+      }
+
+      const matchesCategories = matchesFilterGroup(
+        getCategoryIdsByUserId(userId),
+        selectedCategoryIds,
+        includeNoCategory
+      );
+      const matchesSubgroups = matchesFilterGroup(
+        getSubgroupIdsByUserId(userId),
+        selectedSubgroupIds,
+        includeNoSubgroup
+      );
+
+      if (hasCategoryFilters && hasSubgroupFilters) {
+        return matchesCategories && matchesSubgroups;
+      }
+
+      return hasCategoryFilters ? matchesCategories : matchesSubgroups;
+    };
+
     const buildUserVisibilityMap = () => {
       const visibility = new Map();
       for (const member of (globalThis.__GROUP_MEMBERS__ || [])) {
         const userId = Number.parseInt(member.user_id);
         if (!Number.isInteger(userId) || !respondedUserIds.has(userId)) continue;
-        const categories = getCategoryIdsByUserId(userId);
-        visibility.set(userId, userMatchesSelectedCategories(categories));
+        visibility.set(userId, userMatchesSelectedFilters(userId));
       }
       return visibility;
     };
@@ -367,16 +436,20 @@
     };
 
     const paintButtonAsActive = (button) => {
-      const colorIndex = Number.parseInt(button.dataset.categoryColorIndex);
+      const colorIndex = Number.parseInt(button.dataset.filterColorIndex);
       const style = activePalette[(Number.isInteger(colorIndex) ? colorIndex : 0) % activePalette.length];
       button.classList.add(...style.split(' '));
+    };
+
+    const paintNeutralButtonAsActive = (button) => {
+      button.classList.add(...neutralActiveStyles.split(' '));
     };
 
     const clearButtonActiveStyles = (button) => {
       for (const style of activePalette) {
         button.classList.remove(...style.split(' '));
       }
-      button.classList.remove('bg-primary', 'text-white', 'border-primary', 'ring-2', 'ring-amber-200', 'dark:ring-amber-700');
+      button.classList.remove(...neutralActiveStyles.split(' '));
     };
 
     const buildFilteredAvailability = (filteredUsers) => {
@@ -523,8 +596,7 @@
 
       for (const missingUserItem of missingUserItems) {
         const userId = Number.parseInt(missingUserItem.dataset.userId);
-        const categories = getCategoryIdsByUserId(userId);
-        const show = userMatchesSelectedCategories(categories);
+        const show = userMatchesSelectedFilters(userId);
         missingUserItem.classList.toggle('hidden', !show);
         if (show) {
           visibleMissingUsers += 1;
@@ -543,9 +615,11 @@
         return;
       }
 
-      const activeCount = selectedCategoryIds.size + (includeNoCategory ? 1 : 0);
-      stats.textContent = activeCount > 0
-        ? `${visibleChips} coincidencia(s) en horarios y ${visibleMissingUsers} sin horario con ${activeCount} filtro(s) en modo ${filterMode.toUpperCase()}`
+      const categoryCount = selectedCategoryIds.size + (includeNoCategory ? 1 : 0);
+      const subgroupCount = selectedSubgroupIds.size + (includeNoSubgroup ? 1 : 0);
+      const totalActiveCount = categoryCount + subgroupCount;
+      stats.textContent = totalActiveCount > 0
+        ? `${visibleChips} coincidencia(s) en horarios y ${visibleMissingUsers} sin horario con ${totalActiveCount} filtro(s) en modo ${filterMode.toUpperCase()}`
         : 'Sin filtros activos';
     };
 
@@ -573,23 +647,44 @@
       button.addEventListener('click', () => {
         if (button.dataset.scheduleFilterNone === 'true') {
           includeNoCategory = !includeNoCategory;
-          button.classList.toggle('bg-primary', includeNoCategory);
-          button.classList.toggle('text-white', includeNoCategory);
-          button.classList.toggle('border-primary', includeNoCategory);
-          button.classList.toggle('ring-2', includeNoCategory);
-          button.classList.toggle('ring-amber-200', includeNoCategory);
-          button.classList.toggle('dark:ring-amber-700', includeNoCategory);
+          clearButtonActiveStyles(button);
+          if (includeNoCategory) {
+            paintNeutralButtonAsActive(button);
+          }
           applyFilters();
           return;
         }
 
-        const id = Number.parseInt(button.dataset.scheduleFilterCategory);
-        if (!Number.isInteger(id)) return;
-        if (selectedCategoryIds.has(id)) {
-          selectedCategoryIds.delete(id);
+        if (button.dataset.scheduleFilterNoSubgroup === 'true') {
+          includeNoSubgroup = !includeNoSubgroup;
+          clearButtonActiveStyles(button);
+          if (includeNoSubgroup) {
+            paintNeutralButtonAsActive(button);
+          }
+          applyFilters();
+          return;
+        }
+
+        const subgroupId = Number.parseInt(button.dataset.scheduleFilterSubgroup);
+        if (Number.isInteger(subgroupId)) {
+          if (selectedSubgroupIds.has(subgroupId)) {
+            selectedSubgroupIds.delete(subgroupId);
+            clearButtonActiveStyles(button);
+          } else {
+            selectedSubgroupIds.add(subgroupId);
+            paintButtonAsActive(button);
+          }
+          applyFilters();
+          return;
+        }
+
+        const categoryId = Number.parseInt(button.dataset.scheduleFilterCategory);
+        if (!Number.isInteger(categoryId)) return;
+        if (selectedCategoryIds.has(categoryId)) {
+          selectedCategoryIds.delete(categoryId);
           clearButtonActiveStyles(button);
         } else {
-          selectedCategoryIds.add(id);
+          selectedCategoryIds.add(categoryId);
           paintButtonAsActive(button);
         }
         applyFilters();
@@ -598,7 +693,9 @@
 
     document.getElementById('clearScheduleFilters')?.addEventListener('click', () => {
       selectedCategoryIds.clear();
+      selectedSubgroupIds.clear();
       includeNoCategory = false;
+      includeNoSubgroup = false;
       filterMode = 'or';
       if (filterModeSelect) {
         filterModeSelect.value = 'or';
@@ -841,7 +938,7 @@
     await loadCategories();
     setupCategoryCreate();
     setupBulkAssign();
-    setupScheduleCategoryFiltering();
+    setupScheduleFiltering();
   });
 </script>
 {% endblock %}
