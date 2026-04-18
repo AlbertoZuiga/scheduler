@@ -7,15 +7,45 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for,
 from flask_login import current_user, login_required
 
 from app.extensions import scheduler_db
-from app.models import Group, GroupMember, RoleEnum, Category
+from app.models import GroupMember, Category
 from app.models.subgroup import SubGroup, SubGroupMember, DivisionJob
-from app.authz import require_group_admin_or_owner, require_group_member
+from app.authz import require_group_admin_or_owner
 from app.services.subgroup_service import SubGroupService
 
 
 subgroup_bp = Blueprint("subgroups", __name__)
 
 GROUP_SHOW_ENDPOINT = 'groups.show'
+SUBGROUP_INDEX_ENDPOINT = 'subgroups.index'
+
+
+def _subgroups_index_redirect(group_id):
+    return redirect(url_for(SUBGROUP_INDEX_ENDPOINT, group_id=group_id))
+
+
+def _get_subgroup_or_404(group_id, subgroup_id):
+    return SubGroup.query.filter_by(
+        id=subgroup_id,
+        parent_group_id=group_id,
+    ).first_or_404()
+
+
+def _get_group_members_sorted(group_id):
+    members = GroupMember.query.filter_by(group_id=group_id).all()
+    return sorted(
+        members,
+        key=lambda member: (
+            (member.user.name or "").strip().lower(),
+            member.user.email.lower(),
+            member.user.id,
+        ),
+    )
+
+
+def _member_display_name(user):
+    if not user:
+        return "Usuario desconocido"
+    return (user.name or "").strip() or user.email
 
 @subgroup_bp.route('/groups/<int:group_id>/subgroups/new', methods=['GET'])
 @login_required
@@ -329,10 +359,241 @@ def index(group_id):
     """
     # Verificar permisos
     group, _ = require_group_admin_or_owner(group_id)
-    subgroups = SubGroup.query.filter_by(parent_group_id=group_id).all()
+    subgroups = (
+        SubGroup.query.filter_by(parent_group_id=group_id)
+        .order_by(SubGroup.created_at.asc(), SubGroup.id.asc())
+        .all()
+    )
+    group_members = _get_group_members_sorted(group_id)
+    subgroup_member_user_ids = {
+        subgroup.id: {member.user_id for member in subgroup.members}
+        for subgroup in subgroups
+    }
+    assigned_user_ids = {
+        member.user_id
+        for subgroup in subgroups
+        for member in subgroup.members
+    }
+    members_without_subgroup = [
+        member for member in group_members if member.user_id not in assigned_user_ids
+    ]
     
     return render_template(
         'groups/subgroups/index.html',
         group=group,
-        subgroups=subgroups
+        subgroups=subgroups,
+        group_members=group_members,
+        subgroup_member_user_ids=subgroup_member_user_ids,
+        members_without_subgroup=members_without_subgroup,
     )
+
+
+@subgroup_bp.route('/groups/<int:group_id>/subgroups/create_manual', methods=['POST'])
+@login_required
+def create_manual(group_id):
+    """
+    Crea un subgrupo manual vacío para ajustes posteriores.
+    """
+    require_group_admin_or_owner(group_id)
+
+    name = (request.form.get('name') or '').strip()
+    if not name:
+        flash('Debes indicar un nombre para el subgrupo manual.', 'warning')
+        return _subgroups_index_redirect(group_id)
+
+    try:
+        subgroup = SubGroup(
+            parent_group_id=group_id,
+            name=name,
+            auto_generated=False,
+            meta={},
+        )
+        scheduler_db.session.add(subgroup)
+        scheduler_db.session.commit()
+        flash(f'Subgrupo "{name}" creado correctamente.', 'success')
+    except Exception as exc:
+        scheduler_db.session.rollback()
+        flash(f'No se pudo crear el subgrupo manual: {str(exc)}', 'danger')
+
+    return _subgroups_index_redirect(group_id)
+
+
+@subgroup_bp.route('/groups/<int:group_id>/subgroups/<int:subgroup_id>/rename', methods=['POST'])
+@login_required
+def rename(group_id, subgroup_id):
+    """
+    Renombra un subgrupo existente.
+    """
+    require_group_admin_or_owner(group_id)
+    subgroup = _get_subgroup_or_404(group_id, subgroup_id)
+
+    new_name = (request.form.get('name') or '').strip()
+    if not new_name:
+        flash('El nombre del subgrupo no puede estar vacío.', 'warning')
+        return _subgroups_index_redirect(group_id)
+
+    subgroup.name = new_name
+
+    try:
+        scheduler_db.session.commit()
+        flash(f'Subgrupo renombrado a "{new_name}".', 'success')
+    except Exception as exc:
+        scheduler_db.session.rollback()
+        flash(f'No se pudo renombrar el subgrupo: {str(exc)}', 'danger')
+
+    return _subgroups_index_redirect(group_id)
+
+
+@subgroup_bp.route('/groups/<int:group_id>/subgroups/<int:subgroup_id>/delete', methods=['POST'])
+@login_required
+def delete(group_id, subgroup_id):
+    """
+    Elimina un subgrupo y sus membresías.
+    """
+    require_group_admin_or_owner(group_id)
+    subgroup = _get_subgroup_or_404(group_id, subgroup_id)
+    subgroup_name = subgroup.name
+
+    try:
+        scheduler_db.session.delete(subgroup)
+        scheduler_db.session.commit()
+        flash(f'Se eliminó el subgrupo "{subgroup_name}".', 'success')
+    except Exception as exc:
+        scheduler_db.session.rollback()
+        flash(f'No se pudo eliminar el subgrupo: {str(exc)}', 'danger')
+
+    return _subgroups_index_redirect(group_id)
+
+
+@subgroup_bp.route('/groups/<int:group_id>/subgroups/<int:subgroup_id>/members/add', methods=['POST'])
+@login_required
+def add_member(group_id, subgroup_id):
+    """
+    Agrega manualmente un miembro del grupo a un subgrupo.
+    """
+    require_group_admin_or_owner(group_id)
+    subgroup = _get_subgroup_or_404(group_id, subgroup_id)
+    user_id = request.form.get('user_id', type=int)
+
+    if not user_id:
+        flash('Selecciona una persona para agregar al subgrupo.', 'warning')
+        return _subgroups_index_redirect(group_id)
+
+    group_member = GroupMember.query.filter_by(group_id=group_id, user_id=user_id).first()
+    if not group_member:
+        flash('La persona seleccionada no pertenece a este grupo.', 'danger')
+        return _subgroups_index_redirect(group_id)
+
+    existing_membership = SubGroupMember.query.filter_by(
+        subgroup_id=subgroup.id,
+        user_id=user_id,
+    ).first()
+    if existing_membership:
+        flash('Esa persona ya pertenece a este subgrupo.', 'info')
+        return _subgroups_index_redirect(group_id)
+
+    try:
+        scheduler_db.session.add(
+            SubGroupMember(
+                subgroup_id=subgroup.id,
+                user_id=user_id,
+            )
+        )
+        scheduler_db.session.commit()
+        flash(
+            f'{_member_display_name(group_member.user)} fue agregado a "{subgroup.name}".',
+            'success',
+        )
+    except Exception as exc:
+        scheduler_db.session.rollback()
+        flash(f'No se pudo agregar la persona al subgrupo: {str(exc)}', 'danger')
+
+    return _subgroups_index_redirect(group_id)
+
+
+@subgroup_bp.route('/groups/<int:group_id>/subgroups/<int:subgroup_id>/members/<int:user_id>/remove', methods=['POST'])
+@login_required
+def remove_member(group_id, subgroup_id, user_id):
+    """
+    Quita una persona de un subgrupo específico.
+    """
+    require_group_admin_or_owner(group_id)
+    subgroup = _get_subgroup_or_404(group_id, subgroup_id)
+    membership = SubGroupMember.query.filter_by(
+        subgroup_id=subgroup.id,
+        user_id=user_id,
+    ).first()
+
+    if not membership:
+        flash('La persona ya no está en este subgrupo.', 'warning')
+        return _subgroups_index_redirect(group_id)
+
+    user = membership.user
+
+    try:
+        scheduler_db.session.delete(membership)
+        scheduler_db.session.commit()
+        flash(
+            f'{_member_display_name(user)} fue quitado de "{subgroup.name}".',
+            'success',
+        )
+    except Exception as exc:
+        scheduler_db.session.rollback()
+        flash(f'No se pudo quitar la persona del subgrupo: {str(exc)}', 'danger')
+
+    return _subgroups_index_redirect(group_id)
+
+
+@subgroup_bp.route('/groups/<int:group_id>/subgroups/<int:subgroup_id>/members/<int:user_id>/move', methods=['POST'])
+@login_required
+def move_member(group_id, subgroup_id, user_id):
+    """
+    Mueve una persona desde un subgrupo a otro dentro del mismo grupo.
+    """
+    require_group_admin_or_owner(group_id)
+    source_subgroup = _get_subgroup_or_404(group_id, subgroup_id)
+    target_subgroup_id = request.form.get('target_subgroup_id', type=int)
+
+    if not target_subgroup_id:
+        flash('Selecciona el subgrupo destino para mover a la persona.', 'warning')
+        return _subgroups_index_redirect(group_id)
+
+    if target_subgroup_id == source_subgroup.id:
+        flash('El subgrupo destino debe ser distinto al origen.', 'warning')
+        return _subgroups_index_redirect(group_id)
+
+    target_subgroup = _get_subgroup_or_404(group_id, target_subgroup_id)
+    source_membership = SubGroupMember.query.filter_by(
+        subgroup_id=source_subgroup.id,
+        user_id=user_id,
+    ).first()
+
+    if not source_membership:
+        flash('La persona ya no pertenece al subgrupo de origen.', 'warning')
+        return _subgroups_index_redirect(group_id)
+
+    target_membership = SubGroupMember.query.filter_by(
+        subgroup_id=target_subgroup.id,
+        user_id=user_id,
+    ).first()
+    user = source_membership.user
+
+    try:
+        if not target_membership:
+            scheduler_db.session.add(
+                SubGroupMember(
+                    subgroup_id=target_subgroup.id,
+                    user_id=user_id,
+                )
+            )
+        scheduler_db.session.delete(source_membership)
+        scheduler_db.session.commit()
+        flash(
+            f'{_member_display_name(user)} fue movido de "{source_subgroup.name}" a "{target_subgroup.name}".',
+            'success',
+        )
+    except Exception as exc:
+        scheduler_db.session.rollback()
+        flash(f'No se pudo mover la persona entre subgrupos: {str(exc)}', 'danger')
+
+    return _subgroups_index_redirect(group_id)
