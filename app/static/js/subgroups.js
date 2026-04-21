@@ -395,8 +395,7 @@
       ).checked,
       require_all_members: document.getElementById("require_all_members")
         .checked,
-      compatibility_threshold:
-        parseFloat(compatibilityThresholdInput.value) / 10,
+      compatibility_threshold: parseFloat(compatibilityThresholdInput.value),
       together_groups: manualGroups.map((group) => group.memberIds),
       category_rules: [],
     };

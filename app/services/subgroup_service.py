@@ -106,6 +106,9 @@ class SubGroupService:
                 self.compatibility_matrix[(user1_id, user2_id)] = common
                 self.compatibility_matrix[(user2_id, user1_id)] = common
 
+        # Guardar también los bloques disponibles de cada usuario para calcular intersecciones globales
+        self.user_available_blocks = user_avails
+
         return self.compatibility_matrix
 
     def get_compatibility(self, user1_id: int, user2_id: int) -> float:
@@ -244,6 +247,34 @@ class SubGroupService:
                 pairs += 1
         
         return total_compat / pairs if pairs > 0 else 0.0
+
+    def _calculate_group_blocks_intersection(self, group_units: List[Dict]) -> int:
+        """
+        Calcula la intersección global de bloques de horario de todos los miembros en un grupo.
+        Es decir, cuántos bloques horarios tienen TODOS los miembros juntos disponibles.
+        
+        Args:
+            group_units: Lista de unidades de asignación en el grupo
+        
+        Returns:
+            Número de bloques horarios en la intersección global
+        """
+        group_members = self._flatten_units(group_units)
+        if not group_members:
+            return 0
+        if len(group_members) == 1:
+            # Si solo hay un miembro, retorna su disponibilidad
+            return len(self.user_available_blocks.get(group_members[0]['id'], set()))
+        
+        # Comenzar con los bloques del primer miembro
+        common_blocks = self.user_available_blocks.get(group_members[0]['id'], set()).copy()
+        
+        # Intersectar con los bloques de cada miembro subsecuente
+        for member in group_members[1:]:
+            member_blocks = self.user_available_blocks.get(member['id'], set())
+            common_blocks = common_blocks & member_blocks
+        
+        return len(common_blocks)
 
     def _flatten_units(self, group_units: List[Dict]) -> List[Dict]:
         """Convierte una lista de unidades de asignación en una lista plana de miembros."""
@@ -414,16 +445,15 @@ class SubGroupService:
                     for r in rules_status
                 )
 
-                # Calcular compatibilidad
-                score = self._unit_compatibility_score(unit, group)
+                # Calcular bloques comunes (intersección global del grupo propuesto)
+                common_blocks = self._calculate_group_blocks_intersection(temp_group)
 
-                if score < threshold:
+                if common_blocks < threshold:
                     continue
 
-                # Prioridad: ayuda a cumplir mínimo, luego score
-                candidate_groups.append((helps_min, score, idx))
+                # Prioridad: ayuda a cumplir mínimo, luego mayor intersección
+                candidate_groups.append((helps_min, common_blocks, idx))
 
-            # Ordenar: primero los que ayudan a cumplir mínimo, luego mayor compatibilidad
             candidate_groups.sort(reverse=True)
             if candidate_groups:
                 _, _, best_group_idx = candidate_groups[0]
@@ -551,7 +581,11 @@ class SubGroupService:
             group_members = self._flatten_units(group)
 
             # Calcular métricas del grupo
-            compatibility_avg = self.calculate_group_compatibility(group_members)
+            # compatibility_avg ahora es la intersección global de bloques (normalizada a 0-1)
+            common_blocks = self._calculate_group_blocks_intersection(group)
+            max_blocks = max(len(blocks) for blocks in self.user_available_blocks.values()) if self.user_available_blocks else 1
+            compatibility_avg = common_blocks / max_blocks if max_blocks > 0 else 0.0
+            
             rules_status = self.validate_group_rules(group_members, rules)
 
             # Identificar reglas incumplidas
