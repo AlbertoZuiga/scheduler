@@ -106,6 +106,13 @@ def generate(group_id):
         num_groups = config.get('num_groups')
         if not num_groups or num_groups < 1:
             return jsonify({'error': 'Número de grupos inválido'}), 400
+
+        required_membership_categories = config.get('required_membership_categories', [])
+        if required_membership_categories is None:
+            required_membership_categories = []
+        if not isinstance(required_membership_categories, list):
+            return jsonify({'error': 'required_membership_categories debe ser una lista'}), 400
+        config['required_membership_categories'] = [str(category).strip() for category in required_membership_categories if str(category).strip()]
         
         # Crear servicio y generar subgrupos
         service = SubGroupService(group_id)

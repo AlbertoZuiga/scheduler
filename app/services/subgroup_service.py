@@ -16,6 +16,8 @@ class SubGroupService:
     Servicio principal para la división automática de grupos.
     """
 
+    NO_CATEGORY_TOKEN = '__NO_CATEGORY__'
+
     def __init__(self, parent_group_id: int):
         """
         Inicializa el servicio con el grupo padre.
@@ -291,6 +293,145 @@ class SubGroupService:
         """Alias legible para contar usuarios en un grupo de unidades."""
         return self._group_member_count(group_units)
 
+    def _collect_assigned_user_ids(self, groups: List[List[Dict]]) -> Set[int]:
+        """Obtiene el conjunto de usuarios ya asignados en la solución actual."""
+        assigned = set()
+        for group in groups:
+            for member in self._flatten_units(group):
+                assigned.add(member['id'])
+        return assigned
+
+    def _get_required_user_ids_by_categories(self, required_category_names: Set[str]) -> Set[int]:
+        """Retorna usuarios que pertenecen al menos a una categoría requerida."""
+        include_without_categories = self.NO_CATEGORY_TOKEN in required_category_names
+        real_categories = {
+            category_name
+            for category_name in required_category_names
+            if category_name != self.NO_CATEGORY_TOKEN
+        }
+
+        return {
+            user_id
+            for user_id, categories in self.user_categories.items()
+            if (real_categories and categories & real_categories)
+            or (include_without_categories and not categories)
+        }
+
+    def _get_candidate_groups_for_required_unit(
+        self,
+        groups: List[List[Dict]],
+        unit: Dict,
+        rules: List[Dict],
+        max_group_size: Optional[int],
+        threshold: int,
+    ) -> List[Tuple[bool, bool, int, int]]:
+        """Retorna candidatos válidos para insertar una unidad requerida."""
+        unit_member_ids = unit.get('member_ids', [])
+        candidates = []
+
+        for idx, group in enumerate(groups):
+            if max_group_size and self._group_size(group) + len(unit_member_ids) > max_group_size:
+                continue
+
+            temp_group = group + [unit]
+            temp_members = self._flatten_units(temp_group)
+            rules_status = self.validate_group_rules(temp_members, rules)
+            exceeds_max = any(
+                r['count'] > r.get('max', float('inf')) and r.get('max', float('inf')) != float('inf')
+                for r in rules_status
+            )
+            if exceeds_max:
+                continue
+
+            helps_min = any(
+                r['count'] <= r['min'] and r['min'] > 0
+                for r in rules_status
+            )
+            common_blocks = self._calculate_group_blocks_intersection(temp_group)
+            meets_threshold = common_blocks >= threshold
+            candidates.append((meets_threshold, helps_min, common_blocks, idx))
+
+        return candidates
+
+    def _fallback_assign_required_unit(
+        self,
+        groups: List[List[Dict]],
+        unit: Dict,
+        max_group_size: Optional[int],
+        required_category_names: Set[str],
+    ) -> int:
+        """Asigna por fallback al grupo más pequeño con espacio."""
+        viable_group_indexes = [
+            i for i in range(len(groups))
+            if not max_group_size or self._group_size(groups[i]) + len(unit.get('member_ids', [])) <= max_group_size
+        ]
+
+        if not viable_group_indexes:
+            categories_txt = ", ".join(sorted(required_category_names))
+            raise ValueError(
+                "No hay espacio para asignar miembros de las categorías requeridas "
+                f"({categories_txt}) sin exceder el tamaño máximo."
+            )
+
+        smallest_group_idx = min(viable_group_indexes, key=lambda i: self._group_size(groups[i]))
+        groups[smallest_group_idx].append(unit)
+        return smallest_group_idx
+
+    def _assign_required_category_members(
+        self,
+        groups: List[List[Dict]],
+        assignment_units: List[Dict],
+        rules: List[Dict],
+        max_group_size: Optional[int],
+        threshold: int,
+        required_category_names: Set[str],
+    ) -> None:
+        """
+        Garantiza que los usuarios de categorías requeridas queden al menos en un grupo.
+        """
+        if not required_category_names:
+            return
+
+        required_user_ids = self._get_required_user_ids_by_categories(required_category_names)
+
+        if not required_user_ids:
+            return
+
+        assigned_user_ids = self._collect_assigned_user_ids(groups)
+
+        for unit in assignment_units:
+            unit_member_ids = set(unit.get('member_ids', []))
+
+            # Solo interesa la unidad si aporta usuarios requeridos aún no asignados.
+            missing_required_members = (
+                unit_member_ids & required_user_ids
+            ) - assigned_user_ids
+            if not missing_required_members:
+                continue
+
+            candidate_groups = self._get_candidate_groups_for_required_unit(
+                groups=groups,
+                unit=unit,
+                rules=rules,
+                max_group_size=max_group_size,
+                threshold=threshold,
+            )
+
+            if candidate_groups:
+                candidate_groups.sort(reverse=True)
+                _, _, _, best_group_idx = candidate_groups[0]
+                groups[best_group_idx].append(unit)
+                assigned_user_ids.update(unit_member_ids)
+                continue
+
+            self._fallback_assign_required_unit(
+                groups=groups,
+                unit=unit,
+                max_group_size=max_group_size,
+                required_category_names=required_category_names,
+            )
+            assigned_user_ids.update(unit_member_ids)
+
     def _unit_compatibility_score(self, unit: Dict, group_units: List[Dict]) -> float:
         """
         Calcula la compatibilidad promedio de una unidad con un grupo.
@@ -395,6 +536,7 @@ class SubGroupService:
         require_all = config.get('require_all_members', True)
         threshold = config.get('compatibility_threshold', 3)
         rules = config.get('category_rules', [])
+        required_membership_categories = set(config.get('required_membership_categories', []))
         together_groups = config.get('together_groups', [])
 
         # Cargar miembros y calcular compatibilidad
@@ -482,6 +624,16 @@ class SubGroupService:
                     assigned_users.update(unit_member_ids)
 
         # Fase de reparación: intentar intercambios para cumplir reglas mínimas
+        if not require_all and required_membership_categories:
+            self._assign_required_category_members(
+                groups=groups,
+                assignment_units=assignment_units,
+                rules=rules,
+                max_group_size=max_group_size,
+                threshold=threshold,
+                required_category_names=required_membership_categories,
+            )
+
         groups = self._repair_groups(groups, rules, max_group_size)
 
         # Construir preview

@@ -386,6 +386,13 @@
    * Serializa el formulario a JSON
    */
   function serializeForm() {
+    const requiredCategoriesSelect = document.getElementById(
+      "required_membership_categories",
+    );
+    const requireAllMembersChecked = document.getElementById(
+      "require_all_members",
+    ).checked;
+
     const config = {
       num_groups: parseInt(document.getElementById("num_groups").value),
       max_group_size:
@@ -393,10 +400,14 @@
       allow_multiple_membership: document.getElementById(
         "allow_multiple_membership",
       ).checked,
-      require_all_members: document.getElementById("require_all_members")
-        .checked,
+      require_all_members: requireAllMembersChecked,
       compatibility_threshold: parseFloat(compatibilityThresholdInput.value),
       together_groups: manualGroups.map((group) => group.memberIds),
+      required_membership_categories: requireAllMembersChecked
+        ? []
+        : Array.from(requiredCategoriesSelect?.selectedOptions || []).map(
+            (opt) => opt.value,
+          ),
       category_rules: [],
     };
 
