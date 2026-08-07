@@ -39,6 +39,13 @@ COLUMN_MIGRATIONS = {
     ],
 }
 
+# Columnas obsoletas que deben eliminarse. Solo se dropean si existen, y solo
+# después de que las migraciones aditivas ya corrieron (el backfill ya movió
+# los datos a las columnas nuevas).
+DROP_COLUMN_MIGRATIONS = {
+    "group": ["start_hour", "end_hour"],
+}
+
 
 def _soft_delete_tables():
     """Tablas de modelos con borrado lógico, según el mapeo real del ORM."""
@@ -110,11 +117,32 @@ def _ensure_deleted_at_index(inspector, table, quoted_table):
     scheduler_db.session.commit()
 
 
+def _run_drop_migrations():
+    inspector = inspect(scheduler_db.engine)
+    preparer = scheduler_db.engine.dialect.identifier_preparer
+    existing_tables = set(inspector.get_table_names())
+
+    for table, columns in DROP_COLUMN_MIGRATIONS.items():
+        if table not in existing_tables:
+            continue
+        quoted = preparer.quote(table)
+        existing_columns = {col["name"] for col in inspector.get_columns(table)}
+        for column in columns:
+            if column not in existing_columns:
+                continue
+            print(f"  Dropeando columna obsoleta {table}.{column}...")
+            scheduler_db.session.execute(
+                text(f"ALTER TABLE {quoted} DROP COLUMN {preparer.quote(column)}")
+            )
+            scheduler_db.session.commit()
+
+
 def migrate_database():
     with scheduler_app.app_context():
         print("Migrando base de datos...")
         scheduler_db.create_all()
         _run_column_migrations()
+        _run_drop_migrations()
         print("Base de datos migrada con éxito.\n")
 
 
