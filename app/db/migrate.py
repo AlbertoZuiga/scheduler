@@ -84,15 +84,21 @@ def _run_column_migrations():
         quoted = preparer.quote(table)
         existing_columns = {col["name"] for col in inspector.get_columns(table)}
         for column, statement, *rest in migrations:
-            if column in existing_columns:
-                continue
-            print(f"  Agregando columna {table}.{column}...")
-            scheduler_db.session.execute(text(statement.format(table=quoted)))
-            scheduler_db.session.commit()
+            if column not in existing_columns:
+                print(f"  Agregando columna {table}.{column}...")
+                scheduler_db.session.execute(text(statement.format(table=quoted)))
+                scheduler_db.session.commit()
 
             backfill = rest[0] if rest else None
             # El backfill lee una columna vieja: en una base nueva no existe y
             # el DEFAULT de la columna recién creada ya es el valor correcto.
+            #
+            # Corre siempre que la columna origen siga viva, no solo en la
+            # corrida que creó la destino: el ADD COLUMN y el UPDATE se
+            # commitean por separado, así que un proceso que muere entre ambos
+            # dejaría la columna nueva vacía, y la re-corrida la daría por
+            # migrada justo antes de que _run_drop_migrations borre el origen.
+            # Repetirlo es inocuo: el UPDATE es idempotente.
             if backfill and backfill[0] in existing_columns:
                 print(f"  Poblando {table}.{column} desde {table}.{backfill[0]}...")
                 scheduler_db.session.execute(text(backfill[1].format(table=quoted)))
