@@ -411,7 +411,7 @@ def show(group_id):
     }
     user_gm_map = {gm.user_id: gm.id for gm in group_members}
     subgroups = (
-        SubGroup.query.filter_by(parent_group_id=group.id, auto_generated=True)
+        SubGroup.query.filter_by(parent_group_id=group.id)
         .order_by(SubGroup.created_at.desc(), SubGroup.id.asc())
         .all()
     )
