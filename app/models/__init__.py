@@ -6,3 +6,4 @@ from app.models.user_availability import UserAvailability
 from app.models.category import Category
 from app.models.group_member_category import GroupMemberCategory
 from app.models.subgroup import SubGroup, SubGroupMember, DivisionJob
+from app.models.permission_grant import GroupPermissionGrant

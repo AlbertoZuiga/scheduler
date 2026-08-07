@@ -26,8 +26,11 @@ class GroupMember(SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too
     categories = scheduler_db.relationship(
         "GroupMemberCategory", back_populates="group_member", cascade="all, delete-orphan"
     )
+    permission_grants = scheduler_db.relationship(
+        "GroupPermissionGrant", back_populates="group_member", cascade="all, delete-orphan"
+    )
 
     def soft_delete_cascade(self):
         # La disponibilidad del usuario NO se arrastra: se conserva intacta para
         # que al reingresar al grupo recupere lo que había marcado.
-        return list(self.categories)
+        return [*self.categories, *self.permission_grants]

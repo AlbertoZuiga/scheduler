@@ -13,9 +13,12 @@ class Category(SoftDeleteMixin, scheduler_db.Model):  # pylint: disable=too-few-
     assignments = scheduler_db.relationship(
         "GroupMemberCategory", back_populates="category", cascade="all, delete-orphan"
     )
+    permission_grants = scheduler_db.relationship(
+        "GroupPermissionGrant", back_populates="category", cascade="all, delete-orphan"
+    )
 
     def soft_delete_cascade(self):
-        return list(self.assignments)
+        return [*self.assignments, *self.permission_grants]
 
     def __repr__(self):
         return f"<Category id={self.id} group_id={self.group_id} name={self.name}>"

@@ -11,6 +11,8 @@ from flask import abort, flash
 from flask_login import current_user
 
 from app.models import Group, GroupMember, RoleEnum
+from app.models.subgroup import SubGroup
+from app.permissions import effective_permissions
 from app.soft_delete import active_or_404
 
 
@@ -43,6 +45,52 @@ def require_group_admin_or_owner(group_id: int) -> Tuple[Group, GroupMember]:
         flash("No tienes permisos suficientes para esta acción.", "danger")
         abort(403)
     return group, membership
+
+
+def require_group_permission(group_id: int, permission: str) -> Tuple[Group, GroupMember, set]:
+    """Verifica que el usuario tenga `permission` (directo, por categoría, o
+    por ser owner/admin) sobre los subgrupos del grupo.
+
+    Devuelve (group, membership, perms) para que la vista reutilice el set de
+    permisos efectivos sin recalcularlo.
+    """
+    group, membership = require_group_member(group_id)
+    perms = effective_permissions(group, membership)
+    if permission not in perms:
+        flash("No tienes permisos suficientes para esta acción.", "danger")
+        abort(403)
+    return group, membership, perms
+
+
+def require_subgroup_access(group_id: int, subgroup_id: int, *, edit: bool):
+    """Verifica acceso a un subgrupo puntual, propio o de todo el grupo.
+
+    Con el permiso "_all" alcanza cualquier subgrupo; con el "_own" el
+    usuario debe pertenecer activamente a `subgroup_id`.
+    """
+    from app.permissions import PERM_EDIT_ALL, PERM_EDIT_OWN, PERM_VIEW_ALL, PERM_VIEW_OWN
+
+    perm_own = PERM_EDIT_OWN if edit else PERM_VIEW_OWN
+    perm_all = PERM_EDIT_ALL if edit else PERM_VIEW_ALL
+
+    group, membership = require_group_member(group_id)
+    perms = effective_permissions(group, membership)
+    subgroup = SubGroup.query.filter_by(id=subgroup_id, parent_group_id=group_id).first_or_404()
+
+    if perm_all in perms:
+        return group, membership, subgroup, perms
+
+    if perm_own in perms:
+        from app.models.subgroup import SubGroupMember
+
+        belongs = SubGroupMember.query.filter_by(
+            subgroup_id=subgroup_id, user_id=current_user.id
+        ).first()
+        if belongs:
+            return group, membership, subgroup, perms
+
+    flash("No tienes permisos suficientes para esta acción.", "danger")
+    abort(403)
 
 
 def require_group_owner(group_id: int) -> Tuple[Group, GroupMember]:

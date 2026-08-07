@@ -1,7 +1,10 @@
 from app import scheduler_app, scheduler_db
 import random
 from app.soft_delete import including_deleted
-from ..models import User, Group, Category, GroupMember, GroupMemberCategory, Availability, UserAvailability
+from ..models import (
+    User, Group, Category, GroupMember, GroupMemberCategory, GroupPermissionGrant,
+    Availability, UserAvailability,
+)
 from ..models.subgroup import DivisionJob, SubGroupMember
 
 _SEED_EMAILS = {
@@ -152,6 +155,24 @@ def seed_database():
         GroupMemberCategory(group_member_id=group_members[11].id, category_id=categories[5].id),  # Felipe -> Fast
     ]
     scheduler_db.session.add_all(group_member_categories)
+    scheduler_db.session.commit()
+
+    # === PERMISSION GRANTS (subgrupos) ===
+    # Ejemplo de los dos modos de concesión: por categoría (dinámico, afecta a
+    # quien tenga "Women" en Proyecto Alpha) y directo a una persona puntual.
+    permission_grants = [
+        GroupPermissionGrant(
+            group_id=groups[0].id,
+            permission="subgroups.view_all",
+            category_id=categories[1].id,  # Women
+        ),
+        GroupPermissionGrant(
+            group_id=groups[0].id,
+            permission="subgroups.edit_own",
+            group_member_id=group_members[5].id,  # Carla, MEMBER en Proyecto Alpha
+        ),
+    ]
+    scheduler_db.session.add_all(permission_grants)
     scheduler_db.session.commit()
 
     # === AVAILABILITY ===
