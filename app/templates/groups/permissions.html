@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+
+{% block title %}Permisos - {{ group.name }}{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-3xl mx-auto space-y-4">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div>
+      <h2 class="text-xl sm:text-2xl font-bold">Permisos extra: {{ group.name }}</h2>
+      <p class="text-sm text-light-text-secondary dark:text-dark-text-secondary mt-1">
+        Da acceso puntual a los subgrupos sin ascender a nadie a administrador.
+      </p>
+    </div>
+    <a href="{{ url_for('groups.members', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition min-h-[40px] text-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+      Volver a Miembros
+    </a>
+  </div>
+
+  <div class="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-3 text-sm text-blue-900 dark:text-blue-100">
+    Estos permisos nunca dan acceso a la lista de miembros ni a las categorías: eso sigue siendo exclusivo de los administradores del grupo.
+  </div>
+
+  {% if available_categories or available_members %}
+  <form method="POST" action="{{ url_for('groups.set_permission_level', group_id=group.id) }}"
+        class="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border p-3 sm:p-4">
+    <p class="font-semibold text-sm mb-3">Agregar permiso</p>
+    <div class="flex flex-col sm:flex-row gap-2">
+      <select name="subject" class="flex-1 min-w-0 rounded-lg border border-light-border dark:border-dark-border bg-transparent px-2 py-2 text-sm">
+        {% if available_categories %}
+        <optgroup label="Categorías">
+          {% for cat in available_categories %}
+          <option value="category:{{ cat.id }}">{{ cat.name }}</option>
+          {% endfor %}
+        </optgroup>
+        {% endif %}
+        {% if available_members %}
+        <optgroup label="Personas">
+          {% for member in available_members %}
+          <option value="member:{{ member.id }}">{{ member.user.name or member.user.email }}</option>
+          {% endfor %}
+        </optgroup>
+        {% endif %}
+      </select>
+      <select name="level" class="rounded-lg border border-light-border dark:border-dark-border bg-transparent px-2 py-2 text-sm">
+        {% for key in level_order %}
+        <option value="{{ key }}">{{ level_labels[key] }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold min-h-[40px]">
+        Agregar
+      </button>
+    </div>
+  </form>
+  {% endif %}
+
+  {% if category_rows or member_rows %}
+  <div class="space-y-4">
+    {% if category_rows %}
+    <div class="space-y-2">
+      <p class="text-xs font-semibold uppercase text-light-text-secondary dark:text-dark-text-secondary">Categorías</p>
+      {% for row in category_rows %}
+      <div class="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border p-3 flex flex-col sm:flex-row sm:items-center gap-2">
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold truncate">{{ row.category.name }}</p>
+          <p class="text-xs text-light-text-secondary dark:text-dark-text-secondary">{{ row.member_count }} persona(s)</p>
+        </div>
+        <div class="flex gap-2">
+          <form method="POST" action="{{ url_for('groups.set_permission_level', group_id=group.id) }}" class="flex gap-2">
+            <input type="hidden" name="subject_type" value="category">
+            <input type="hidden" name="subject_id" value="{{ row.category.id }}">
+            <select name="level" class="rounded-lg border border-light-border dark:border-dark-border bg-transparent px-2 py-1.5 text-sm">
+              {% for key in level_order %}
+              <option value="{{ key }}" {% if key == row.level %}selected{% endif %}>{{ level_labels[key] }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="px-3 py-1.5 rounded-lg border border-light-border dark:border-dark-border text-sm">Guardar</button>
+          </form>
+          <form method="POST" action="{{ url_for('groups.revoke_permission', group_id=group.id) }}">
+            <input type="hidden" name="subject_type" value="category">
+            <input type="hidden" name="subject_id" value="{{ row.category.id }}">
+            <button type="submit" class="px-3 py-1.5 rounded-lg border border-light-border dark:border-dark-border text-sm text-red-600">Quitar</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if member_rows %}
+    <div class="space-y-2">
+      <p class="text-xs font-semibold uppercase text-light-text-secondary dark:text-dark-text-secondary">Personas</p>
+      {% for row in member_rows %}
+      <div class="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border p-3 flex flex-col sm:flex-row sm:items-center gap-2">
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold truncate">{{ row.member.user.name or row.member.user.email }}</p>
+          <p class="text-xs text-light-text-secondary dark:text-dark-text-secondary break-all">{{ row.member.user.email }}</p>
+        </div>
+        <div class="flex gap-2">
+          <form method="POST" action="{{ url_for('groups.set_permission_level', group_id=group.id) }}" class="flex gap-2">
+            <input type="hidden" name="subject_type" value="member">
+            <input type="hidden" name="subject_id" value="{{ row.member.id }}">
+            <select name="level" class="rounded-lg border border-light-border dark:border-dark-border bg-transparent px-2 py-1.5 text-sm">
+              {% for key in level_order %}
+              <option value="{{ key }}" {% if key == row.level %}selected{% endif %}>{{ level_labels[key] }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="px-3 py-1.5 rounded-lg border border-light-border dark:border-dark-border text-sm">Guardar</button>
+          </form>
+          <form method="POST" action="{{ url_for('groups.revoke_permission', group_id=group.id) }}">
+            <input type="hidden" name="subject_type" value="member">
+            <input type="hidden" name="subject_id" value="{{ row.member.id }}">
+            <button type="submit" class="px-3 py-1.5 rounded-lg border border-light-border dark:border-dark-border text-sm text-red-600">Quitar</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="text-sm text-light-text-secondary dark:text-dark-text-secondary p-4 text-center bg-light-card dark:bg-dark-card rounded-lg border border-dashed border-light-border dark:border-dark-border">
+    Nadie tiene permisos extra todavía.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

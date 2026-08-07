@@ -43,6 +43,12 @@
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
         Descargar CSV
       </a>
+      {% if current_user.id == group.owner.id %}
+      <a href="{{ url_for('groups.permissions', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition min-h-[40px] text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        Permisos extra
+      </a>
+      {% endif %}
       <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition min-h-[40px] text-sm">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
         Volver

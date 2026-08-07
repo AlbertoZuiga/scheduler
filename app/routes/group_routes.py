@@ -7,13 +7,30 @@ from markupsafe import Markup, escape
 from flask_login import current_user, login_required
 
 from app.extensions import scheduler_db
-from app.models import Availability, Category, Group, GroupMember, RoleEnum, UserAvailability
+from app.models import (
+    Availability,
+    Category,
+    Group,
+    GroupMember,
+    GroupMemberCategory,
+    GroupPermissionGrant,
+    RoleEnum,
+    UserAvailability,
+)
 from app.models.subgroup import SubGroup
 from app.authz import (
     require_group_member,
     require_group_admin_or_owner,
     require_group_owner,
     safe_remove_member,
+)
+from app.permissions import (
+    LEVEL_LABELS,
+    LEVEL_ORDER,
+    LEVEL_PERMISSIONS,
+    effective_permissions,
+    grant_sources,
+    level_of,
 )
 from app.soft_delete import (
     INCLUDE_DELETED,
@@ -349,6 +366,7 @@ def show(group_id):
         } for member in group_members
     }
     is_admin = membership and membership.role == RoleEnum.ADMIN
+    perms = effective_permissions(group, membership)
 
     if group.owner_id == current_user.id or is_admin:
         user_availability_data = (
@@ -442,6 +460,7 @@ def show(group_id):
         user_info_map=user_info_map,
         is_admin=is_admin,
         can_manage=can_manage,
+        perms=perms,
         group_categories=group_categories,
         group_subgroups=group_subgroups,
         member_category_map=member_category_map,
@@ -563,7 +582,9 @@ def members(group_id):
 @group_bp.route("/<int:group_id>/members/export.csv", methods=["GET"])
 @login_required
 def export_members_csv(group_id):
-    group, _ = require_group_member(group_id)
+    # Exporta emails de todo el grupo: exclusivo de owner/admin, igual que el
+    # resto de la administración de usuarios (antes cualquier miembro podía).
+    group, _ = require_group_admin_or_owner(group_id)
     group_members = GroupMember.query.filter_by(group_id=group.id).all()
 
     output = io.StringIO()
@@ -896,3 +917,142 @@ def update_role(group_id, user_id):
 
     flash("Rol actualizado con éxito.", "success")
     return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
+
+
+@group_bp.route("/<int:group_id>/permissions", methods=["GET"])
+@login_required
+def permissions(group_id):
+    """Panel del owner para otorgar permisos extra de subgrupos, por persona o categoría.
+
+    Lista solo lo concedido (O(concesiones), no O(miembros)): una fila por
+    categoría o persona con una concesión directa. El acceso que una persona
+    recibe por pertenecer a una categoría NO se repite fila por fila aquí: se
+    administra en la fila de la categoría, no en la de cada miembro.
+    """
+    group, _ = require_group_owner(group_id)
+
+    categories = Category.query.filter_by(group_id=group.id).all()
+    categories_by_id = {cat.id: cat for cat in categories}
+    group_members = GroupMember.query.filter_by(group_id=group.id).all()
+    members_by_id = {member.id: member for member in group_members}
+    sources = grant_sources(group)
+
+    category_rows = []
+    for cat_id, direct in sources["categories"].items():
+        cat = categories_by_id.get(cat_id)
+        if cat is None:
+            continue
+        category_rows.append({
+            "category": cat,
+            "level": level_of(direct),
+            "member_count": GroupMemberCategory.query.filter_by(category_id=cat_id).count(),
+        })
+    category_rows.sort(key=lambda row: row["category"].name)
+
+    member_rows = []
+    for member_id, direct in sources["members"].items():
+        member = members_by_id.get(member_id)
+        if member is None or member.user_id == group.owner_id:
+            continue
+        member_rows.append({"member": member, "level": level_of(direct)})
+    member_rows.sort(key=lambda row: row["member"].user.name or row["member"].user.email)
+
+    granted_category_ids = set(sources["categories"].keys())
+    granted_member_ids = set(sources["members"].keys())
+    available_categories = [cat for cat in categories if cat.id not in granted_category_ids]
+    available_members = [
+        member for member in group_members
+        if member.id not in granted_member_ids
+        and member.user_id != group.owner_id
+        and member.role != RoleEnum.ADMIN
+    ]
+
+    return render_template(
+        "groups/permissions.html",
+        group=group,
+        category_rows=category_rows,
+        member_rows=member_rows,
+        available_categories=available_categories,
+        available_members=available_members,
+        level_order=LEVEL_ORDER,
+        level_labels=LEVEL_LABELS,
+    )
+
+
+@group_bp.route("/<int:group_id>/permissions/set", methods=["POST"])
+@login_required
+def set_permission_level(group_id):
+    """Otorga (o cambia) el nivel de permisos de una persona o categoría."""
+    group, _ = require_group_owner(group_id)
+
+    subject_type = request.form.get("subject_type")
+    subject_id = request.form.get("subject_id", type=int)
+    if subject_type is None:
+        # Formulario "Agregar permiso": llega combinado como "member:12".
+        subject = request.form.get("subject", "")
+        subject_type, _, raw_id = subject.partition(":")
+        subject_id = int(raw_id) if raw_id.isdigit() else None
+    level = request.form.get("level")
+
+    if level not in LEVEL_PERMISSIONS or subject_type not in ("member", "category"):
+        flash("Parámetros inválidos.", "danger")
+        return redirect(url_for("groups.permissions", group_id=group_id))
+
+    if subject_type == "member":
+        subject = GroupMember.query.filter_by(id=subject_id, group_id=group.id).first()
+        if not subject or subject.user_id == group.owner_id:
+            flash("Miembro inválido.", "danger")
+            return redirect(url_for("groups.permissions", group_id=group_id))
+        subject_filters = {"group_member_id": subject_id}
+    else:
+        subject = Category.query.filter_by(id=subject_id, group_id=group.id).first()
+        if not subject:
+            flash("Categoría inválida.", "danger")
+            return redirect(url_for("groups.permissions", group_id=group_id))
+        subject_filters = {"category_id": subject_id}
+
+    wanted = LEVEL_PERMISSIONS[level]
+    existing = GroupPermissionGrant.query.filter_by(group_id=group.id, **subject_filters).all()
+    existing_permissions = {grant.permission for grant in existing}
+
+    for grant in existing:
+        if grant.permission not in wanted:
+            grant.soft_delete()
+
+    for permission in wanted - existing_permissions:
+        filters = {"group_id": group.id, "permission": permission, **subject_filters}
+        hidden = find_soft_deleted(GroupPermissionGrant, **filters)
+        if hidden:
+            hidden.restore()
+        else:
+            scheduler_db.session.add(GroupPermissionGrant(**filters))
+
+    scheduler_db.session.commit()
+    flash("Permisos actualizados.", "success")
+    return redirect(url_for("groups.permissions", group_id=group_id))
+
+
+@group_bp.route("/<int:group_id>/permissions/revoke", methods=["POST"])
+@login_required
+def revoke_permission(group_id):
+    """Quita todos los permisos extra concedidos directamente a una persona o categoría."""
+    group, _ = require_group_owner(group_id)
+
+    subject_type = request.form.get("subject_type")
+    subject_id = request.form.get("subject_id", type=int)
+
+    if subject_type == "member":
+        subject_filters = {"group_member_id": subject_id}
+    elif subject_type == "category":
+        subject_filters = {"category_id": subject_id}
+    else:
+        flash("Parámetros inválidos.", "danger")
+        return redirect(url_for("groups.permissions", group_id=group_id))
+
+    grants = GroupPermissionGrant.query.filter_by(group_id=group.id, **subject_filters).all()
+    for grant in grants:
+        grant.soft_delete()
+
+    scheduler_db.session.commit()
+    flash("Permisos revocados.", "success")
+    return redirect(url_for("groups.permissions", group_id=group_id))
