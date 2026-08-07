@@ -12,7 +12,7 @@ basándose en la disponibilidad individual de cada participante.
 
 - 🎯 **Fácil de usar**: Interfaz intuitiva para crear grupos y marcar disponibilidad
 - 🔐 **Seguro**: Sistema robusto de autenticación y control de acceso basado en
-  roles
+roles
 - 🚀 **Listo para producción**: Completamente dockerizado con PostgreSQL
 - 🎨 **Responsive**: Diseño adaptable a cualquier dispositivo
 - 👥 **Colaborativo**: Gestión de grupos con roles (Owner, Admin, Member)
@@ -155,6 +155,7 @@ docker exec -it backend_container python -m app.db.seed
 ### Para ejecutar localmente (Sin Docker)
 
 - **Python 3.11+**
+- **Node.js 18+** y **npm** (para compilar los estilos de TailwindCSS)
 - **PostgreSQL** (recomendado) o **MySQL**
 - **Git**
 - Credenciales de **Google OAuth 2.0**
@@ -176,19 +177,20 @@ Para habilitar la autenticación con Google, necesitas crear credenciales OAuth 
 
 1. Ve a [Google Cloud Console](https://console.cloud.google.com/)
 2. Crea un nuevo proyecto o selecciona uno existente
-3. Navega a **APIs & Services → Credentials**
+3. Navega a **APIs &amp; Services → Credentials**
 4. Click en **"+ CREATE CREDENTIALS"** → **"OAuth 2.0 Client ID"**
 5. Selecciona **"Web application"**
 6. Configura:
-   - **Name:** Scheduler (o el nombre que prefieras)
-   - **Authorized redirect URIs:**
-
-     ```bash
-     http://localhost:5050/auth/google/callback
-     http://127.0.0.1:5000/auth/google/callback
-     ```
-
+  - **Name:** Scheduler (o el nombre que prefieras)
+  - **Authorized redirect URIs:**
+    ```bash
+    http://localhost:5050/auth/google/callback
+    http://127.0.0.1:5000/auth/google/callback
+    ```
 7. Guarda el **Client ID** y **Client Secret**
+8. Descarga el JSON de la credencial y guárdalo como **`client_secret.json`** en
+   la raíz del proyecto (`app/routes/auth_routes.py` lo lee desde ahí). Está en
+   `.gitignore`, así que no viene con el clon: si falta, el login con Google falla.
 
 ### 3. Variables de Entorno
 
@@ -241,7 +243,7 @@ PORT=5000
 - ✅ `GOOGLE_CLIENT_ID`: Tu Client ID de Google OAuth
 - ✅ `GOOGLE_CLIENT_SECRET`: Tu Client Secret de Google OAuth
 - ✅ `SECRET_KEY`: Clave para firmar sesiones (en producción, usa una clave
-  fuerte y aleatoria)
+fuerte y aleatoria)
 - ✅ `URL`: URL base de tu aplicación
 
 **Variables Opcionales:**
@@ -249,7 +251,7 @@ PORT=5000
 - `DEBUG`: Activa modo debug (solo para desarrollo, **NO usar en producción**)
 - `DB_*`: Solo necesarias para ejecución local sin Docker
 - `DATABASE_URI`: Sobrescribe la configuración de base de datos
-  (útil para servicios como Render)
+(útil para servicios como Render)
 - `HOST` y `PORT`: Configuración del servidor Flask
 
 **⚠️ Seguridad:**
@@ -257,7 +259,6 @@ PORT=5000
 - El archivo `.env` está en `.gitignore` y **NO se subirá a Git**
 - **NUNCA** compartas tu `GOOGLE_CLIENT_SECRET` o `SECRET_KEY`
 - Para generar un `SECRET_KEY` seguro, usa:
-
   ```bash
   python -c "import secrets; print(secrets.token_hex(32))"
   ```
@@ -309,7 +310,7 @@ docker compose logs -f
 
 ### Acceder a la Aplicación
 
-Abre tu navegador en: **[http://localhost:5050](http://localhost:5050)**
+Abre tu navegador en: [**http://localhost:5050**](http://localhost:5050)
 
 ### Comandos Útiles
 
@@ -393,6 +394,27 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+### 1.1 Compilar los Estilos (TailwindCSS)
+
+Requiere **Node.js 18+**. El archivo `app/static/css/main.css` **no está
+versionado** (está en `.gitignore`): es un artefacto de build. Si no lo generas,
+la aplicación se ve sin ningún estilo.
+
+```bash
+# Instalar dependencias de Node
+npm ci
+
+# Compilar el CSS una vez
+npm run build:css
+```
+
+Durante el desarrollo, si modificas clases de Tailwind en templates o JS, deja
+el watcher corriendo en otra terminal:
+
+```bash
+npm run watch:css
+```
+
 ### 2. Configurar Base de Datos
 
 Asegúrate de tener **PostgreSQL** o **MySQL** instalado y crea la base de datos:
@@ -450,7 +472,7 @@ python run.py
 ```
 
 La aplicación estará disponible en:
-**[http://localhost:5000](http://localhost:5000)** (o el puerto que hayas configurado)
+[**http://localhost:5000**](http://localhost:5000) (o el puerto que hayas configurado)
 
 ---
 
@@ -459,54 +481,46 @@ La aplicación estará disponible en:
 ### Caso de uso: Coordinar reuniones de equipo
 
 1. **Iniciar sesión con Google**
-   - Accede a la aplicación
-   - Haz clic en "Iniciar sesión con Google"
-   - Autoriza la aplicación
-
+  - Accede a la aplicación
+  - Haz clic en "Iniciar sesión con Google"
+  - Autoriza la aplicación
 2. **Crear un grupo**
-
-   ```bash
+  ```bash
    Nombre: "Equipo de Desarrollo"
    Descripción: "Coordinación de reuniones semanales"
-   ```
-
-   - Ve a la página principal
-   - Haz clic en "Crear Grupo"
-   - Completa el formulario y envía
-
+  ```
+  - Ve a la página principal
+  - Haz clic en "Crear Grupo"
+  - Completa el formulario y envía
 3. **Invitar miembros**
-   - Abre el grupo recién creado
-   - Copia el **código de invitación** (token)
-   - Comparte el código con tu equipo
-   - Los miembros pueden unirse usando el código
-
+  - Abre el grupo recién creado
+  - Copia el **código de invitación** (token)
+  - Comparte el código con tu equipo
+  - Los miembros pueden unirse usando el código
 4. **Configurar categorías** (opcional)
-   - Ve a "Gestionar Categorías"
-   - Crea categorías como: "Frontend", "Backend", "QA"
-   - Asigna categorías a cada miembro del equipo
-   - En filtros de categorías puedes usar operador `AND` o `OR` según tu criterio
-
+  - Ve a "Gestionar Categorías"
+  - Crea categorías como: "Frontend", "Backend", "QA"
+  - Asigna categorías a cada miembro del equipo
+  - En filtros de categorías puedes usar operador `AND` o `OR` según tu criterio
 5. **Agregar disponibilidad**
-   - Cada miembro accede a "Mi Disponibilidad"
-   - Selecciona días y horas disponibles:
-     - Lunes: 9:00 AM - 12:00 PM
-     - Miércoles: 2:00 PM - 5:00 PM
-     - Viernes: 10:00 AM - 1:00 PM
-   - Guarda la disponibilidad
-
+  - Cada miembro accede a "Mi Disponibilidad"
+  - Selecciona días y horas disponibles:
+    - Lunes: 9:00 AM - 12:00 PM
+    - Miércoles: 2:00 PM - 5:00 PM
+    - Viernes: 10:00 AM - 1:00 PM
+  - Guarda la disponibilidad
 6. **Encontrar horarios comunes**
-   - El owner/admin puede ver la disponibilidad consolidada
-   - La aplicación muestra automáticamente los slots donde todos están disponibles
-     - En horarios parciales, los bloques se ordenan por mayor cantidad de
-       personas disponibles
-     - Puedes filtrar resultados por categorías con `AND` / `OR`
-   - Selecciona el mejor horario para la reunión
-
+  - El owner/admin puede ver la disponibilidad consolidada
+  - La aplicación muestra automáticamente los slots donde todos están disponibles
+    - En horarios parciales, los bloques se ordenan por mayor cantidad de
+    personas disponibles
+    - Puedes filtrar resultados por categorías con `AND` / `OR`
+  - Selecciona el mejor horario para la reunión
 7. **Filtrar y gestionar miembros rápidamente**
-   - Usa búsqueda avanzada por nombre/email con múltiples palabras
-   - La búsqueda ignora acentos y mayúsculas/minúsculas
-   - Si seleccionas miembros, puedes activar "Solo seleccionados" para enfocarte
-     en ese subconjunto
+  - Usa búsqueda avanzada por nombre/email con múltiples palabras
+  - La búsqueda ignora acentos y mayúsculas/minúsculas
+  - Si seleccionas miembros, puedes activar "Solo seleccionados" para enfocarte
+  en ese subconjunto
 
 ### Gestión de roles
 
@@ -590,6 +604,7 @@ scheduler/
 
 ### Componentes Clave
 
+
 | Componente          | Descripción                                              |
 | ------------------- | -------------------------------------------------------- |
 | `app/__init__.py`   | Factory pattern para crear la aplicación Flask           |
@@ -600,6 +615,7 @@ scheduler/
 | `app/db/`           | Scripts CLI para gestión de BD                           |
 | `config.py`         | Configuración centralizada                               |
 | `run.py`            | Inicialización del servidor                              |
+
 
 ---
 
@@ -629,6 +645,7 @@ GroupMember
 
 #### Modelos Principales
 
+
 | Modelo                  | Descripción                            | Campos Clave                                        |
 | ----------------------- | -------------------------------------- | --------------------------------------------------- |
 | **User**                | Usuarios autenticados con Google OAuth | `google_id`, `email`, `name`, `picture`             |
@@ -638,6 +655,7 @@ GroupMember
 | **GroupMemberCategory** | Categorías asignadas a miembros        | `group_member_id`, `category_id`                    |
 | **Availability**        | Slots de disponibilidad del grupo      | `group_id`, `day_of_week`, `start_time`, `end_time` |
 | **UserAvailability**    | Disponibilidad individual              | `user_id`, `availability_id`, `is_available`        |
+
 
 ### Configuración de Conexión
 
@@ -717,26 +735,24 @@ Ideal para:
 ### 🧠 Cómo funciona el algoritmo
 
 1. **Análisis de compatibilidad horaria**
-   - Calcula el solapamiento de disponibilidades entre todos los miembros
-   - Usa el índice de Jaccard para medir compatibilidad (0% - 100%)
-   - Considera solo los slots de tiempo donde ambos usuarios están disponibles
-
+  - Calcula el solapamiento de disponibilidades entre todos los miembros
+  - Usa el índice de Jaccard para medir compatibilidad (0% - 100%)
+  - Considera solo los slots de tiempo donde ambos usuarios están disponibles
 2. **Asignación inteligente**
-   - Algoritmo greedy que prioriza compatibilidad promedio por grupo
-   - Respeta tamaños máximos y mínimos configurables
-   - Permite o prohíbe membresía múltiple según configuración
-
+  - Algoritmo greedy que prioriza compatibilidad promedio por grupo
+  - Respeta tamaños máximos y mínimos configurables
+  - Permite o prohíbe membresía múltiple según configuración
 3. **Validación de reglas de categorías**
-   - Evalúa condiciones lógicas AND/OR sin usar `eval()` (seguro)
-   - Verifica mínimos y máximos por regla en cada subgrupo
-   - Intenta reparar automáticamente grupos que no cumplen reglas
-
+  - Evalúa condiciones lógicas AND/OR sin usar `eval()` (seguro)
+  - Verifica mínimos y máximos por regla en cada subgrupo
+  - Intenta reparar automáticamente grupos que no cumplen reglas
 4. **Preview antes de confirmar**
-   - Muestra métricas de compatibilidad por grupo
-   - Indica qué reglas se cumplen o incumplen
-   - Permite rehacer la división o ajustar parámetros
+  - Muestra métricas de compatibilidad por grupo
+  - Indica qué reglas se cumplen o incumplen
+  - Permite rehacer la división o ajustar parámetros
 
 ### 📊 Configuración disponible
+
 
 | Parámetro                   | Descripción                                      | Ejemplo       |
 | --------------------------- | ------------------------------------------------ | ------------- |
@@ -745,6 +761,7 @@ Ideal para:
 | `allow_multiple_membership` | Permitir que un usuario esté en varios subgrupos | `false`       |
 | `compatibility_threshold`   | Umbral mínimo de compatibilidad (0.0 - 1.0)      | 0.5 (50%)     |
 | `category_rules`            | Reglas de distribución por categorías            | Ver ejemplo ↓ |
+
 
 ### 🏗️ Builder visual de reglas
 
@@ -781,52 +798,45 @@ Esto se traduce automáticamente a JSON:
 
 1. **Acceder al divisor**
 
-   Hay **tres formas** de acceder a la funcionalidad:
+  Hay **tres formas** de acceder a la funcionalidad:
 
    **Opción A: Desde la lista de grupos**
-   1. Ve a "Mis Grupos" (`/groups`)
-   2. En la tarjeta del grupo, haz clic en **"División Automática"**
-
-   **Opción B: Desde el detalle del grupo**
-   1. Entra a un grupo específico
-   2. Haz clic en el botón **"🎯 División Automática"**
-
-   **Opción C: URL directa**
-
-   ```bash
-   /groups/<id>/subgroups/new
-   ```
-
-   > ⚠️ **Permisos requeridos**: Solo Owners y Admins pueden crear divisiones.
-   > Los miembros regulares pueden ver los subgrupos existentes en **"📋 Ver Subgrupos"**.
-
+  1. Ve a "Mis Grupos" (`/groups`)
+  2. En la tarjeta del grupo, haz clic en **"División Automática"**
+  
+    Opción B: Desde el detalle del grupo**
+  3. Entra a un grupo específico
+  4. Haz clic en el botón **"🎯 División Automática"**
+  
+    Opción C: URL directa**
+  
+    `bash roups/<id>/subgroups/new` 
+  
+    ⚠️ **Permisos requeridos**: Solo Owners y Admins pueden crear divisiones.
+    Los miembros regulares pueden ver los subgrupos existentes en **"📋 Ver Subgrupos"**.
 2. **Configurar parámetros básicos**
-   - Número de subgrupos deseados
-   - Tamaño máximo por subgrupo
-   - Umbral de compatibilidad horaria
-   - Permitir membresía múltiple (opcional)
-
+  - Número de subgrupos deseados
+  - Tamaño máximo por subgrupo
+  - Umbral de compatibilidad horaria
+  - Permitir membresía múltiple (opcional)
 3. **Crear reglas de categorías (opcional)**
-   - Clic en "Agregar Regla"
-   - Seleccionar categorías requeridas
-   - Elegir operador (AND/OR)
-   - Definir mínimo y máximo
-
+  - Clic en "Agregar Regla"
+  - Seleccionar categorías requeridas
+  - Elegir operador (AND/OR)
+  - Definir mínimo y máximo
 4. **Generar preview**
-   - Clic en "Generar Subgrupos"
-   - El algoritmo procesa en ~2-5 segundos (hasta 200 miembros)
-   - Se muestra preview con métricas
-
+  - Clic en "Generar Subgrupos"
+  - El algoritmo procesa en ~2-5 segundos (hasta 200 miembros)
+  - Se muestra preview con métricas
 5. **Revisar resultados**
-   - Ver compatibilidad promedio por subgrupo
-   - Verificar cumplimiento de reglas
-   - Revisar distribución de miembros
-
+  - Ver compatibilidad promedio por subgrupo
+  - Verificar cumplimiento de reglas
+  - Revisar distribución de miembros
 6. **Confirmar o rehacer**
-   - **Confirmar**: Persiste los subgrupos en BD
-   - **Rehacer**: Volver a configurar y generar
-   - **Exportar CSV**: Descargar resultados para análisis externo
-   - **Deshacer**: Eliminar la última división confirmada
+  - **Confirmar**: Persiste los subgrupos en BD
+  - **Rehacer**: Volver a configurar y generar
+  - **Exportar CSV**: Descargar resultados para análisis externo
+  - **Deshacer**: Eliminar la última división confirmada
 
 ### 📁 Exportación CSV
 
@@ -967,7 +977,7 @@ Resultado esperado: 10 grupos de 6-10 personas cada uno, con:
 
 ### 📊 Métricas de rendimiento
 
-- ⚡ Genera división de 150 miembros en **< 5 segundos**
+- ⚡ Genera división de 150 miembros en **&lt; 5 segundos**
 - 🎯 Tasa de cumplimiento de reglas: **~85-95%** (depende de restricciones)
 - 🔒 Sin uso de `eval()` - **100% seguro**
 - 📱 Interfaz completamente **responsiva**
@@ -975,8 +985,8 @@ Resultado esperado: 10 grupos de 6-10 personas cada uno, con:
 ### ⚠️ Limitaciones conocidas
 
 - La reparación automática de reglas tiene un límite de 50 iteraciones
-- En grupos muy pequeños (< 6 miembros) algunas reglas pueden ser imposibles de
-  cumplir
+- En grupos muy pequeños (&lt; 6 miembros) algunas reglas pueden ser imposibles de
+cumplir
 - El algoritmo es heurístico (greedy), no garantiza la solución óptima global
 - Si las reglas son muy restrictivas, algunos miembros pueden quedar sin asignar
 
@@ -989,11 +999,13 @@ prevenir accesos no autorizados.
 
 ### Sistema de Roles
 
+
 | Rol           | Permisos                                                                                                                                                              | Casos de uso      |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
 | **Owner** 👑  | • Control total del grupo<br>• Eliminar el grupo<br>• Cambiar roles de miembros<br>• Gestionar miembros<br>• Gestionar categorías<br>• Ver y editar disponibilidad    | Creador del grupo |
-| **Admin** 🛡️  | • Gestionar miembros (agregar/remover)<br>• Gestionar categorías<br>• Ver y editar disponibilidad<br>• **NO puede** eliminar el grupo<br>• **NO puede** cambiar roles | Coordinadores     |
+| **Admin** 🛡️ | • Gestionar miembros (agregar/remover)<br>• Gestionar categorías<br>• Ver y editar disponibilidad<br>• **NO puede** eliminar el grupo<br>• **NO puede** cambiar roles | Coordinadores     |
 | **Member** 👤 | • Ver información del grupo<br>• Ver miembros<br>• Gestionar su propia disponibilidad<br>• Acceso de solo lectura a categorías                                        | Participantes     |
+
 
 ### Funciones de Autorización (`app/authz.py`)
 
@@ -1023,14 +1035,16 @@ Todas las rutas sensibles bajo `/group/<id>/` requieren:
 
 ### Vulnerabilidades Mitigadas
 
-| Vulnerabilidad                              | Mitigación                                                               | Estado      |
-| ------------------------------------------- | ------------------------------------------------------------------------ | ----------- |
+
+| Vulnerabilidad                              | Mitigación                                                               | Estado     |
+| ------------------------------------------- | ------------------------------------------------------------------------ | ---------- |
 | **IDOR** (Insecure Direct Object Reference) | Validación de pertenencia al grupo en cada request                       | ✅ Mitigado |
 | **Escalación de privilegios**               | Verificación de roles antes de acciones sensibles                        | ✅ Mitigado |
 | **Expulsión arbitraria de miembros**        | Políticas: Owner no puede ser expulsado, Admin no puede expulsar a Owner | ✅ Mitigado |
 | **Cambio no autorizado de roles**           | Solo Owner puede modificar roles                                         | ✅ Mitigado |
 | **Eliminación no autorizada de grupo**      | Solo Owner puede eliminar grupos                                         | ✅ Mitigado |
 | **Acceso a disponibilidad sin membresía**   | Bloqueado con `@require_group_member`                                    | ✅ Mitigado |
+
 
 ### Ejemplos de Protección
 
@@ -1071,6 +1085,53 @@ def show_group(group_id):
 
 ## 🔧 Solución de Problemas
 
+### ❌ La página se ve sin estilos (HTML plano)
+
+**Síntoma:** La aplicación carga y funciona, pero se ve como un documento sin
+ningún diseño: sin colores, sin layout, texto y links por defecto del navegador.
+
+**Causa:** No existe `app/static/css/main.css`. Es el bundle compilado de
+TailwindCSS y **está en `.gitignore`**, por lo que no viene con el clon del
+repositorio. `base.html` lo referencia y el servidor responde 404.
+
+**Solución:**
+
+```bash
+npm ci
+npm run build:css
+```
+
+Luego recarga el navegador ignorando la caché (`Cmd+Shift+R` / `Ctrl+F5`).
+
+> **Nota:** Docker y Render ya compilan el CSS automáticamente
+> (`Dockerfile` y `render-build.sh` ejecutan `npm run build:css`). Este problema
+> solo aparece al ejecutar localmente sin Docker.
+
+Si agregas clases nuevas de Tailwind en templates o JS y no se aplican, es el
+mismo problema: el bundle está desactualizado. Deja el watcher corriendo:
+
+```bash
+npm run watch:css
+```
+
+---
+
+### ❌ Archivos locales que no vienen con el clon
+
+Al clonar el repositorio en una máquina o carpeta nueva, estos archivos **no se
+descargan** (están en `.gitignore`) y hay que generarlos o copiarlos a mano:
+
+| Archivo                   | Cómo obtenerlo                                                  | Si falta                      |
+| ------------------------- | --------------------------------------------------------------- | ----------------------------- |
+| `.env`                    | Crearlo según [Variables de Entorno](#3-variables-de-entorno)   | La app no arranca             |
+| `client_secret.json`      | Descargarlo de Google Cloud Console                             | Falla el login con Google     |
+| `app/static/css/main.css` | `npm run build:css`                                             | La página se ve sin estilos   |
+| `node_modules/`           | `npm ci`                                                        | No se puede compilar el CSS   |
+| `venv/`                   | `python -m venv venv && pip install -r requirements.txt`        | Faltan dependencias de Python |
+| `.vscode/`                | Opcional; evita warnings falsos de CSS por `@theme` y `@source` | Solo molestia en el editor    |
+
+---
+
 ### ❌ Error: "relation does not exist" (Base de Datos)
 
 **Síntoma:** Al ejecutar la aplicación o seed, aparece el error:
@@ -1108,23 +1169,18 @@ Google Cloud Console.
 1. Ve a [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials)
 2. Edita tu OAuth 2.0 Client ID
 3. Asegúrate de tener estas URIs en **Authorized redirect URIs**:
-
-   ```bash
+  ```bash
    http://localhost:5050/auth/google/callback
    http://127.0.0.1:5000/auth/google/callback
-   ```
-
+  ```
 4. Verifica que en tu `.env` tengas:
-
-   ```bash
+  ```bash
    URL=http://localhost:5050
-   ```
-
+  ```
 5. Reinicia el contenedor:
-
-   ```bash
+  ```bash
    docker compose restart backend
-   ```
+  ```
 
 ---
 
@@ -1145,36 +1201,31 @@ docker compose ps
 **Soluciones comunes:**
 
 1. **Puerto ya en uso:**
-
-   ```bash
+  ```bash
    # Verificar qué proceso usa el puerto 5050
    lsof -i :5050
-
+  
    # Cambiar el puerto en docker-compose.yml
    ports:
      - "8080:5000"  # Usa 8080 en lugar de 5050
-   ```
-
+  ```
 2. **Variables de entorno faltantes:**
-
-   ```bash
+  ```bash
    # Verificar que .env existe y tiene todas las variables obligatorias
    cat .env
-
+  
    # Reconstruir con variables actualizadas
    docker compose down
    docker compose up --build
-   ```
-
+  ```
 3. **Problemas de construcción:**
-
-   ```bash
+  ```bash
    # Limpiar y reconstruir desde cero
    docker compose down -v
    docker system prune -f
    docker compose build --no-cache
    docker compose up
-   ```
+  ```
 
 ---
 
@@ -1195,29 +1246,24 @@ docker compose logs db
 **Soluciones:**
 
 1. **PostgreSQL no está listo:**
-
-   ```bash
+  ```bash
    # El healthcheck debe mostrar "healthy"
    docker compose ps
-
+  
    # Espera unos segundos y vuelve a intentar
    docker compose restart backend
-   ```
-
+  ```
 2. **Credenciales incorrectas:**
-
-   ```bash
+  ```bash
    # Verifica las credenciales en docker-compose.yml
    # Backend debe usar:
    DATABASE_URI: postgresql://postgres:postgres@db:5432/scheduler
-   ```
-
+  ```
 3. **Base de datos no inicializada:**
-
-   ```bash
+  ```bash
    # Inicializar tablas
    docker exec -it backend_container python -m app.db.setup
-   ```
+  ```
 
 ---
 
@@ -1228,35 +1274,28 @@ docker compose logs db
 **Soluciones:**
 
 1. **Verificar que `.env` existe:**
-
-   ```bash
+  ```bash
    ls -la .env
    cat .env
-   ```
-
+  ```
 2. **Formato correcto:**
-
-   ```bash
+  ```bash
    # ✅ Correcto
    GOOGLE_CLIENT_ID=123456.apps.googleusercontent.com
-
+  
    # ❌ Incorrecto (espacios extras)
    GOOGLE_CLIENT_ID = 123456.apps.googleusercontent.com
-   ```
-
+  ```
 3. **Reiniciar después de cambios:**
-
-   ```bash
+  ```bash
    docker compose down
    docker compose up -d
-   ```
-
+  ```
 4. **Variables en docker-compose.yml:**
-
-   ```yaml
+  ```yaml
    environment:
      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}" # Lee desde .env
-   ```
+  ```
 
 ---
 
@@ -1267,19 +1306,16 @@ docker compose logs db
 **Causas y soluciones:**
 
 1. **No eres miembro del grupo:**
-   - Solicita al owner/admin que te comparta el código de invitación
-   - Únete usando el token en `/join/<token>`
-
+  - Solicita al owner/admin que te comparta el código de invitación
+  - Únete usando el token en `/join/<token>`
 2. **Sesión expirada:**
-
-   ```bash
+  ```bash
    # Cierra sesión y vuelve a autenticarte
    # La sesión dura 30 días por defecto
-   ```
-
+  ```
 3. **Rol insuficiente:**
-   - Verifica tu rol en "Miembros del Grupo"
-   - Solo Owner/Admin pueden realizar ciertas acciones
+  - Verifica tu rol en "Miembros del Grupo"
+  - Solo Owner/Admin pueden realizar ciertas acciones
 
 ---
 
@@ -1383,7 +1419,7 @@ cat backup.sql | docker exec -i postgres_container psql -U postgres -d scheduler
 - [ ] **Tests unitarios** con `pytest` (modelos, funciones de autorización)
 - [ ] **Tests de integración** (flujos completos de usuario)
 - [ ] **Tests end-to-end** con `Selenium` o `Playwright`
-- [ ] **Cobertura de código** >80% con `coverage.py`
+- [ ] **Cobertura de código** &gt;80% con `coverage.py`
 - [ ] **Linting** con `pylint` / `flake8`
 - [ ] **Type hints** completos con `mypy`
 - [ ] **Pre-commit hooks** para validación automática
@@ -1405,7 +1441,7 @@ cat backup.sql | docker exec -i postgres_container psql -U postgres -d scheduler
 - [ ] **Modo oscuro** / claro
 - [ ] **Internacionalización (i18n)** (español, inglés, etc.)
 - [ ] **PWA** (Progressive Web App) para instalación en móvil
-- [ ] **Drag & drop** para gestionar disponibilidad
+- [ ] **Drag &amp; drop** para gestionar disponibilidad
 - [ ] **Visualización de calendario** más intuitiva
 - [ ] **Onboarding** para nuevos usuarios
 - [ ] **Tutorial interactivo**
@@ -1429,24 +1465,18 @@ cat backup.sql | docker exec -i postgres_container psql -U postgres -d scheduler
 
 1. **Fork** el repositorio
 2. **Crea una rama** para tu feature:
-
-   ```bash
+  ```bash
    git checkout -b feature/AmazingFeature
-   ```
-
+  ```
 3. **Realiza tus cambios** siguiendo las convenciones del proyecto
 4. **Commit** tus cambios con mensajes descriptivos:
-
-   ```bash
+  ```bash
    git commit -m 'feat: Add amazing feature'
-   ```
-
+  ```
 5. **Push** a tu rama:
-
-   ```bash
+  ```bash
    git push origin feature/AmazingFeature
-   ```
-
+  ```
 6. **Abre un Pull Request** describiendo tus cambios
 
 ### Convenciones de Commits
@@ -1474,11 +1504,11 @@ Si encuentras un bug:
 
 1. Verifica que no exista ya un issue similar
 2. Crea un nuevo issue con:
-   - Descripción clara del problema
-   - Pasos para reproducir
-   - Comportamiento esperado vs real
-   - Screenshots si es relevante
-   - Información de entorno (OS, versión de Docker, etc.)
+  - Descripción clara del problema
+  - Pasos para reproducir
+  - Comportamiento esperado vs real
+  - Screenshots si es relevante
+  - Información de entorno (OS, versión de Docker, etc.)
 
 ---
 
@@ -1495,3 +1525,4 @@ Nombre: **Alberto Zúñiga**
 
 - 📧 Email: [azuiga@miuandes.cl](mailto:azuiga@miuandes.cl)
 - 💼 GitHub: [@AlbertoZuiga](https://github.com/AlbertoZuiga)
+
