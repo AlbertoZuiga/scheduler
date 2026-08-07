@@ -456,8 +456,8 @@ def index(group_id):
         group=group,
         subgroups=subgroups,
         # Destinos posibles de "mover persona": solo los subgrupos que el
-        # usuario puede ver, para no filtrarle los nombres del resto.
-        move_targets=all_subgroups if can_view_all else subgroups,
+        # usuario puede editar, que es lo que exige subgroups.move_member.
+        move_targets=[s for s in all_subgroups if s.id in editable_subgroup_ids],
         group_members=group_members,
         subgroup_member_user_ids=subgroup_member_user_ids,
         members_without_subgroup=members_without_subgroup,
@@ -622,10 +622,10 @@ def move_member(group_id, subgroup_id, user_id):
     """
     Mueve una persona desde un subgrupo a otro dentro del mismo grupo.
 
-    El origen exige permiso de edición; el destino, solo de lectura: pedirle
-    edición dejaría "mover fuera de mi subgrupo" inservible con el permiso
-    "_own". Exigir al menos lectura evita que el destino delate por su id la
-    existencia de subgrupos que el usuario no puede ver.
+    Origen y destino exigen permiso de edición: mover es agregar en el destino,
+    y con solo lectura ahí el usuario estaría escribiendo en un subgrupo ajeno.
+    En la práctica esto deja "mover" como acción de quien edita todo; con
+    "_own" no hay dos subgrupos propios entre los cuales mover.
     """
     _, _, source_subgroup, _ = require_subgroup_access(group_id, subgroup_id, edit=True)
     target_subgroup_id = request.form.get('target_subgroup_id', type=int)
@@ -638,7 +638,7 @@ def move_member(group_id, subgroup_id, user_id):
         flash('El subgrupo destino debe ser distinto al origen.', 'warning')
         return _subgroups_index_redirect(group_id)
 
-    _, _, target_subgroup, _ = require_subgroup_access(group_id, target_subgroup_id, edit=False)
+    _, _, target_subgroup, _ = require_subgroup_access(group_id, target_subgroup_id, edit=True)
     source_membership = SubGroupMember.query.filter_by(
         subgroup_id=source_subgroup.id,
         user_id=user_id,
