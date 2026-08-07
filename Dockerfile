@@ -8,7 +8,6 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
-COPY tailwind.config.js ./
 
 RUN npm ci
 

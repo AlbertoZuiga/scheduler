@@ -44,5 +44,4 @@ docs/
 # Keep necessary Tailwind sources/manifests
 !package.json
 !package-lock.json
-!tailwind.config.js
 !app/static/css/tailwind.css
