@@ -58,10 +58,10 @@
       </div>
       <div class="flex items-end gap-2 flex-wrap">
         <div>
-          <label for="categoryFilterMode" class="block text-xs font-semibold mb-1 text-light-text-secondary dark:text-dark-text-secondary">Operador de categorías</label>
+          <label for="categoryFilterMode" class="block text-xs font-semibold mb-1 text-light-text-secondary dark:text-dark-text-secondary">Coincidir con</label>
           <select id="categoryFilterMode" class="px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background text-sm">
-            <option value="or" selected>OR (al menos una)</option>
-            <option value="and">AND (todas)</option>
+            <option value="or" selected>Cualquiera de las seleccionadas</option>
+            <option value="and">Todas las seleccionadas</option>
           </select>
         </div>
         {% if can_manage %}
@@ -140,6 +140,11 @@
                   <strong class="text-sm sm:text-base">{{ member.user.name }}</strong>
                   {% if member.role.name == 'ADMIN' %}<span class="inline-flex items-center px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">Admin</span>{% endif %}
                   {% if member.user.id == group.owner_id %}<span class="inline-flex items-center px-2 py-0.5 text-xs rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200">Owner</span>{% endif %}
+                  {% if member.user.id in responded_user_ids %}
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-200">✓ Respondió</span>
+                  {% else %}
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200">Sin horario</span>
+                  {% endif %}
                 </div>
                 <p class="text-xs sm:text-sm break-all text-light-text-secondary dark:text-dark-text-secondary">{{ member.user.email }}</p>
               </div>
@@ -191,7 +196,7 @@
               <button type="submit" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition min-h-[40px]">Salir</button>
             </form>
             {% elif current_user.id == group.owner.id %}
-            <form method="POST" action="{{ url_for('groups.remove', group_id=group.id, user_id=member.user.id) }}">
+            <form method="POST" action="{{ url_for('groups.remove', group_id=group.id, user_id=member.user.id) }}" onsubmit="return confirm('¿Eliminar a {{ member.user.name|e }} del grupo? Se borrará también su disponibilidad registrada.');">
               <button type="submit" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition min-h-[40px]">Eliminar</button>
             </form>
             {% endif %}
@@ -209,7 +214,7 @@
 </div>
 
 {% if can_manage %}
-<div id="categoryMembersModal" class="fixed inset-0 z-50 hidden">
+<div id="categoryMembersModal" class="fixed inset-0 z-50 hidden" role="dialog" aria-modal="true" aria-labelledby="categoryModalTitle">
   <div class="absolute inset-0 bg-black/40" data-close-category-modal="true"></div>
   <div class="relative mx-auto my-10 w-[95%] max-w-2xl bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border shadow-lg">
     <div class="flex items-center justify-between px-4 py-3 border-b border-light-border dark:border-dark-border">
@@ -276,20 +281,6 @@
       'bg-purple-600 text-white border-purple-600 ring-2 ring-purple-200 dark:ring-purple-900/40',
     ];
 
-    function alertInline(message, type = 'success') {
-      const container = document.querySelector('main');
-      const el = document.createElement('div');
-      const styleMap = {
-        success: 'bg-green-50 text-green-800 border-green-200',
-        danger: 'bg-red-50 text-red-800 border-red-200',
-        warning: 'bg-yellow-50 text-yellow-800 border-yellow-200',
-      };
-      el.className = `mb-3 rounded-lg border px-3 py-2 text-sm ${styleMap[type] || 'bg-blue-50 text-blue-800 border-blue-200'}`;
-      el.textContent = message;
-      container?.prepend(el);
-      setTimeout(() => el.remove(), 3000);
-    }
-
     function getCategoryStyle(categoryId) {
       return colorPalette[Number.parseInt(categoryId) % colorPalette.length];
     }
@@ -298,6 +289,7 @@
       const id = Number.parseInt(button.dataset.filterCategoryId || '0');
       const style = activeFilterPalette[Math.abs(id) % activeFilterPalette.length];
       button.classList.add(...style.split(' '));
+      button.setAttribute('aria-pressed', 'true');
     }
 
     function clearFilterActiveStyles(button) {
@@ -305,6 +297,7 @@
         button.classList.remove(...style.split(' '));
       }
       button.classList.remove('bg-primary', 'text-white', 'border-primary', 'ring-2', 'ring-amber-200', 'dark:ring-amber-700');
+      button.setAttribute('aria-pressed', 'false');
     }
 
     function categoryName(categoryId) {
@@ -387,16 +380,16 @@
           member.categories = previous;
           renderMemberChips(memberId);
           const errorBody = await response.json().catch(() => ({}));
-          alertInline(errorBody.message || 'No se pudo actualizar la categoría.', 'danger');
+          showInlineAlert(errorBody.message || 'No se pudo actualizar la categoría.', 'danger');
           return;
         }
 
-        alertInline(shouldAssign ? 'Categoría agregada.' : 'Categoría removida.', 'success');
+        showInlineAlert(shouldAssign ? 'Categoría agregada.' : 'Categoría removida.', 'success');
       } catch (error) {
         console.error('updateCategory error:', error);
         member.categories = previous;
         renderMemberChips(memberId);
-        alertInline('Error de red al actualizar la categoría.', 'danger');
+        showInlineAlert('Error de red al actualizar la categoría.', 'danger');
       }
     }
 
@@ -566,7 +559,7 @@
 
     async function runBulk(action) {
       if (selectedMembers.size === 0 || selectedBulkCategories.size === 0) {
-        alertInline('Selecciona miembros y categorías para la acción masiva.', 'warning');
+        showInlineAlert('Selecciona miembros y categorías para la acción masiva.', 'warning');
         return;
       }
 
@@ -579,10 +572,10 @@
 
         selectedBulkCategories.clear();
         renderBulkCategoryChoices();
-        alertInline(action === 'assign' ? 'Categorías agregadas en bloque.' : 'Categorías removidas en bloque.', 'success');
+        showInlineAlert(action === 'assign' ? 'Categorías agregadas en bloque.' : 'Categorías removidas en bloque.', 'success');
       } catch (error) {
         console.error('runBulk error:', error);
-        alertInline(error?.message || 'Error de red al ejecutar la acción masiva.', 'danger');
+        showInlineAlert(error?.message || 'Error de red al ejecutar la acción masiva.', 'danger');
       }
     }
 
@@ -599,9 +592,36 @@
 
       let activeCategoryId = null;
       let originalSelection = new Set();
+      let lastFocusedElement = null;
+
+      function getFocusableElements() {
+        return Array.from(modal.querySelectorAll('button, input, [tabindex]:not([tabindex="-1"])'))
+          .filter((el) => !el.disabled && el.offsetParent !== null);
+      }
+
+      function trapFocus(event) {
+        if (event.key === 'Escape') {
+          closeModal();
+          return;
+        }
+        if (event.key !== 'Tab') return;
+        const focusable = getFocusableElements();
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
 
       function closeModal() {
         modal.classList.add('hidden');
+        modal.removeEventListener('keydown', trapFocus);
+        lastFocusedElement?.focus();
       }
 
       function openModal(categoryId) {
@@ -628,7 +648,10 @@
           modalMembers.appendChild(item);
         }
 
+        lastFocusedElement = document.activeElement;
         modal.classList.remove('hidden');
+        modal.addEventListener('keydown', trapFocus);
+        getFocusableElements()[0]?.focus();
       }
 
       for (const openBtn of document.querySelectorAll('[data-open-category-modal]')) {
@@ -713,11 +736,11 @@
             }
           }
 
-          alertInline('Miembros actualizados para la categoría.', 'success');
+          showInlineAlert('Miembros actualizados para la categoría.', 'success');
           closeModal();
         } catch (error) {
           console.error('saveCategoryMembers error:', error);
-          alertInline('No se pudo guardar el cambio de categoría.', 'danger');
+          showInlineAlert('No se pudo guardar el cambio de categoría.', 'danger');
         }
       });
     }
@@ -766,6 +789,7 @@
           includeNoCategory = !includeNoCategory;
           if (includeNoCategory) {
             filterBtn.classList.add('bg-amber-500', 'text-white', 'border-amber-500', 'ring-2', 'ring-amber-200', 'dark:ring-amber-700');
+            filterBtn.setAttribute('aria-pressed', 'true');
           } else {
             clearFilterActiveStyles(filterBtn);
           }
@@ -787,6 +811,10 @@
 
     for (const chip of document.querySelectorAll('.member-cat-chip')) {
       chip.classList.add(...getCategoryStyle(chip.dataset.categoryId).split(' '));
+    }
+
+    for (const chip of document.querySelectorAll('.filter-chip')) {
+      chip.setAttribute('aria-pressed', 'false');
     }
 
     document.addEventListener('click', async (event) => {

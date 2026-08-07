@@ -53,7 +53,7 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 Ver Grupo
               </a>
-              {% if group.owner_id == current_user.id or (current_user in group.members and group.members[current_user].role == 'admin') %}
+              {% if group.owner_id == current_user.id or group.id in admin_group_ids %}
               <a href="{{ url_for('subgroups.new', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-green-500 text-green-600 font-semibold hover:bg-green-500 hover:text-white transition-all focus:outline-none focus:ring-2 focus:ring-green-400 text-xs sm:text-sm touch-manipulation active:scale-95 min-h-[40px]">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 División Automática
@@ -97,36 +97,5 @@
 {% endblock %}
 
 {% block script %}
-<script>
-  // Copiar link de invitación al portapapeles
-  function copyInviteLink(groupId) {
-    const input = document.getElementById('inviteLink-' + groupId);
-    if (input) {
-      // Usar API moderna si está disponible
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(input.value).then(() => {
-          showFeedback(input);
-        }).catch(() => {
-          fallbackCopy(input);
-        });
-      } else {
-        fallbackCopy(input);
-      }
-    }
-  }
-  
-  function fallbackCopy(input) {
-    input.select();
-    input.setSelectionRange(0, 99999);
-    document.execCommand('copy');
-    showFeedback(input);
-  }
-  
-  function showFeedback(input) {
-    input.classList.add('ring-2', 'ring-primary', 'bg-green-50', 'dark:bg-green-900/20');
-    setTimeout(() => {
-      input.classList.remove('ring-2', 'ring-primary', 'bg-green-50', 'dark:bg-green-900/20');
-    }, 1500);
-  }
-</script>
+{# copyInviteLink() vive en static/js/main.js y se reutiliza en todas las vistas que ofrecen invitar. #}
 {% endblock %}

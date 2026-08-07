@@ -17,10 +17,10 @@ from app.authz import (
 
 group_bp = Blueprint("groups", __name__, url_prefix="/groups")
 
-def _generate_time_blocks():
+def _generate_time_blocks(group):
     return [
         (i, f"{hour:02}:30 - {(hour + 1):02}:20")
-        for i, hour in enumerate(range(STARTING_HOUR, ENDING_HOUR))
+        for i, hour in enumerate(range(group.start_hour, group.end_hour))
     ]
 
 def _clear_existing_availability(group_id, user_id):
@@ -34,10 +34,10 @@ def _clear_existing_availability(group_id, user_id):
         scheduler_db.session.delete(ua)
     scheduler_db.session.commit()
 
-def _process_posted_availability(group_id, form_data, blocks, user_id):
+def _process_posted_availability(group_id, form_data, blocks, user_id, active_weekdays=None):
     block_count = len(blocks)
     count = 0
-    for weekday in range(7):
+    for weekday in (active_weekdays if active_weekdays is not None else range(7)):
         for block_index in range(block_count):
             key = f"day_{weekday}_hour_{block_index}"
             if key in form_data:
@@ -81,9 +81,6 @@ COLORS = [
     "bg-pink",
     "bg-teal",
 ]
-STARTING_HOUR = 8
-ENDING_HOUR = 19
-
 def assign_colors_to_members(group_members):
     return {member.user.id: COLORS[i % len(COLORS)] for i, member in enumerate(group_members)}
 
@@ -146,16 +143,21 @@ def get_availability_data(group_id):
 @login_required
 def index():
     groups = Group.query.join(GroupMember).filter(GroupMember.user_id == current_user.id).all()
+    memberships = GroupMember.query.filter_by(user_id=current_user.id).all()
+    admin_group_ids = {
+        m.group_id for m in memberships if m.role == RoleEnum.ADMIN
+    }
 
-    return render_template("groups/index.html", groups=groups)
+    return render_template("groups/index.html", groups=groups, admin_group_ids=admin_group_ids)
 
 
 @group_bp.route("/<int:group_id>", methods=["GET"])
 @login_required
 def show(group_id):
-    blocks = [f"{hour:02}:30 - {(hour + 1):02}:20" for hour in range(STARTING_HOUR, ENDING_HOUR)]
-
     group, membership = require_group_member(group_id)
+    blocks = [f"{hour:02}:30 - {(hour + 1):02}:20" for hour in range(group.start_hour, group.end_hour)]
+    active_weekdays = group.get_active_weekdays()
+
     group_members = GroupMember.query.filter_by(group_id=group.id).all()
     color_map = assign_colors_to_members(group_members)
     user_info_map = {
@@ -185,11 +187,17 @@ def show(group_id):
             .filter(UserAvailability.user_id == current_user.id)
             .all()
         )
+    # Se resuelve acá y no en la plantilla: indexar por hora dentro del Jinja
+    # daba índices negativos (y celdas pintadas en la fila equivocada) cuando la
+    # marca caía fuera del rango visible.
     selected = set()
-    for _, weekday, hour in user_availability_data:
-        block_index = int(hour - STARTING_HOUR)
-        if 0 <= block_index < len(blocks):
-            selected.add((weekday, blocks[block_index]))
+    cell_users = {}
+    for user_id, weekday, hour in user_availability_data:
+        block_index = int(hour - group.start_hour)
+        if not 0 <= block_index < len(blocks):
+            continue
+        selected.add((weekday, blocks[block_index]))
+        cell_users.setdefault((weekday, block_index), []).append(user_id)
 
     availability_data = get_availability_data(group_id)
 
@@ -242,6 +250,7 @@ def show(group_id):
         group=group,
         availability=user_availability_data,
         selected=selected,
+        cell_users=cell_users,
         blocks=blocks,
         convert_float_to_time_string=convert_float_to_time_string,
         availability_data=availability_data,
@@ -257,6 +266,7 @@ def show(group_id):
         users_without_availability=users_without_availability,
         members_with_availability_count=members_with_availability_count,
         responded_user_ids=sorted(responded_user_ids),
+        active_weekdays=active_weekdays,
     )
 
 
@@ -321,6 +331,18 @@ def members(group_id):
     group_members = GroupMember.query.filter_by(group_id=group.id).all()
     can_manage = (group.owner_id == current_user.id) or (membership.role == RoleEnum.ADMIN)
     categories = Category.query.filter_by(group_id=group.id).all()
+    responded_user_ids = {
+        user_id
+        for (user_id,) in (
+            scheduler_db.session.query(UserAvailability.user_id)
+            .join(Availability, UserAvailability.availability_id == Availability.id)
+            .filter(Availability.group_id == group.id)
+            .distinct()
+            .all()
+        )
+    }
+    # Quienes no han respondido primero: son los que necesitan seguimiento.
+    group_members.sort(key=lambda gm: gm.user_id in responded_user_ids)
 
     return render_template(
         "groups/members.html",
@@ -329,6 +351,7 @@ def members(group_id):
         membership=membership,
         categories=categories,
         can_manage=can_manage,
+        responded_user_ids=responded_user_ids,
     )
 
 
@@ -374,23 +397,24 @@ def export_members_csv(group_id):
 @group_bp.route("/<int:group_id>/availability", methods=["GET", "POST"])
 @login_required
 def availability(group_id):
-    blocks = _generate_time_blocks()
-
-    # Debe ser miembro para ver o editar disponibilidad
-    _, _ = require_group_member(group_id)
+    group, _ = require_group_member(group_id)
+    blocks = _generate_time_blocks(group)
+    active_weekdays = group.get_active_weekdays()
 
     if request.method == "POST":
         _clear_existing_availability(group_id, current_user.id)
-        saved_count = _process_posted_availability(group_id, request.form, blocks, current_user.id)
+        saved_count = _process_posted_availability(
+            group_id, request.form, blocks, current_user.id, active_weekdays
+        )
 
         if saved_count == 0:
-            flash("⚠️ No se guardó ninguna disponibilidad. Por favor, selecciona al menos un bloque horario.", "warning")
-            return render_template(
-                "groups/availability.html",
-                group_id=group_id,
-                selected={},
-                blocks=blocks
+            # Dejar la grilla vacía es una respuesta válida ("no puedo ningún
+            # bloque"), no un error: se guarda igual y se avisa sin alarmar.
+            flash(
+                "ℹ️ Guardado sin bloques marcados: quedaste sin disponibilidad en este grupo.",
+                "info",
             )
+            return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
         flash(f"✅ Disponibilidad actualizada exitosamente ({saved_count} bloques horarios guardados).", "success")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
@@ -405,12 +429,81 @@ def availability(group_id):
     )
     selected = set()
     for _, weekday, hour in user_availability:
-        block_index = int(hour - STARTING_HOUR)
+        block_index = int(hour - group.start_hour)
         if 0 <= block_index < len(blocks):
             selected.add((weekday, block_index))
     return render_template(
-        "groups/availability.html", group_id=group_id, selected=selected, blocks=blocks
+        "groups/availability.html",
+        group=group,
+        group_id=group_id,
+        selected=selected,
+        blocks=blocks,
+        active_weekdays=active_weekdays,
     )
+
+
+@group_bp.route("/<int:group_id>/availability/autosave", methods=["POST"])
+@login_required
+def availability_autosave(group_id):
+    """Guarda la disponibilidad completa del usuario vía fetch, sin recargar la página."""
+    group, _ = require_group_member(group_id)
+    blocks = _generate_time_blocks(group)
+    active_weekdays = group.get_active_weekdays()
+
+    payload = request.get_json(silent=True) or {}
+    slots = payload.get("slots")
+    if not isinstance(slots, list):
+        return {"ok": False, "message": "Formato inválido."}, 400
+
+    # Reconstruye el form_data esperado por _process_posted_availability a partir
+    # de la lista de slots [{weekday, block_index}, ...] enviada por el cliente.
+    form_data = {
+        f"day_{slot.get('weekday')}_hour_{slot.get('block_index')}": "on"
+        for slot in slots
+        if isinstance(slot, dict)
+    }
+
+    _clear_existing_availability(group_id, current_user.id)
+    saved_count = _process_posted_availability(
+        group_id, form_data, blocks, current_user.id, active_weekdays
+    )
+
+    return {"ok": True, "saved_count": saved_count}
+
+
+@group_bp.route("/<int:group_id>/availability/settings", methods=["POST"])
+@login_required
+def availability_settings(group_id):
+    """Permite a owner/admin ajustar el rango horario y los días visibles del grupo."""
+    group, _ = require_group_admin_or_owner(group_id)
+
+    try:
+        start_hour = int(request.form.get("start_hour", group.start_hour))
+        end_hour = int(request.form.get("end_hour", group.end_hour))
+    except (TypeError, ValueError):
+        flash("❌ Rango horario inválido.", "danger")
+        return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
+
+    if not (0 <= start_hour < end_hour <= 24):
+        flash("❌ El rango horario no es válido (debe ir de 0 a 24 y el inicio ser menor al fin).", "danger")
+        return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
+
+    weekdays = request.form.getlist("weekdays")
+    try:
+        weekday_ints = sorted({int(d) for d in weekdays if 0 <= int(d) <= 6})
+    except ValueError:
+        weekday_ints = []
+    if not weekday_ints:
+        flash("❌ Selecciona al menos un día.", "danger")
+        return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
+
+    group.start_hour = start_hour
+    group.end_hour = end_hour
+    group.active_weekdays = ",".join(str(d) for d in weekday_ints)
+    scheduler_db.session.commit()
+
+    flash("✅ Configuración de disponibilidad actualizada.", "success")
+    return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
 
 @group_bp.route("/<int:group_id>/delete", methods=["POST"])
