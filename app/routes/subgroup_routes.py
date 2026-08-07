@@ -26,7 +26,8 @@ def _add_subgroup_member(subgroup_id, user_id):
     scheduler_db.session.add(membership)
     return membership
 
-from app.authz import require_group_admin_or_owner
+from app.authz import require_group_permission, require_subgroup_access
+from app.permissions import PERM_EDIT_ALL, PERM_VIEW_ALL, PERM_VIEW_OWN
 from app.services.subgroup_service import SubGroupService
 
 
@@ -69,10 +70,10 @@ def _member_display_name(user):
 def new(group_id):
     """
     Renderiza el formulario para dividir el grupo en subgrupos.
-    Solo accesible por Owners/Admins.
+    Requiere poder editar todos los subgrupos.
     """
     # Verificar permisos
-    group, _ = require_group_admin_or_owner(group_id)
+    group, _, _ = require_group_permission(group_id, PERM_EDIT_ALL)
     
     # Obtener categorías disponibles en el grupo
     categories = Category.query.filter_by(group_id=group_id).all()
@@ -111,7 +112,7 @@ def generate(group_id):
     Devuelve un preview JSON sin persistir en BD.
     """
     # Verificar permisos
-    require_group_admin_or_owner(group_id)
+    require_group_permission(group_id, PERM_EDIT_ALL)
     
     try:
         config = request.get_json()
@@ -167,7 +168,7 @@ def confirm(group_id):
     Confirma y persiste los subgrupos generados en la BD.
     """
     # Verificar permisos
-    require_group_admin_or_owner(group_id)
+    require_group_permission(group_id, PERM_EDIT_ALL)
     
     try:
         data = request.get_json()
@@ -246,7 +247,7 @@ def undo(group_id):
     Elimina los subgrupos creados y marca el job como 'undone'.
     """
     # Verificar permisos
-    require_group_admin_or_owner(group_id)
+    require_group_permission(group_id, PERM_EDIT_ALL)
     
     try:
         # Buscar el último job confirmado
@@ -302,7 +303,7 @@ def export(group_id):
     Si no se proporciona, exporta los subgrupos confirmados actuales.
     """
     # Verificar permisos
-    require_group_admin_or_owner(group_id)
+    require_group_permission(group_id, PERM_VIEW_ALL)
     
     job_id = request.args.get('job_id', type=int)
     
@@ -395,36 +396,70 @@ def export(group_id):
 @login_required
 def index(group_id):
     """
-    Lista todos los subgrupos del grupo.
+    Lista los subgrupos del grupo: todos con VIEW_ALL, solo el propio con VIEW_OWN.
     """
     # Verificar permisos
-    group, _ = require_group_admin_or_owner(group_id)
-    subgroups = (
+    group, _, perms = require_group_permission(group_id, PERM_VIEW_OWN)
+    can_view_all = PERM_VIEW_ALL in perms
+    can_edit_all = PERM_EDIT_ALL in perms
+
+    all_subgroups = (
         SubGroup.query.filter_by(parent_group_id=group_id)
         .order_by(SubGroup.created_at.asc(), SubGroup.id.asc())
         .all()
     )
-    group_members = _get_group_members_sorted(group_id)
     subgroup_member_user_ids = {
         subgroup.id: {member.user_id for member in subgroup.members}
-        for subgroup in subgroups
+        for subgroup in all_subgroups
     }
+
+    if can_view_all:
+        subgroups = all_subgroups
+    else:
+        subgroups = [
+            subgroup for subgroup in all_subgroups
+            if current_user.id in subgroup_member_user_ids.get(subgroup.id, set())
+        ]
+
+    if can_edit_all:
+        editable_subgroup_ids = {subgroup.id for subgroup in subgroups}
+    else:
+        editable_subgroup_ids = {
+            subgroup.id for subgroup in subgroups
+            if current_user.id in subgroup_member_user_ids.get(subgroup.id, set())
+        }
+
+    # Roster completo del grupo padre: necesario para el selector "Agregar
+    # integrante" incluso con solo EDIT_OWN (el usuario puede sumar a
+    # cualquier persona del grupo a SU subgrupo). El panel "sin subgrupo" y
+    # las tarjetas de otros subgrupos siguen ocultas sin VIEW_ALL.
+    group_members = (
+        _get_group_members_sorted(group_id)
+        if can_view_all or editable_subgroup_ids else []
+    )
     assigned_user_ids = {
         member.user_id
-        for subgroup in subgroups
+        for subgroup in all_subgroups
         for member in subgroup.members
     }
-    members_without_subgroup = [
-        member for member in group_members if member.user_id not in assigned_user_ids
-    ]
-    
+    members_without_subgroup = (
+        [member for member in group_members if member.user_id not in assigned_user_ids]
+        if can_view_all else []
+    )
+
     return render_template(
         'groups/subgroups/index.html',
         group=group,
         subgroups=subgroups,
+        # Destinos posibles de "mover persona": solo los subgrupos que el
+        # usuario puede ver, para no filtrarle los nombres del resto.
+        move_targets=all_subgroups if can_view_all else subgroups,
         group_members=group_members,
         subgroup_member_user_ids=subgroup_member_user_ids,
         members_without_subgroup=members_without_subgroup,
+        can_view_all=can_view_all,
+        can_edit_all=can_edit_all,
+        editable_subgroup_ids=editable_subgroup_ids,
     )
 
 
@@ -434,7 +469,7 @@ def create_manual(group_id):
     """
     Crea un subgrupo manual vacío para ajustes posteriores.
     """
-    require_group_admin_or_owner(group_id)
+    require_group_permission(group_id, PERM_EDIT_ALL)
 
     name = (request.form.get('name') or '').strip()
     if not name:
@@ -464,8 +499,7 @@ def rename(group_id, subgroup_id):
     """
     Renombra un subgrupo existente.
     """
-    require_group_admin_or_owner(group_id)
-    subgroup = _get_subgroup_or_404(group_id, subgroup_id)
+    _, _, subgroup, _ = require_subgroup_access(group_id, subgroup_id, edit=True)
 
     new_name = (request.form.get('name') or '').strip()
     if not new_name:
@@ -490,7 +524,7 @@ def delete(group_id, subgroup_id):
     """
     Elimina un subgrupo y sus membresías.
     """
-    require_group_admin_or_owner(group_id)
+    require_group_permission(group_id, PERM_EDIT_ALL)
     subgroup = _get_subgroup_or_404(group_id, subgroup_id)
     subgroup_name = subgroup.name
 
@@ -511,8 +545,7 @@ def add_member(group_id, subgroup_id):
     """
     Agrega manualmente un miembro del grupo a un subgrupo.
     """
-    require_group_admin_or_owner(group_id)
-    subgroup = _get_subgroup_or_404(group_id, subgroup_id)
+    _, _, subgroup, _ = require_subgroup_access(group_id, subgroup_id, edit=True)
     user_id = request.form.get('user_id', type=int)
 
     if not user_id:
@@ -552,8 +585,7 @@ def remove_member(group_id, subgroup_id, user_id):
     """
     Quita una persona de un subgrupo específico.
     """
-    require_group_admin_or_owner(group_id)
-    subgroup = _get_subgroup_or_404(group_id, subgroup_id)
+    _, _, subgroup, _ = require_subgroup_access(group_id, subgroup_id, edit=True)
     membership = SubGroupMember.query.filter_by(
         subgroup_id=subgroup.id,
         user_id=user_id,
@@ -584,9 +616,13 @@ def remove_member(group_id, subgroup_id, user_id):
 def move_member(group_id, subgroup_id, user_id):
     """
     Mueve una persona desde un subgrupo a otro dentro del mismo grupo.
+
+    El origen exige permiso de edición; el destino, solo de lectura: pedirle
+    edición dejaría "mover fuera de mi subgrupo" inservible con el permiso
+    "_own". Exigir al menos lectura evita que el destino delate por su id la
+    existencia de subgrupos que el usuario no puede ver.
     """
-    require_group_admin_or_owner(group_id)
-    source_subgroup = _get_subgroup_or_404(group_id, subgroup_id)
+    _, _, source_subgroup, _ = require_subgroup_access(group_id, subgroup_id, edit=True)
     target_subgroup_id = request.form.get('target_subgroup_id', type=int)
 
     if not target_subgroup_id:
@@ -597,7 +633,7 @@ def move_member(group_id, subgroup_id, user_id):
         flash('El subgrupo destino debe ser distinto al origen.', 'warning')
         return _subgroups_index_redirect(group_id)
 
-    target_subgroup = _get_subgroup_or_404(group_id, target_subgroup_id)
+    _, _, target_subgroup, _ = require_subgroup_access(group_id, target_subgroup_id, edit=False)
     source_membership = SubGroupMember.query.filter_by(
         subgroup_id=source_subgroup.id,
         user_id=user_id,

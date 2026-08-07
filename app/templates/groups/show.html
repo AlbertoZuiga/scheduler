@@ -25,10 +25,13 @@
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
         <span class="hidden sm:inline">Miembros</span>
       </a>
+      {% endif %}
+      {% if perms %}
       <a href="{{ url_for('subgroups.index', group_id=group.id) }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition focus:outline-none focus:ring-2 focus:ring-green-400 touch-manipulation active:scale-95 text-sm min-h-[40px]">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
         <span class="hidden sm:inline">Subgrupos</span>
       </a>
+      {% endif %}
       {% if current_user.id == group.owner_id %}
       <form method="POST" action="{{ url_for('groups.delete', group_id=group.id) }}" data-confirm="¿Estás seguro de que deseas eliminar este grupo?" class="inline-block">
         <button type="submit" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition focus:outline-none focus:ring-2 focus:ring-red-400 touch-manipulation active:scale-95 text-sm min-h-[40px]">
@@ -37,7 +40,6 @@
         </button>
       </form>
       {% endif %}
-    {% endif %}
     {% if current_user.id != group.owner_id %}
       <form method="POST" action="{{ url_for('groups.leave', group_id=group.id) }}" data-confirm="¿Estás seguro de que deseas abandonar este grupo?" class="inline-block">
         <button type="submit" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition focus:outline-none focus:ring-2 focus:ring-red-400 touch-manipulation active:scale-95 text-sm min-h-[40px]">
