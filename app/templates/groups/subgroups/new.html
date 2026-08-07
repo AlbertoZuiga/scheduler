@@ -197,10 +197,16 @@
       </h2>
       <p class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary mt-1">Genera subgrupos optimizados basados en compatibilidad horaria y categorías</p>
     </div>
-    <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-4 py-3 border-2 border-light-border dark:border-dark-border rounded-lg hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition-colors text-light-text-primary dark:text-dark-text-primary touch-manipulation active:scale-95 min-h-[48px] text-sm w-full xs:w-auto">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-      Volver al Grupo
-    </a>
+    <div class="flex flex-col xs:flex-row gap-2 w-full xs:w-auto">
+      <button type="button" id="undo-btn" class="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 text-white font-semibold transition-colors touch-manipulation active:scale-95 min-h-[48px] text-sm w-full xs:w-auto">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1z"></path></svg>
+        Deshacer última división
+      </button>
+      <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-4 py-3 border-2 border-light-border dark:border-dark-border rounded-lg hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition-colors text-light-text-primary dark:text-dark-text-primary touch-manipulation active:scale-95 min-h-[48px] text-sm w-full xs:w-auto">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        Volver al Grupo
+      </a>
+    </div>
   </div>
 
   <!-- Resumen visual de configuración -->
@@ -242,6 +248,9 @@
             <small class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Total de miembros activos: {{ member_count }}. <b>Recomendación:</b> Elige un número que permita grupos equilibrados.</small>
           </div>
 
+          <details class="mb-3 rounded-lg border border-light-border dark:border-dark-border">
+            <summary class="cursor-pointer px-3 py-2 text-sm font-semibold text-light-text-primary dark:text-dark-text-primary">Opciones avanzadas <span class="font-normal text-light-text-secondary dark:text-dark-text-secondary">(tamaño, compatibilidad, categorías, personas juntas…)</span></summary>
+            <div class="p-3 pt-1 space-y-3">
 
           <div class="mb-3">
             <label for="max_group_size" class="block text-xs sm:text-sm font-bold mb-2 text-light-text-primary dark:text-dark-text-primary flex items-center gap-1">
@@ -303,12 +312,19 @@
               <svg class="w-4 h-4 text-sky-600 dark:text-sky-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707a1 1 0 00-1.414-1.414L9 11.172 7.707 9.879a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
               Categorías que deben quedar asignadas
             </label>
-            <select id="required_membership_categories" class="w-full px-3 py-2 rounded border-2 border-sky-300 dark:border-sky-700 bg-white dark:bg-slate-900 text-light-text-primary dark:text-slate-100 focus:ring-2 focus:ring-sky-500" multiple size="5">
+            <!-- Select nativo oculto: sigue siendo la fuente de verdad que lee subgroups.js -->
+            <select id="required_membership_categories" class="hidden" multiple size="5">
               <option value="__NO_CATEGORY__">Sin categoría</option>
               {% for category in categories %}
               <option value="{{ category.name }}">{{ category.name }}</option>
               {% endfor %}
             </select>
+            <div class="flex flex-wrap gap-2" id="required-categories-chips">
+              <button type="button" class="required-category-chip inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs border border-sky-300 dark:border-sky-700 bg-white dark:bg-slate-900" data-value="__NO_CATEGORY__">Sin categoría</button>
+              {% for category in categories %}
+              <button type="button" class="required-category-chip inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs border border-sky-300 dark:border-sky-700 bg-white dark:bg-slate-900" data-value="{{ category.name }}">{{ category.name }}</button>
+              {% endfor %}
+            </div>
             <small class="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-2 block">Si desactivas "Todos los miembros", puedes exigir que toda persona que pertenezca a estas categorías (o sin categoría) quede en al menos un subgrupo.</small>
             {% if not categories %}
             <p class="text-xs italic text-light-text-secondary dark:text-dark-text-secondary mt-2">No hay categorías disponibles para configurar este filtro.</p>
@@ -404,6 +420,9 @@
             </p>
           </div>
 
+            </div>
+          </details>
+
           <div class="grid gap-2 mt-4">
             <button type="submit" class="w-full px-6 py-3 text-lg rounded bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 text-white transition-all flex items-center justify-center gap-2 text-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105" id="generate-btn">
               <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
@@ -439,9 +458,6 @@
           <button type="button" class="px-4 py-2 rounded bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white font-semibold transition-all shadow hover:shadow-md flex items-center gap-2" id="export-btn">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
             Exportar CSV
-          </button>
-          <button type="button" class="px-4 py-2 rounded bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 text-white font-semibold transition-colors flex items-center gap-2 shadow" id="undo-btn">
-            <i class="bi bi-arrow-counterclockwise"></i> Deshacer Última División
           </button>
         </div>
       </div>
@@ -621,6 +637,20 @@
     if (requireAllMembers) requireAllMembers.addEventListener('change', toggleRequiredCategories);
     updateSummary();
     toggleRequiredCategories();
+
+    // Chips de "Categorías que deben quedar asignadas": mantienen sincronizado
+    // el <select multiple> oculto que serializeForm() en subgroups.js sigue leyendo.
+    const requiredCategoriesSelect = document.getElementById('required_membership_categories');
+    for (const chip of document.querySelectorAll('.required-category-chip')) {
+      chip.addEventListener('click', () => {
+        const option = Array.from(requiredCategoriesSelect?.options || []).find((opt) => opt.value === chip.dataset.value);
+        if (!option) return;
+        option.selected = !option.selected;
+        chip.classList.toggle('bg-sky-600', option.selected);
+        chip.classList.toggle('text-white', option.selected);
+        chip.classList.toggle('border-sky-600', option.selected);
+      });
+    }
   });
 </script>
 

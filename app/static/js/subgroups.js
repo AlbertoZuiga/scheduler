@@ -350,7 +350,7 @@
     const selectedMemberIds = getSelectedTogetherMemberIds();
 
     if (selectedMemberIds.length < 2) {
-      alert("Selecciona al menos dos miembros para crear un grupo manual.");
+      showInlineAlert("Selecciona al menos dos miembros para crear un grupo manual.", "warning");
       return;
     }
 
@@ -359,7 +359,7 @@
     );
 
     if (alreadyUsed.length > 0) {
-      alert("Uno o más miembros ya pertenecen a otro grupo manual.");
+      showInlineAlert("Uno o más miembros ya pertenecen a otro grupo manual.", "warning");
       return;
     }
 
@@ -465,7 +465,7 @@
     // Validar
     const numGroups = parseInt(document.getElementById("num_groups").value);
     if (numGroups < 2) {
-      alert("Debe haber al menos 2 subgrupos.");
+      showInlineAlert("Debe haber al menos 2 subgrupos.", "warning");
       return;
     }
 
@@ -499,7 +499,7 @@
       // Renderizar preview
       renderPreview(data);
     } catch (error) {
-      alert(`Error: ${error.message}`);
+      showInlineAlert(`Error: ${error.message}`, "danger");
       console.error(error);
     } finally {
       hideLoading();
@@ -666,15 +666,15 @@
    */
   async function confirmDivision() {
     if (!currentJobId) {
-      alert("No hay división pendiente para confirmar.");
+      showInlineAlert("No hay división pendiente para confirmar.", "warning");
       return;
     }
 
-    if (
-      !confirm(
-        "¿Estás seguro de confirmar esta división? Se crearán los subgrupos en la base de datos.",
-      )
-    ) {
+    const confirmed = await showConfirmDialog(
+      "¿Confirmar esta división? Se crearán los subgrupos en la base de datos.",
+      { confirmLabel: "Confirmar división", danger: false },
+    );
+    if (!confirmed) {
       return;
     }
 
@@ -698,14 +698,14 @@
         throw new Error(data.error || "Error al confirmar");
       }
 
-      alert("¡División confirmada exitosamente!");
+      showInlineAlert("¡División confirmada exitosamente!", "success");
 
       // Redirigir
       if (data.redirect_url) {
         window.location.href = data.redirect_url;
       }
     } catch (error) {
-      alert(`Error: ${error.message}`);
+      showInlineAlert(`Error: ${error.message}`, "danger");
       console.error(error);
     } finally {
       hideLoading();
@@ -726,7 +726,7 @@
    */
   function exportResults() {
     if (!currentJobId) {
-      alert("No hay división para exportar.");
+      showInlineAlert("No hay división para exportar.", "warning");
       return;
     }
 
@@ -737,11 +737,11 @@
    * Deshace la última división confirmada
    */
   async function undoLastDivision() {
-    if (
-      !confirm(
-        "¿Estás seguro de deshacer la última división confirmada? Esto eliminará todos los subgrupos creados.",
-      )
-    ) {
+    const confirmed = await showConfirmDialog(
+      "¿Deshacer la última división confirmada? Esto eliminará los subgrupos creados por esa división.",
+      { confirmLabel: "Deshacer división" },
+    );
+    if (!confirmed) {
       return;
     }
 
@@ -764,13 +764,13 @@
         throw new Error(data.error || "Error al deshacer");
       }
 
-      alert(data.message || "¡División deshecha exitosamente!");
+      showInlineAlert(data.message || "¡División deshecha exitosamente!", "success");
 
       // Ocultar preview y limpiar
       previewPanel.style.display = "none";
       currentJobId = null;
     } catch (error) {
-      alert(`Error: ${error.message}`);
+      showInlineAlert(`Error: ${error.message}`, "danger");
       console.error(error);
     } finally {
       hideLoading();

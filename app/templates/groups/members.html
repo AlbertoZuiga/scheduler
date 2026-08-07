@@ -192,11 +192,11 @@
             {% endif %}
 
             {% if member.user == current_user %}
-            <form method="POST" action="{{ url_for('groups.leave', group_id=group.id) }}" onsubmit="return confirm('¿Estás seguro de que deseas abandonar este grupo?');">
+            <form method="POST" action="{{ url_for('groups.leave', group_id=group.id) }}" data-confirm="¿Estás seguro de que deseas abandonar este grupo?" >
               <button type="submit" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition min-h-[40px]">Salir</button>
             </form>
             {% elif current_user.id == group.owner.id %}
-            <form method="POST" action="{{ url_for('groups.remove', group_id=group.id, user_id=member.user.id) }}" onsubmit="return confirm('¿Eliminar a {{ member.user.name|e }} del grupo? Se borrará también su disponibilidad registrada.');">
+            <form method="POST" action="{{ url_for('groups.remove', group_id=group.id, user_id=member.user.id) }}" data-confirm="¿Eliminar a {{ member.user.name|e }} del grupo? Se borrará también su disponibilidad registrada." >
               <button type="submit" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition min-h-[40px]">Eliminar</button>
             </form>
             {% endif %}

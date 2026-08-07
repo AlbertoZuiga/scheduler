@@ -50,7 +50,7 @@
     const res = await fetch(url, opts);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(data.message || 'No se pudo actualizar la categoría');
+      showInlineAlert(data.message || 'No se pudo actualizar la categoría', 'danger');
       return false;
     }
     return true;
