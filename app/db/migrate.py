@@ -4,15 +4,33 @@ from app import scheduler_app
 from app.extensions import scheduler_db
 from app.models.mixins import SoftDeleteMixin
 
-# Migraciones aditivas por tabla: (columna, DDL). Se consulta el schema antes de
-# cada ALTER, así que un fallo real (permisos, lock) rompe el build en vez de
-# quedar silenciado. ADD COLUMN IF NOT EXISTS no existe en todas las versiones
-# de MySQL, por eso no se usa.
+# Migraciones aditivas por tabla: (columna, DDL) o (columna, DDL, backfill). El
+# backfill corre una sola vez, justo después de crear la columna, para poblarla
+# a partir de datos preexistentes. Se consulta el schema antes de cada ALTER,
+# así que un fallo real (permisos, lock) rompe el build en vez de quedar
+# silenciado. ADD COLUMN IF NOT EXISTS no existe en todas las versiones de
+# MySQL, por eso no se usa.
+#
+# Los grupos anteriores guardaban el rango como horas enteras y la grilla
+# arrancaba siempre a y media (bloques "08:30 - 09:20"), así que el backfill
+# reproduce esa misma grilla en minutos: start_hour*60+30 con bloques de 60.
 COLUMN_MIGRATIONS = {
     # Rango horario y días visibles en la grilla de disponibilidad del grupo.
     "group": [
-        ("start_hour", "ALTER TABLE {table} ADD COLUMN start_hour INTEGER NOT NULL DEFAULT 8"),
-        ("end_hour", "ALTER TABLE {table} ADD COLUMN end_hour INTEGER NOT NULL DEFAULT 19"),
+        (
+            "start_minutes",
+            "ALTER TABLE {table} ADD COLUMN start_minutes INTEGER NOT NULL DEFAULT 510",
+            ("start_hour", "UPDATE {table} SET start_minutes = start_hour * 60 + 30"),
+        ),
+        (
+            "end_minutes",
+            "ALTER TABLE {table} ADD COLUMN end_minutes INTEGER NOT NULL DEFAULT 1170",
+            ("end_hour", "UPDATE {table} SET end_minutes = end_hour * 60 + 30"),
+        ),
+        (
+            "block_minutes",
+            "ALTER TABLE {table} ADD COLUMN block_minutes INTEGER NOT NULL DEFAULT 60",
+        ),
         (
             "active_weekdays",
             "ALTER TABLE {table} ADD COLUMN active_weekdays VARCHAR(20) "
@@ -58,12 +76,20 @@ def _run_column_migrations():
 
         quoted = preparer.quote(table)
         existing_columns = {col["name"] for col in inspector.get_columns(table)}
-        for column, statement in migrations:
+        for column, statement, *rest in migrations:
             if column in existing_columns:
                 continue
             print(f"  Agregando columna {table}.{column}...")
             scheduler_db.session.execute(text(statement.format(table=quoted)))
             scheduler_db.session.commit()
+
+            backfill = rest[0] if rest else None
+            # El backfill lee una columna vieja: en una base nueva no existe y
+            # el DEFAULT de la columna recién creada ya es el valor correcto.
+            if backfill and backfill[0] in existing_columns:
+                print(f"  Poblando {table}.{column} desde {table}.{backfill[0]}...")
+                scheduler_db.session.execute(text(backfill[1].format(table=quoted)))
+                scheduler_db.session.commit()
 
         _ensure_deleted_at_index(inspector, table, quoted)
 

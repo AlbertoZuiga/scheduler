@@ -497,26 +497,36 @@ La aplicación estará disponible en:
   - Copia el **código de invitación** (token)
   - Comparte el código con tu equipo
   - Los miembros pueden unirse usando el código
-4. **Configurar categorías** (opcional)
+4. **Configurar la grilla horaria** (owner/admin, opcional)
+  - En el grupo, abre "⚙️ Configurar rango horario y días visibles"
+  - Elige hora de inicio y fin **con minutos** (por ejemplo 08:15 a 12:45),
+    la **extensión de cada bloque** (15, 30, 45, 60, 90 o 120 minutos) y los
+    días de la semana visibles
+  - Si cambias el formato con respuestas ya cargadas, estas se **migran solas**:
+    cada marca se reubica en los bloques nuevos que cubren su horario original
+    (un bloque de 60 min pasa a dos de 30, dos de 60 se funden en uno de 120)
+  - Lo que quede fuera del rango o en un día apagado no se borra: vuelve a
+    aparecer intacto si amplías el horario o reactivas el día
+6. **Configurar categorías** (opcional)
   - Ve a "Gestionar Categorías"
   - Crea categorías como: "Frontend", "Backend", "QA"
   - Asigna categorías a cada miembro del equipo
   - En filtros de categorías puedes usar operador `AND` o `OR` según tu criterio
-5. **Agregar disponibilidad**
+7. **Agregar disponibilidad**
   - Cada miembro accede a "Mi Disponibilidad"
   - Selecciona días y horas disponibles:
     - Lunes: 9:00 AM - 12:00 PM
     - Miércoles: 2:00 PM - 5:00 PM
     - Viernes: 10:00 AM - 1:00 PM
   - Guarda la disponibilidad
-6. **Encontrar horarios comunes**
+8. **Encontrar horarios comunes**
   - El owner/admin puede ver la disponibilidad consolidada
   - La aplicación muestra automáticamente los slots donde todos están disponibles
     - En horarios parciales, los bloques se ordenan por mayor cantidad de
     personas disponibles
     - Puedes filtrar resultados por categorías con `AND` / `OR`
   - Selecciona el mejor horario para la reunión
-7. **Filtrar y gestionar miembros rápidamente**
+9. **Filtrar y gestionar miembros rápidamente**
   - Usa búsqueda avanzada por nombre/email con múltiples palabras
   - La búsqueda ignora acentos y mayúsculas/minúsculas
   - Si seleccionas miembros, puedes activar "Solo seleccionados" para enfocarte

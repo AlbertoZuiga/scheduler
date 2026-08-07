@@ -24,67 +24,115 @@ from app.soft_delete import (
 
 group_bp = Blueprint("groups", __name__, url_prefix="/groups")
 
+def _format_minutes(total_minutes):
+    """Minutos desde medianoche a 'HH:MM'."""
+    return f"{total_minutes // 60:02}:{total_minutes % 60:02}"
+
+
 def _generate_time_blocks(group):
     return [
-        (i, f"{hour:02}:30 - {(hour + 1):02}:20")
-        for i, hour in enumerate(range(group.start_hour, group.end_hour))
+        (i, f"{_format_minutes(start)} - {_format_minutes(start + group.block_minutes)}")
+        for i, start in enumerate(group.block_starts())
     ]
 
-def _clear_existing_availability(group_id, user_id):
-    """Oculta la disponibilidad previa del usuario. No borra filas: al volver a
-    marcar el mismo bloque se restaura la fila existente (ver _restore_or_create)."""
-    user_avails = (
-        scheduler_db.session.query(UserAvailability)
-        .join(Availability)
-        .filter(UserAvailability.user_id == user_id, Availability.group_id == group_id)
+
+def _hour_to_minutes(hour):
+    """`Availability.hour` es un float de horas; la clave real son sus minutos.
+
+    Se redondea siempre: el FLOAT de MySQL no conserva 8.25 ni 8.3333 con
+    precisión suficiente para comparar por igualdad.
+    """
+    return int(round(hour * 60))
+
+
+def _block_index_for(group, hour):
+    """Índice del bloque que arranca exactamente en `hour`, o None si no calza."""
+    minutes = _hour_to_minutes(hour)
+    starts = group.block_starts()
+    try:
+        return starts.index(minutes)
+    except ValueError:
+        return None
+
+
+def _availability_by_minutes(group_id):
+    """Filas de Availability del grupo indexadas por (weekday, minutos)."""
+    return {
+        (row.weekday, _hour_to_minutes(row.hour)): row
+        for row in Availability.query.filter_by(group_id=group_id).all()
+    }
+
+
+def _get_or_create_availability(group_id, weekday, minutes, known):
+    """Devuelve la fila del bloque, creándola si aún no existe. Actualiza `known`."""
+    existing = known.get((weekday, minutes))
+    if existing:
+        return existing
+    row = Availability(group_id=group_id, weekday=weekday, hour=minutes / 60)
+    scheduler_db.session.add(row)
+    scheduler_db.session.flush()
+    known[(weekday, minutes)] = row
+    return row
+
+def _clear_existing_availability(group, user_id, active_weekdays):
+    """Oculta la disponibilidad previa del usuario dentro de la grilla visible.
+
+    Solo se limpian los bloques que el formulario pudo mostrar: lo que quedó
+    fuera del rango o en un día apagado no lo está desmarcando el usuario, así
+    que se conserva y reaparece si el admin vuelve a ampliar la grilla.
+
+    No borra filas: al volver a marcar el mismo bloque se restaura la fila
+    existente (ver _mark_user_available).
+    """
+    visible_starts = set(group.block_starts())
+    visible_weekdays = set(active_weekdays)
+    rows = (
+        scheduler_db.session.query(UserAvailability, Availability.weekday, Availability.hour)
+        .join(Availability, UserAvailability.availability_id == Availability.id)
+        .filter(UserAvailability.user_id == user_id, Availability.group_id == group.id)
         .all()
     )
-    for ua in user_avails:
-        ua.soft_delete()
+    for ua, weekday, hour in rows:
+        if weekday in visible_weekdays and _hour_to_minutes(hour) in visible_starts:
+            ua.soft_delete()
     scheduler_db.session.commit()
 
-def _process_posted_availability(group_id, form_data, blocks, user_id, active_weekdays=None):
-    block_count = len(blocks)
+def _mark_user_available(user_id, availability_id):
+    """Marca el bloque para el usuario. Devuelve True si hubo cambio real."""
+    existing = UserAvailability.query.filter_by(
+        user_id=user_id, availability_id=availability_id
+    ).first()
+    if existing:
+        return False
+
+    # Reutiliza la fila oculta si existe: evita duplicar
+    # (user_id, availability_id) en cada guardado.
+    hidden = find_soft_deleted(
+        UserAvailability, user_id=user_id, availability_id=availability_id
+    )
+    if hidden:
+        hidden.restore()
+    else:
+        scheduler_db.session.add(
+            UserAvailability(user_id=user_id, availability_id=availability_id)
+        )
+    return True
+
+
+def _process_posted_availability(group_id, form_data, group, user_id, active_weekdays=None):
+    block_starts = group.block_starts()
+    known = _availability_by_minutes(group_id)
     count = 0
     for weekday in (active_weekdays if active_weekdays is not None else range(7)):
-        for block_index in range(block_count):
+        for block_index, start_minutes in enumerate(block_starts):
             key = f"day_{weekday}_hour_{block_index}"
-            if key in form_data:
-                hour_str = blocks[block_index][1].split(" - ")[0]
-                hour_as_float = convert_hour_to_integer(hour_str)
-                group_availability = Availability.query.filter_by(
-                    group_id=group_id, weekday=weekday, hour=hour_as_float
-                ).first()
-                if not group_availability:
-                    group_availability = Availability(
-                        group_id=group_id, weekday=weekday, hour=hour_as_float
-                    )
-                    scheduler_db.session.add(group_availability)
-                    scheduler_db.session.commit()
-                existing = UserAvailability.query.join(Availability).filter(
-                    UserAvailability.user_id == user_id,
-                    Availability.group_id == group_id,
-                    Availability.weekday == weekday,
-                    Availability.hour == hour_as_float,
-                ).first()
-
-                if not existing:
-                    # Reutiliza la fila oculta si existe: evita duplicar
-                    # (user_id, availability_id) en cada guardado.
-                    hidden = find_soft_deleted(
-                        UserAvailability,
-                        user_id=user_id,
-                        availability_id=group_availability.id,
-                    )
-                    if hidden:
-                        hidden.restore()
-                    else:
-                        scheduler_db.session.add(
-                            UserAvailability(
-                                user_id=user_id, availability_id=group_availability.id
-                            )
-                        )
-                    count += 1
+            if key not in form_data:
+                continue
+            group_availability = _get_or_create_availability(
+                group_id, weekday, start_minutes, known
+            )
+            if _mark_user_available(user_id, group_availability.id):
+                count += 1
     scheduler_db.session.commit()
     return count
 
@@ -105,21 +153,22 @@ def assign_colors_to_members(group_members):
     return {member.user.id: COLORS[i % len(COLORS)] for i, member in enumerate(group_members)}
 
 
-def convert_hour_to_integer(hour):
-    """Convert a time string in 'HH:MM' format to a float representing hours."""
+def parse_time_to_minutes(value):
+    """'HH:MM' (o 'HH:MM:SS') a minutos desde medianoche."""
     try:
-        hours, minutes = map(int, hour.split("-")[0].split(":"))
-        return hours + minutes / 60
-    except ValueError as exc:
-        raise ValueError("Invalid time format. Expected 'HH:MM'.") from exc
+        parts = str(value).strip().split(":")
+        hours, minutes = int(parts[0]), int(parts[1])
+    except (AttributeError, IndexError, ValueError) as exc:
+        raise ValueError("Formato de hora inválido. Se espera 'HH:MM'.") from exc
+    if not (0 <= hours <= 24 and 0 <= minutes <= 59):
+        raise ValueError("Hora fuera de rango.")
+    return hours * 60 + minutes
 
 
 def convert_float_to_time_string(hour):
     """Convert a float representing hours to a time string in 'HH:MM' format."""
     try:
-        hour_on_clock = int(hour)
-        minutes = int(round((hour - hour_on_clock) * 60))
-        return f"{hour_on_clock:02}:{minutes:02}"
+        return _format_minutes(_hour_to_minutes(hour))
     except (ValueError, TypeError) as exc:
         raise ValueError("Invalid hour value. Expected a float.") from exc
 
@@ -138,7 +187,7 @@ def _active_member_user_ids(group_id):
     }
 
 
-def _count_out_of_range_marks(group_id, start_hour, end_hour, weekdays):
+def _count_out_of_range_marks(group_id, start_minutes, end_minutes, weekdays):
     """Cuenta marcas de disponibilidad que el nuevo rango dejaría fuera de la grilla.
 
     No se borra ninguna: solo dejan de mostrarse mientras el rango las excluya.
@@ -153,8 +202,76 @@ def _count_out_of_range_marks(group_id, start_hour, end_hour, weekdays):
     return sum(
         1
         for weekday, hour in rows
-        if weekday not in weekdays or not start_hour <= hour < end_hour
+        if weekday not in weekdays
+        or not start_minutes <= _hour_to_minutes(hour) < end_minutes
     )
+
+
+def _remap_availability_marks(group, old_starts, old_block_minutes, weekdays):
+    """Reencaja las respuestas ya guardadas cuando cambia el formato de la grilla.
+
+    Una marca vieja cubre `[inicio, inicio + duración_vieja)`. Si ese intervalo
+    ya no coincide con ningún bloque nuevo, se traslada a todos los bloques
+    nuevos que solape (un bloque viejo puede repartirse en varios nuevos, o
+    varios viejos fundirse en uno) y la marca original se oculta.
+
+    Lo que queda fuera del rango o en un día desactivado NO se toca: sigue
+    oculto por la grilla y reaparece intacto si el admin vuelve a ampliar.
+
+    Devuelve cuántas marcas se reubicaron.
+    """
+    new_starts = group.block_starts()
+    if not new_starts:
+        return 0
+
+    old_starts = set(old_starts)
+    known = _availability_by_minutes(group.id)
+
+    remapped = 0
+    for (weekday, minutes), row in list(known.items()):
+        # Solo se reencaja lo que pertenecía a la grilla anterior: una marca
+        # fuera de rango o de un día apagado se deja tal cual.
+        if weekday not in weekdays or minutes not in old_starts:
+            continue
+
+        old_end = minutes + old_block_minutes
+        targets = [
+            start
+            for start in new_starts
+            if start < old_end and start + group.block_minutes > minutes
+        ]
+        if targets == [minutes]:
+            # El bloque nuevo cubre exactamente el mismo tramo: nada que mover.
+            continue
+
+        remapped += _move_marks(group, row, targets, known)
+
+    scheduler_db.session.commit()
+    return remapped
+
+
+def _move_marks(group, row, targets, known):
+    """Copia las marcas de `row` a los bloques nuevos que cubren su horario."""
+    minutes = _hour_to_minutes(row.hour)
+    moved = 0
+    if not targets:
+        # El horario viejo no cae en ningún bloque nuevo (el rango se angostó o
+        # el día se apagó). Las marcas se dejan intactas: la grilla ya no las
+        # muestra, pero reaparecen tal cual si el admin vuelve a ampliar.
+        return 0
+
+    for mark in UserAvailability.query.filter_by(availability_id=row.id).all():
+        for start in targets:
+            if start == minutes:
+                continue
+            target_row = _get_or_create_availability(group.id, row.weekday, start, known)
+            _mark_user_available(mark.user_id, target_row.id)
+        if minutes not in targets:
+            # La marca vieja se oculta, no se borra: si el admin revierte el
+            # formato, este mismo remapeo la reconstruye desde la grilla actual.
+            mark.soft_delete()
+        moved += 1
+    return moved
 
 
 def get_availability_data(group_id):
@@ -220,7 +337,7 @@ def index():
 @login_required
 def show(group_id):
     group, membership = require_group_member(group_id)
-    blocks = [f"{hour:02}:30 - {(hour + 1):02}:20" for hour in range(group.start_hour, group.end_hour)]
+    blocks = [label for _, label in _generate_time_blocks(group)]
     active_weekdays = group.get_active_weekdays()
 
     group_members = GroupMember.query.filter_by(group_id=group.id).all()
@@ -259,8 +376,8 @@ def show(group_id):
     selected = set()
     cell_users = {}
     for user_id, weekday, hour in user_availability_data:
-        block_index = int(hour - group.start_hour)
-        if not 0 <= block_index < len(blocks):
+        block_index = _block_index_for(group, hour)
+        if block_index is None:
             continue
         selected.add((weekday, blocks[block_index]))
         cell_users.setdefault((weekday, block_index), []).append(user_id)
@@ -490,9 +607,9 @@ def availability(group_id):
     active_weekdays = group.get_active_weekdays()
 
     if request.method == "POST":
-        _clear_existing_availability(group_id, current_user.id)
+        _clear_existing_availability(group, current_user.id, active_weekdays)
         saved_count = _process_posted_availability(
-            group_id, request.form, blocks, current_user.id, active_weekdays
+            group_id, request.form, group, current_user.id, active_weekdays
         )
 
         if saved_count == 0:
@@ -517,8 +634,8 @@ def availability(group_id):
     )
     selected = set()
     for _, weekday, hour in user_availability:
-        block_index = int(hour - group.start_hour)
-        if 0 <= block_index < len(blocks):
+        block_index = _block_index_for(group, hour)
+        if block_index is not None:
             selected.add((weekday, block_index))
     return render_template(
         "groups/availability.html",
@@ -535,7 +652,6 @@ def availability(group_id):
 def availability_autosave(group_id):
     """Guarda la disponibilidad completa del usuario vía fetch, sin recargar la página."""
     group, _ = require_group_member(group_id)
-    blocks = _generate_time_blocks(group)
     active_weekdays = group.get_active_weekdays()
 
     payload = request.get_json(silent=True) or {}
@@ -551,9 +667,9 @@ def availability_autosave(group_id):
         if isinstance(slot, dict)
     }
 
-    _clear_existing_availability(group_id, current_user.id)
+    _clear_existing_availability(group, current_user.id, active_weekdays)
     saved_count = _process_posted_availability(
-        group_id, form_data, blocks, current_user.id, active_weekdays
+        group_id, form_data, group, current_user.id, active_weekdays
     )
 
     return {"ok": True, "saved_count": saved_count}
@@ -562,18 +678,30 @@ def availability_autosave(group_id):
 @group_bp.route("/<int:group_id>/availability/settings", methods=["POST"])
 @login_required
 def availability_settings(group_id):
-    """Permite a owner/admin ajustar el rango horario y los días visibles del grupo."""
+    """Permite a owner/admin ajustar horario, extensión del bloque y días visibles."""
     group, _ = require_group_admin_or_owner(group_id)
 
     try:
-        start_hour = int(request.form.get("start_hour", group.start_hour))
-        end_hour = int(request.form.get("end_hour", group.end_hour))
+        start_minutes = parse_time_to_minutes(
+            request.form.get("start_time") or _format_minutes(group.start_minutes)
+        )
+        end_minutes = parse_time_to_minutes(
+            request.form.get("end_time") or _format_minutes(group.end_minutes)
+        )
+        block_minutes = int(request.form.get("block_minutes", group.block_minutes))
     except (TypeError, ValueError):
         flash("❌ Rango horario inválido.", "danger")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
-    if not (0 <= start_hour < end_hour <= 24):
-        flash("❌ El rango horario no es válido (debe ir de 0 a 24 y el inicio ser menor al fin).", "danger")
+    if not 0 <= start_minutes < end_minutes <= 24 * 60:
+        flash("❌ El rango horario no es válido: el inicio debe ser anterior al fin.", "danger")
+        return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
+
+    if not 5 <= block_minutes <= end_minutes - start_minutes:
+        flash(
+            "❌ La extensión del bloque debe ser de al menos 5 minutos y caber dentro del rango.",
+            "danger",
+        )
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
     weekdays = request.form.getlist("weekdays")
@@ -585,14 +713,37 @@ def availability_settings(group_id):
         flash("❌ Selecciona al menos un día.", "danger")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
-    hidden_blocks = _count_out_of_range_marks(group_id, start_hour, end_hour, weekday_ints)
+    old_starts = group.block_starts()
+    old_block_minutes = group.block_minutes
+    grid_changed = (
+        start_minutes != group.start_minutes
+        or end_minutes != group.end_minutes
+        or block_minutes != group.block_minutes
+    )
 
-    group.start_hour = start_hour
-    group.end_hour = end_hour
+    hidden_blocks = _count_out_of_range_marks(
+        group_id, start_minutes, end_minutes, weekday_ints
+    )
+
+    group.start_minutes = start_minutes
+    group.end_minutes = end_minutes
+    group.block_minutes = block_minutes
     group.active_weekdays = ",".join(str(d) for d in weekday_ints)
     scheduler_db.session.commit()
 
+    remapped = 0
+    if grid_changed:
+        remapped = _remap_availability_marks(
+            group, old_starts, old_block_minutes, set(weekday_ints)
+        )
+
     flash("✅ Configuración de disponibilidad actualizada.", "success")
+    if remapped:
+        flash(
+            f"🔄 {remapped} marcas de disponibilidad se reubicaron en los bloques "
+            "nuevos que cubren su horario original.",
+            "info",
+        )
     if hidden_blocks:
         flash(
             f"ℹ️ {hidden_blocks} bloques ya marcados quedan fuera del nuevo rango. "

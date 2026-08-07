@@ -11,8 +11,11 @@ class Group(SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-p
     )
     owner = scheduler_db.relationship("User", backref="groups")
     # Rango horario y días visibles en la grilla de disponibilidad del grupo.
-    start_hour = scheduler_db.Column(scheduler_db.Integer, nullable=False, default=8)
-    end_hour = scheduler_db.Column(scheduler_db.Integer, nullable=False, default=19)
+    # El rango se guarda en minutos desde medianoche para permitir horas con
+    # minutos (08:15, 13:45); `block_minutes` es la extensión de cada bloque.
+    start_minutes = scheduler_db.Column(scheduler_db.Integer, nullable=False, default=510)
+    end_minutes = scheduler_db.Column(scheduler_db.Integer, nullable=False, default=1170)
+    block_minutes = scheduler_db.Column(scheduler_db.Integer, nullable=False, default=60)
     # CSV de índices de día (0=Lunes ... 6=Domingo) activos para el grupo.
     active_weekdays = scheduler_db.Column(
         scheduler_db.String(20), nullable=False, default="0,1,2,3,4,5,6"
@@ -45,3 +48,15 @@ class Group(SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-p
         except ValueError:
             return list(range(7))
         return days or list(range(7))
+
+    def block_starts(self):
+        """Minutos desde medianoche en que arranca cada bloque de la grilla.
+
+        Los bloques se colocan seguidos desde `start_minutes`; el último que no
+        cabe entero antes de `end_minutes` se descarta.
+        """
+        if self.block_minutes <= 0 or self.end_minutes <= self.start_minutes:
+            return []
+        return list(
+            range(self.start_minutes, self.end_minutes - self.block_minutes + 1, self.block_minutes)
+        )
