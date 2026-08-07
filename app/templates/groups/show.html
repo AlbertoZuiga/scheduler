@@ -315,6 +315,7 @@
   </div>
 </div>
 {% endif %}
+{% endblock %}
 
 {% block script %}
 {{ super() }}
@@ -963,7 +964,6 @@
     async function submitBulk(action) {
       const member_ids = getCheckedValues(membersContainer);
       const category_ids = getCheckedValues(categoriesContainer);
-        console.log('submitBulk action:', action, { member_ids, category_ids });
       if (member_ids.length === 0 || category_ids.length === 0) {
         showInlineAlert('Selecciona al menos un miembro y una categoría.', 'warning');
         return;
@@ -1000,6 +1000,4 @@
     setupScheduleFiltering();
   });
 </script>
-{% endblock %}
-
 {% endblock %}
