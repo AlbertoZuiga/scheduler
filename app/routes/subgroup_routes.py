@@ -199,9 +199,14 @@ def confirm(group_id):
                 scheduler_db.session.add(subgroup_member)
             
             created_subgroups.append(subgroup.to_dict())
-        
-        # Actualizar estado del job
+
+        # Actualizar estado del job y registrar qué subgrupos creó,
+        # para que 'undo' pueda revertir solo esta división y no otras.
         job.status = 'confirmed'
+        job.result_json = {
+            **preview,
+            'created_subgroup_ids': [sg['id'] for sg in created_subgroups],
+        }
         scheduler_db.session.commit()
         
         flash(f'Se crearon {len(created_subgroups)} subgrupos exitosamente.', 'success')
@@ -235,13 +240,24 @@ def undo(group_id):
         
         if not last_job:
             return jsonify({'error': 'No hay divisiones confirmadas para deshacer'}), 400
-        
-        # Eliminar todos los subgrupos autogenerados del grupo
-        subgroups = SubGroup.query.filter_by(
-            parent_group_id=group_id,
-            auto_generated=True
-        ).all()
-        
+
+        # Eliminar únicamente los subgrupos creados por ESTE job, no todos los
+        # subgrupos automáticos del grupo (podrían existir divisiones previas).
+        result_json = last_job.result_json or {}
+        if 'created_subgroup_ids' in result_json:
+            created_ids = result_json.get('created_subgroup_ids') or []
+            subgroups = SubGroup.query.filter(
+                SubGroup.parent_group_id == group_id,
+                SubGroup.id.in_(created_ids),
+            ).all()
+        else:
+            # Jobs confirmados antes de este cambio no registraron sus ids;
+            # se conserva el comportamiento anterior como fallback.
+            subgroups = SubGroup.query.filter_by(
+                parent_group_id=group_id,
+                auto_generated=True
+            ).all()
+
         for subgroup in subgroups:
             scheduler_db.session.delete(subgroup)
         
