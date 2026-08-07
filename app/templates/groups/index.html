@@ -13,10 +13,18 @@
       </h2>
       <p class="text-light-text-secondary dark:text-dark-text-secondary text-xs sm:text-sm">Gestiona tus grupos y coordina disponibilidad</p>
     </div>
-    <a href="{{ url_for('groups.create') }}" class="inline-flex items-center gap-2 px-4 py-2.5 sm:py-2 rounded-lg bg-primary text-white font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all focus:outline-none focus:ring-2 focus:ring-primary touch-manipulation active:scale-95 text-sm sm:text-base min-h-[44px] sm:min-h-[40px] w-full sm:w-auto justify-center">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-      Crear Nuevo Grupo
-    </a>
+    <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+      {% if trash_count %}
+      <a href="{{ url_for('groups.trash') }}" class="inline-flex items-center gap-2 px-4 py-2.5 sm:py-2 rounded-lg border border-light-border dark:border-dark-border font-semibold hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition-all focus:outline-none focus:ring-2 focus:ring-primary text-sm sm:text-base min-h-[44px] sm:min-h-[40px] w-full sm:w-auto justify-center">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+        Papelera ({{ trash_count }})
+      </a>
+      {% endif %}
+      <a href="{{ url_for('groups.create') }}" class="inline-flex items-center gap-2 px-4 py-2.5 sm:py-2 rounded-lg bg-primary text-white font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all focus:outline-none focus:ring-2 focus:ring-primary touch-manipulation active:scale-95 text-sm sm:text-base min-h-[44px] sm:min-h-[40px] w-full sm:w-auto justify-center">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+        Crear Nuevo Grupo
+      </a>
+    </div>
   </div>
 
   {% if groups %}

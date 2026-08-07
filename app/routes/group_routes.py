@@ -3,6 +3,7 @@ import csv
 import io
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for, abort, make_response
+from markupsafe import Markup, escape
 from flask_login import current_user, login_required
 
 from app.extensions import scheduler_db
@@ -14,6 +15,12 @@ from app.authz import (
     require_group_owner,
     safe_remove_member,
 )
+from app.soft_delete import (
+    INCLUDE_DELETED,
+    active_or_404,
+    find_soft_deleted,
+    restore_batch,
+)
 
 group_bp = Blueprint("groups", __name__, url_prefix="/groups")
 
@@ -24,6 +31,8 @@ def _generate_time_blocks(group):
     ]
 
 def _clear_existing_availability(group_id, user_id):
+    """Oculta la disponibilidad previa del usuario. No borra filas: al volver a
+    marcar el mismo bloque se restaura la fila existente (ver _restore_or_create)."""
     user_avails = (
         scheduler_db.session.query(UserAvailability)
         .join(Availability)
@@ -31,7 +40,7 @@ def _clear_existing_availability(group_id, user_id):
         .all()
     )
     for ua in user_avails:
-        scheduler_db.session.delete(ua)
+        ua.soft_delete()
     scheduler_db.session.commit()
 
 def _process_posted_availability(group_id, form_data, blocks, user_id, active_weekdays=None):
@@ -60,10 +69,21 @@ def _process_posted_availability(group_id, form_data, blocks, user_id, active_we
                 ).first()
 
                 if not existing:
-                    user_availability = UserAvailability(
-                        user_id=user_id, availability_id=group_availability.id
+                    # Reutiliza la fila oculta si existe: evita duplicar
+                    # (user_id, availability_id) en cada guardado.
+                    hidden = find_soft_deleted(
+                        UserAvailability,
+                        user_id=user_id,
+                        availability_id=group_availability.id,
                     )
-                    scheduler_db.session.add(user_availability)
+                    if hidden:
+                        hidden.restore()
+                    else:
+                        scheduler_db.session.add(
+                            UserAvailability(
+                                user_id=user_id, availability_id=group_availability.id
+                            )
+                        )
                     count += 1
     scheduler_db.session.commit()
     return count
@@ -104,6 +124,39 @@ def convert_float_to_time_string(hour):
         raise ValueError("Invalid hour value. Expected a float.") from exc
 
 
+def _active_member_user_ids(group_id):
+    """Ids de usuarios que siguen siendo miembros del grupo.
+
+    La disponibilidad de quien se fue no se borra, así que hay que excluirla
+    explícitamente de los agregados para no inflar los conteos.
+    """
+    return {
+        user_id
+        for (user_id,) in scheduler_db.session.query(GroupMember.user_id)
+        .filter(GroupMember.group_id == group_id)
+        .all()
+    }
+
+
+def _count_out_of_range_marks(group_id, start_hour, end_hour, weekdays):
+    """Cuenta marcas de disponibilidad que el nuevo rango dejaría fuera de la grilla.
+
+    No se borra ninguna: solo dejan de mostrarse mientras el rango las excluya.
+    """
+    rows = (
+        scheduler_db.session.query(Availability.weekday, Availability.hour)
+        .join(UserAvailability, UserAvailability.availability_id == Availability.id)
+        .filter(Availability.group_id == group_id)
+        .filter(UserAvailability.user_id.in_(_active_member_user_ids(group_id)))
+        .all()
+    )
+    return sum(
+        1
+        for weekday, hour in rows
+        if weekday not in weekdays or not start_hour <= hour < end_hour
+    )
+
+
 def get_availability_data(group_id):
     if not group_id:
         return {}
@@ -118,6 +171,7 @@ def get_availability_data(group_id):
         )
         .join(UserAvailability, UserAvailability.availability_id == Availability.id)
         .filter(Availability.group_id == group_id)
+        .filter(UserAvailability.user_id.in_(_active_member_user_ids(group_id)))
         .all()
     )
 
@@ -148,7 +202,18 @@ def index():
         m.group_id for m in memberships if m.role == RoleEnum.ADMIN
     }
 
-    return render_template("groups/index.html", groups=groups, admin_group_ids=admin_group_ids)
+    trash_count = (
+        Group.query.execution_options(**{INCLUDE_DELETED: True})
+        .filter(Group.deleted_at.isnot(None), Group.owner_id == current_user.id)
+        .count()
+    )
+
+    return render_template(
+        "groups/index.html",
+        groups=groups,
+        admin_group_ids=admin_group_ids,
+        trash_count=trash_count,
+    )
 
 
 @group_bp.route("/<int:group_id>", methods=["GET"])
@@ -175,6 +240,7 @@ def show(group_id):
             )
             .join(Availability, UserAvailability.availability_id == Availability.id)
             .filter(Availability.group_id == group.id)
+            .filter(UserAvailability.user_id.in_(_active_member_user_ids(group.id)))
             .all()
         )
     else:
@@ -207,6 +273,7 @@ def show(group_id):
             scheduler_db.session.query(UserAvailability.user_id)
             .join(Availability, UserAvailability.availability_id == Availability.id)
             .filter(Availability.group_id == group.id)
+            .filter(UserAvailability.user_id.in_(_active_member_user_ids(group.id)))
             .distinct()
             .all()
         )
@@ -310,14 +377,23 @@ def join(token):
 
     user_id = current_user.id
 
-    print(group, user_id)
-
     if GroupMember.query.filter_by(group_id=group.id, user_id=user_id).first():
         flash(f"ℹ️ Ya eres miembro del grupo '{group.name}'.", "info")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group.id))
 
-    new_member = GroupMember(group_id=group.id, user_id=user_id, role=RoleEnum.MEMBER)
-    scheduler_db.session.add(new_member)
+    # Si ya estuvo en el grupo y lo removieron, se reutiliza esa membresía (con
+    # sus categorías) en vez de insertar una fila duplicada que dejaría al mismo
+    # usuario contado dos veces y listado a la vez como activo y como removido.
+    removed = find_soft_deleted(GroupMember, group_id=group.id, user_id=user_id)
+    if removed:
+        restore_batch(removed)
+        # Reingresar por el enlace público no devuelve privilegios: quien fue
+        # removido siendo admin vuelve como miembro.
+        removed.role = RoleEnum.MEMBER
+    else:
+        scheduler_db.session.add(
+            GroupMember(group_id=group.id, user_id=user_id, role=RoleEnum.MEMBER)
+        )
     scheduler_db.session.commit()
 
     flash(f"✅ ¡Bienvenido! Te has unido al grupo '{group.name}' exitosamente.", "success")
@@ -337,12 +413,23 @@ def members(group_id):
             scheduler_db.session.query(UserAvailability.user_id)
             .join(Availability, UserAvailability.availability_id == Availability.id)
             .filter(Availability.group_id == group.id)
+            .filter(UserAvailability.user_id.in_(_active_member_user_ids(group.id)))
             .distinct()
             .all()
         )
     }
     # Quienes no han respondido primero: son los que necesitan seguimiento.
     group_members.sort(key=lambda gm: gm.user_id in responded_user_ids)
+
+    # Miembros removidos: no se borran, quedan disponibles para reincorporar.
+    removed_members = []
+    if can_manage:
+        removed_members = (
+            GroupMember.query.execution_options(**{INCLUDE_DELETED: True})
+            .filter(GroupMember.group_id == group.id, GroupMember.deleted_at.isnot(None))
+            .order_by(GroupMember.deleted_at.desc())
+            .all()
+        )
 
     return render_template(
         "groups/members.html",
@@ -352,6 +439,7 @@ def members(group_id):
         categories=categories,
         can_manage=can_manage,
         responded_user_ids=responded_user_ids,
+        removed_members=removed_members,
     )
 
 
@@ -497,12 +585,20 @@ def availability_settings(group_id):
         flash("❌ Selecciona al menos un día.", "danger")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
+    hidden_blocks = _count_out_of_range_marks(group_id, start_hour, end_hour, weekday_ints)
+
     group.start_hour = start_hour
     group.end_hour = end_hour
     group.active_weekdays = ",".join(str(d) for d in weekday_ints)
     scheduler_db.session.commit()
 
     flash("✅ Configuración de disponibilidad actualizada.", "success")
+    if hidden_blocks:
+        flash(
+            f"ℹ️ {hidden_blocks} bloques ya marcados quedan fuera del nuevo rango. "
+            "No se borraron: vuelven a aparecer si amplías el horario o los días.",
+            "info",
+        )
     return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
 
@@ -512,60 +608,76 @@ def delete(group_id):
     group, _ = require_group_owner(group_id)
     group_name = group.name
 
-    availability_ids = [a.id for a in Availability.query.filter_by(group_id=group_id).all()]
-    if availability_ids:
-        UserAvailability.query.filter(
-            UserAvailability.availability_id.in_(availability_ids)
-        ).delete(synchronize_session=False)
-
-    Availability.query.filter_by(group_id=group_id).delete()
-    GroupMember.query.filter_by(group_id=group_id).delete()
-
-    scheduler_db.session.delete(group)
+    # Nada se borra de la base: el grupo y sus miembros, categorías y subgrupos
+    # quedan ocultos y recuperables desde la papelera.
+    group.soft_delete()
     scheduler_db.session.commit()
 
-    flash(f"✅ Grupo '{group_name}' eliminado exitosamente.", "success")
+    restore_url = url_for("groups.restore", group_id=group.id)
+    flash(
+        Markup(
+            f"🗑️ Grupo '{escape(group_name)}' movido a la papelera. "
+            f'<a class="underline font-medium" href="{restore_url}">Deshacer</a>'
+        ),
+        "success",
+    )
     return redirect(url_for(GROUP_INDEX_URL))
+
+
+@group_bp.route("/trash", methods=["GET"])
+@login_required
+def trash():
+    """Papelera: grupos que el usuario eliminó y puede restaurar."""
+    groups = (
+        Group.query.execution_options(**{INCLUDE_DELETED: True})
+        .filter(Group.deleted_at.isnot(None), Group.owner_id == current_user.id)
+        .order_by(Group.deleted_at.desc())
+        .all()
+    )
+    return render_template("groups/trash.html", groups=groups)
+
+
+@group_bp.route("/<int:group_id>/restore", methods=["GET", "POST"])
+@login_required
+def restore(group_id):
+    group = (
+        Group.query.execution_options(**{INCLUDE_DELETED: True})
+        .filter(Group.id == group_id)
+        .first()
+    )
+    if group is None or group.owner_id != current_user.id:
+        abort(404)
+
+    if not group.is_deleted:
+        return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
+
+    restore_batch(group)
+    scheduler_db.session.commit()
+
+    flash(f"✅ Grupo '{group.name}' restaurado.", "success")
+    return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
 
 @group_bp.route("/<int:group_id>/leave", methods=["POST"])
 @login_required
 def leave(group_id):
-    Group.query.get_or_404(group_id)
+    group = active_or_404(Group.query.get(group_id))
     membership = GroupMember.query.filter_by(user_id=current_user.id, group_id=group_id).first()
     if not membership:
         flash("⚠️ No perteneces a este grupo.", "warning")
         return redirect(url_for(GROUP_INDEX_URL))
-    ua_ids = (
-        scheduler_db.session.query(UserAvailability.id)
-        .join(Availability)
-        .filter(UserAvailability.user_id == current_user.id, Availability.group_id == group_id)
-        .all()
-    )
-    ua_ids = [id for (id,) in ua_ids]
-    if ua_ids:
-        scheduler_db.session.query(UserAvailability).filter(UserAvailability.id.in_(ua_ids)).delete(
-            synchronize_session=False
-        )
 
-    # Borramos la membresía del usuario actual
-    scheduler_db.session.delete(membership)
-
-    group = Group.query.get_or_404(group_id)
+    # La disponibilidad del usuario no se toca: queda fuera de los agregados
+    # por dejar de ser miembro, y vuelve tal cual si reingresa.
+    membership.soft_delete()
 
     if group.owner_id == current_user.id:
         remaining_members = GroupMember.query.filter_by(group_id=group_id).all()
         if remaining_members:
             group.owner_id = remaining_members[0].user_id
         else:
-            # Delete all related availability and the group
-            availability_ids = [a.id for a in Availability.query.filter_by(group_id=group_id).all()]
-            if availability_ids:
-                UserAvailability.query.filter(
-                    UserAvailability.availability_id.in_(availability_ids)
-                ).delete(synchronize_session=False)
-            Availability.query.filter_by(group_id=group_id).delete()
-            scheduler_db.session.delete(group)
+            # Grupo sin nadie: se oculta, no se borra.
+            group.soft_delete()
 
     scheduler_db.session.commit()
 
@@ -580,24 +692,36 @@ def remove(group_id, user_id):
         flash("ℹ️ Para salir del grupo, usa la opción 'Abandonar grupo'.", "info")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
-    # Ejecuta comprobaciones y elimina
+    # Ejecuta comprobaciones y oculta la membresía (la disponibilidad se conserva)
     safe_remove_member(group_id, user_id)
-
-    # Limpiamos disponibilidad asociada sólo si el miembro existía
-    ua_ids = (
-        scheduler_db.session.query(UserAvailability.id)
-        .join(Availability)
-        .filter(UserAvailability.user_id == user_id, Availability.group_id == group_id)
-        .all()
-    )
-    ua_ids = [id for (id,) in ua_ids]
-    if ua_ids:
-        scheduler_db.session.query(UserAvailability).filter(UserAvailability.id.in_(ua_ids)).delete(
-            synchronize_session=False
-        )
-
     scheduler_db.session.commit()
-    flash("✅ Miembro removido del grupo exitosamente.", "success")
+
+    restore_url = url_for("groups.restore_member", group_id=group_id, user_id=user_id)
+    flash(
+        Markup(
+            "🗑️ Miembro removido del grupo. "
+            f'<a class="underline font-medium" href="{restore_url}">Deshacer</a>'
+        ),
+        "success",
+    )
+    return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
+
+
+@group_bp.route("/<int:group_id>/restore_member/<int:user_id>", methods=["GET", "POST"])
+@login_required
+def restore_member(group_id, user_id):
+    """Reincorpora a un miembro removido, con su disponibilidad y categorías."""
+    require_group_admin_or_owner(group_id)
+
+    membership = find_soft_deleted(GroupMember, group_id=group_id, user_id=user_id)
+    if membership is None:
+        flash("⚠️ Ese miembro no está en la papelera del grupo.", "warning")
+        return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
+
+    restore_batch(membership)
+    scheduler_db.session.commit()
+
+    flash("✅ Miembro reincorporado al grupo.", "success")
     return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
 

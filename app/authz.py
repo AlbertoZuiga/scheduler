@@ -10,12 +10,13 @@ from typing import Tuple
 from flask import abort, flash
 from flask_login import current_user
 
-from app.extensions import scheduler_db
 from app.models import Group, GroupMember, RoleEnum
+from app.soft_delete import active_or_404
 
 
 def get_group_or_404(group_id: int) -> Group:
-    return Group.query.get_or_404(group_id)
+    # `query.get` resuelve por identity map y esquiva el filtro de borrado lógico.
+    return active_or_404(Group.query.get(group_id))
 
 
 def get_membership(group_id: int, user_id: int):
@@ -66,7 +67,7 @@ def safe_remove_member(group_id: int, user_id: int):
 
     # Owner siempre puede eliminar excepto a sí mismo (usar leave para eso)
     if group.owner_id == current_user.id:
-        scheduler_db.session.delete(target_membership)
+        target_membership.soft_delete()
         return
 
     # Admin intentando eliminar
@@ -83,4 +84,4 @@ def safe_remove_member(group_id: int, user_id: int):
         flash("No puedes eliminar a otro administrador.", "danger")
         abort(403)
 
-    scheduler_db.session.delete(target_membership)
+    target_membership.soft_delete()
