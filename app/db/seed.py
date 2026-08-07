@@ -1,11 +1,70 @@
 from app import scheduler_app, scheduler_db
 import random
+from app.soft_delete import including_deleted
 from ..models import User, Group, Category, GroupMember, GroupMemberCategory, Availability, UserAvailability
+from ..models.subgroup import DivisionJob, SubGroupMember
+
+_SEED_EMAILS = {
+    "ana@example.com", "bruno@example.com", "carla@example.com",
+    "david@example.com", "elena@example.com", "felipe@example.com",
+}
+_SEED_TOKENS = {"alphatoken", "mathstoken", "sporttoken"}
+
+
+def _clear_seed_data():
+    """Borra físicamente los datos del seed anterior para poder recrearlos.
+
+    Todo corre dentro de `including_deleted()`: las cascadas del ORM cargan las
+    relaciones con lazy load, y el filtro global escondería a los hijos borrados
+    lógicamente. Sin ellos, el DELETE del padre revienta por foreign key.
+    """
+    with including_deleted():
+        seed_groups = Group.query.filter(Group.join_token.in_(_SEED_TOKENS)).all()
+        seed_group_ids = [g.id for g in seed_groups]
+
+        if seed_group_ids:
+            avail_ids = [
+                row[0]
+                for row in scheduler_db.session.query(Availability.id)
+                .filter(Availability.group_id.in_(seed_group_ids))
+                .all()
+            ]
+            if avail_ids:
+                UserAvailability.query.filter(
+                    UserAvailability.availability_id.in_(avail_ids)
+                ).delete(synchronize_session=False)
+            scheduler_db.session.query(Availability).filter(
+                Availability.group_id.in_(seed_group_ids)
+            ).delete(synchronize_session=False)
+            # DivisionJob no cascadea desde Group: sin esto el ORM intentaría
+            # dejar parent_group_id en NULL, que es NOT NULL.
+            scheduler_db.session.query(DivisionJob).filter(
+                DivisionJob.parent_group_id.in_(seed_group_ids)
+            ).delete(synchronize_session=False)
+            for group in seed_groups:
+                scheduler_db.session.delete(group)
+
+        seed_users = User.query.filter(User.email.in_(_SEED_EMAILS)).all()
+        seed_user_ids = [u.id for u in seed_users]
+        if seed_user_ids:
+            # UserAvailability y SubGroupMember tampoco cascadean desde User.
+            UserAvailability.query.filter(
+                UserAvailability.user_id.in_(seed_user_ids)
+            ).delete(synchronize_session=False)
+            scheduler_db.session.query(SubGroupMember).filter(
+                SubGroupMember.user_id.in_(seed_user_ids)
+            ).delete(synchronize_session=False)
+        for user in seed_users:
+            scheduler_db.session.delete(user)
+
+        scheduler_db.session.commit()
 
 
 def seed_database():
+    print("Limpiando datos anteriores...")
+    _clear_seed_data()
     print("Creando datos...")
-    
+
     # === USERS ===
     users = [
         User(email="ana@example.com", name="Ana Pérez"),
@@ -17,8 +76,8 @@ def seed_database():
     ]
     scheduler_db.session.add_all(users)
     scheduler_db.session.commit()
-    owner = User.query.filter_by(email="azuiga@miuandes.cl").first()
 
+    owner = User.query.filter_by(email="azuiga@miuandes.cl").first()
     if not owner:
         owner = User(email="azuiga@miuandes.cl", name="Alberto Zúñiga")
         scheduler_db.session.add(owner)
@@ -89,29 +148,24 @@ def seed_database():
     scheduler_db.session.commit()
 
     # === AVAILABILITY ===
-    # Horario de 8:30 a 19:20 -> intervalos de 1 hora
-    hours = [8.5 + i for i in range(11)]  # 8.5 → 19.5
     availability_list = []
     for group in groups:
-        for weekday in range(7):  # Lunes a domingo
-            for hour in random.sample(hours, k=3):  # 3 horarios disponibles al azar por día
-                availability_list.append(Availability(group_id=group.id, weekday=weekday, hour=hour))
+        block_starts = group.block_starts()
+        for weekday in range(7):
+            for start_minutes in random.sample(block_starts, k=min(3, len(block_starts))):
+                availability_list.append(Availability(group_id=group.id, weekday=weekday, hour=start_minutes / 60))
     scheduler_db.session.add_all(availability_list)
     scheduler_db.session.commit()
 
     # === USER AVAILABILITY ===
-    # Crear disponibilidad solo para miembros del grupo correspondiente
     for group_member in group_members:
-        # Obtener las disponibilidades del grupo de este miembro
         group_availabilities = Availability.query.filter_by(group_id=group_member.group_id).all()
         if group_availabilities:
-            # Seleccionar algunas disponibilidades al azar (máximo 10 o todas si hay menos)
-            num_to_select = min(10, len(group_availabilities))
-            selected_availabilities = random.sample(group_availabilities, k=num_to_select)
-            for avail in selected_availabilities:
+            selected = random.sample(group_availabilities, k=min(10, len(group_availabilities)))
+            for avail in selected:
                 scheduler_db.session.add(UserAvailability(user_id=group_member.user_id, availability_id=avail.id))
     scheduler_db.session.commit()
-    
+
     print("Datos creados correctamente!")
 
 
