@@ -1,7 +1,8 @@
 from app.extensions import scheduler_db
+from app.models.mixins import SoftDeleteMixin
 
 
-class Group(scheduler_db.Model):    # pylint: disable=too-few-public-methods
+class Group(SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-public-methods
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     name = scheduler_db.Column(scheduler_db.String(150), nullable=False)
     join_token = scheduler_db.Column(scheduler_db.String(64), unique=True, nullable=False)
@@ -30,6 +31,9 @@ class Group(scheduler_db.Model):    # pylint: disable=too-few-public-methods
             f"owner={self.owner.name} "
             f"member_count={len(self.members)}>"
         )
+
+    def soft_delete_cascade(self):
+        return [*self.members, *self.categories, *self.subgroups]
 
     def get_active_weekdays(self):
         """Devuelve la lista ordenada de índices de día (0=Lunes) activos para el grupo."""

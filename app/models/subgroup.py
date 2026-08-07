@@ -3,9 +3,10 @@ Modelos para subgrupos optimizados y división automática de grupos.
 """
 from datetime import datetime
 from app.extensions import scheduler_db
+from app.models.mixins import SoftDeleteMixin
 
 
-class SubGroup(scheduler_db.Model):
+class SubGroup(SoftDeleteMixin, scheduler_db.Model):
     """
     Representa un subgrupo creado automáticamente a partir de un grupo padre.
     """
@@ -21,6 +22,9 @@ class SubGroup(scheduler_db.Model):
     # Relaciones
     parent_group = scheduler_db.relationship('Group', backref=scheduler_db.backref('subgroups', lazy='dynamic', cascade='all, delete-orphan'))
     members = scheduler_db.relationship('SubGroupMember', back_populates='subgroup', cascade='all, delete-orphan')
+
+    def soft_delete_cascade(self):
+        return list(self.members)
 
     def __repr__(self):
         return f'<SubGroup {self.name} (parent: {self.parent_group_id})>'
@@ -38,7 +42,7 @@ class SubGroup(scheduler_db.Model):
         }
 
 
-class SubGroupMember(scheduler_db.Model):
+class SubGroupMember(SoftDeleteMixin, scheduler_db.Model):
     """
     Tabla de relación many-to-many entre SubGroup y User.
     Permite que un usuario pertenezca a múltiples subgrupos si allow_multiple_membership=True.

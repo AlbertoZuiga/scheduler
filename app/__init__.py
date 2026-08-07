@@ -4,6 +4,7 @@ from flask_login import current_user
 from app.extensions import scheduler_db, login_manager
 from app.models.user import User
 from app.routes import blueprints
+from app.soft_delete import install_soft_delete_filter
 from config import Config
 
 
@@ -11,6 +12,7 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     scheduler_db.init_app(app)
+    install_soft_delete_filter()
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
 
