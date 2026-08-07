@@ -7,7 +7,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for,
 from flask_login import current_user, login_required
 
 from app.extensions import scheduler_db
-from app.models import GroupMember, Category
+from app.models import GroupMember, Category, RoleEnum
 from app.models.subgroup import SubGroup, SubGroupMember, DivisionJob
 from app.soft_delete import find_soft_deleted
 
@@ -399,9 +399,13 @@ def index(group_id):
     Lista los subgrupos del grupo: todos con VIEW_ALL, solo el propio con VIEW_OWN.
     """
     # Verificar permisos
-    group, _, perms = require_group_permission(group_id, PERM_VIEW_OWN)
+    group, membership, perms = require_group_permission(group_id, PERM_VIEW_OWN)
     can_view_all = PERM_VIEW_ALL in perms
     can_edit_all = PERM_EDIT_ALL in perms
+    # Los emails del roster son dato de administración: el permiso extra de
+    # subgrupos no los abre (la exportación de emails también quedó restringida
+    # a owner/admin en groups.export_members_csv).
+    can_see_emails = group.owner_id == current_user.id or membership.role == RoleEnum.ADMIN
 
     all_subgroups = (
         SubGroup.query.filter_by(parent_group_id=group_id)
@@ -459,6 +463,7 @@ def index(group_id):
         members_without_subgroup=members_without_subgroup,
         can_view_all=can_view_all,
         can_edit_all=can_edit_all,
+        can_see_emails=can_see_emails,
         editable_subgroup_ids=editable_subgroup_ids,
     )
 

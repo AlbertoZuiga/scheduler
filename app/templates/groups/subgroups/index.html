@@ -124,7 +124,7 @@
                 {% for member in group_members %}
                   {% if member.user_id not in member_ids %}
                     {% set member_name = member.user.name if member.user and member.user.name else (member.user.email if member.user else 'Usuario desconocido') %}
-                    <option value="{{ member.user_id }}">{{ member_name }}{% if member.user and member.user.email and member.user.name %} · {{ member.user.email }}{% endif %}</option>
+                    <option value="{{ member.user_id }}">{{ member_name }}{% if can_see_emails and member.user and member.user.email and member.user.name %} · {{ member.user.email }}{% endif %}</option>
                   {% endif %}
                 {% endfor %}
               </select>
@@ -152,7 +152,9 @@
                   <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div class="min-w-0">
                       <p class="font-medium truncate">{{ member_name }}</p>
+                      {% if can_see_emails %}
                       <p class="text-xs text-light-text-secondary dark:text-dark-text-secondary truncate">{{ member.user.email if member.user else 'Usuario desconocido' }}</p>
+                      {% endif %}
                     </div>
                     {% if can_edit_this %}
                     <form method="POST" action="{{ url_for('subgroups.remove_member', group_id=group.id, subgroup_id=subgroup.id, user_id=member.user_id) }}" data-confirm="¿Quitar a esta persona del subgrupo {{ subgroup.name }}?" class="shrink-0">

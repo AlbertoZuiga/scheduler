@@ -11,8 +11,14 @@ from flask import abort, flash
 from flask_login import current_user
 
 from app.models import Group, GroupMember, RoleEnum
-from app.models.subgroup import SubGroup
-from app.permissions import effective_permissions
+from app.models.subgroup import SubGroup, SubGroupMember
+from app.permissions import (
+    PERM_EDIT_ALL,
+    PERM_EDIT_OWN,
+    PERM_VIEW_ALL,
+    PERM_VIEW_OWN,
+    effective_permissions,
+)
 from app.soft_delete import active_or_404
 
 
@@ -68,8 +74,6 @@ def require_subgroup_access(group_id: int, subgroup_id: int, *, edit: bool):
     Con el permiso "_all" alcanza cualquier subgrupo; con el "_own" el
     usuario debe pertenecer activamente a `subgroup_id`.
     """
-    from app.permissions import PERM_EDIT_ALL, PERM_EDIT_OWN, PERM_VIEW_ALL, PERM_VIEW_OWN
-
     perm_own = PERM_EDIT_OWN if edit else PERM_VIEW_OWN
     perm_all = PERM_EDIT_ALL if edit else PERM_VIEW_ALL
 
@@ -81,8 +85,6 @@ def require_subgroup_access(group_id: int, subgroup_id: int, *, edit: bool):
         return group, membership, subgroup, perms
 
     if perm_own in perms:
-        from app.models.subgroup import SubGroupMember
-
         belongs = SubGroupMember.query.filter_by(
             subgroup_id=subgroup_id, user_id=current_user.id
         ).first()
