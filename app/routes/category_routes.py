@@ -4,6 +4,7 @@ from flask_login import login_required, current_user
 from app.extensions import scheduler_db
 from app.models import Category, GroupMember, GroupMemberCategory
 from app.authz import require_group_member, require_group_admin_or_owner
+from app.soft_delete import active_or_404, find_soft_deleted, restore_batch
 
 
 category_bp = Blueprint("categories", __name__, url_prefix="/categories")
@@ -46,8 +47,20 @@ def _handle_create_category(group_id: int):
     if _category_exists(group_id, name):
         return _json_or_flash(False, DUPLICATE_MSG, 409, url_for(GROUP_CATEGORIES_ENDPOINT, group_id=group_id))
 
-    category = Category(group_id=group_id, name=name)
-    scheduler_db.session.add(category)
+    # Si existe una categoría eliminada con ese nombre, se restaura en vez de
+    # crear una nueva: recupera de paso sus asignaciones a miembros.
+    category = (
+        Category.query.execution_options(include_deleted=True)
+        .filter(Category.group_id == group_id, Category.deleted_at.isnot(None))
+        .filter(scheduler_db.func.lower(Category.name) == name.strip().lower())
+        .order_by(Category.deleted_at.desc())
+        .first()
+    )
+    if category is not None:
+        restore_batch(category)
+    else:
+        category = Category(group_id=group_id, name=name)
+        scheduler_db.session.add(category)
     scheduler_db.session.commit()
     if request.is_json:
         return jsonify({"ok": True, "id": category.id, "name": category.name}), 201
@@ -83,14 +96,12 @@ def delete_category(group_id, category_id):
     require_group_admin_or_owner(group_id)
     
     category = Category.query.filter_by(id=category_id, group_id=group_id).first_or_404()
-    
-    # Eliminar todas las asociaciones primero (cascade debería hacerlo, pero por si acaso)
-    GroupMemberCategory.query.filter_by(category_id=category_id).delete()
-    
-    # Eliminar la categoría
-    scheduler_db.session.delete(category)
+
+    # Oculta la categoría y sus asignaciones; volver a crearla con el mismo
+    # nombre las recupera.
+    category.soft_delete()
     scheduler_db.session.commit()
-    
+
     return jsonify({"ok": True, "message": "Categoría eliminada"}), 200
 
 
@@ -128,8 +139,14 @@ def _handle_member_post(group, membership, gm, group_member_id):
     existing = GroupMemberCategory.query.filter_by(group_member_id=group_member_id, category_id=category_id).first()
     if existing:
         return ("Already exists", 409)
-    assoc = GroupMemberCategory(group_member_id=group_member_id, category_id=category_id)
-    scheduler_db.session.add(assoc)
+    assoc = find_soft_deleted(
+        GroupMemberCategory, group_member_id=group_member_id, category_id=category_id
+    )
+    if assoc:
+        assoc.restore()
+    else:
+        assoc = GroupMemberCategory(group_member_id=group_member_id, category_id=category_id)
+        scheduler_db.session.add(assoc)
     scheduler_db.session.commit()
     if request.is_json:
         return jsonify({"ok": True}), 201
@@ -146,7 +163,7 @@ def _handle_member_delete(group, membership, gm, group_member_id):
     assoc = GroupMemberCategory.query.filter_by(group_member_id=group_member_id, category_id=category_id).first()
     if not assoc:
         return ("Not found", 404)
-    scheduler_db.session.delete(assoc)
+    assoc.soft_delete()
     scheduler_db.session.commit()
     if request.is_json:
         return ("", 204)
@@ -193,26 +210,35 @@ def _bulk_do_assign(gid, mids, cids):
         for cid in cids:
             key = (mid, cid)
             if key not in existing:
-                scheduler_db.session.add(GroupMemberCategory(group_member_id=mid, category_id=cid))
+                hidden = find_soft_deleted(
+                    GroupMemberCategory, group_member_id=mid, category_id=cid
+                )
+                if hidden:
+                    hidden.restore()
+                else:
+                    scheduler_db.session.add(
+                        GroupMemberCategory(group_member_id=mid, category_id=cid)
+                    )
                 created += 1
     scheduler_db.session.commit()
     return jsonify({"ok": True, "created": created})
 
 
 def _bulk_do_unassign(mids, cids):
-    q = GroupMemberCategory.query.filter(
+    assocs = GroupMemberCategory.query.filter(
         GroupMemberCategory.group_member_id.in_(mids),
         GroupMemberCategory.category_id.in_(cids),
-    )
-    deleted = q.delete(synchronize_session=False)
+    ).all()
+    for assoc in assocs:
+        assoc.soft_delete()
     scheduler_db.session.commit()
-    return jsonify({"ok": True, "deleted": deleted})
+    return jsonify({"ok": True, "deleted": len(assocs)})
 
 
 @category_bp.route("/group_member/<int:group_member_id>", methods=["GET", "POST", "DELETE"])
 @login_required
 def member_categories(group_member_id):
-    gm = GroupMember.query.get_or_404(group_member_id)
+    gm = active_or_404(GroupMember.query.get(group_member_id))
     group_id = gm.group_id
 
     # Must be member to view/modify associations

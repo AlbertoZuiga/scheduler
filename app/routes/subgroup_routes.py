@@ -9,6 +9,23 @@ from flask_login import current_user, login_required
 from app.extensions import scheduler_db
 from app.models import GroupMember, Category
 from app.models.subgroup import SubGroup, SubGroupMember, DivisionJob
+from app.soft_delete import find_soft_deleted
+
+
+def _add_subgroup_member(subgroup_id, user_id):
+    """Agrega a alguien a un subgrupo reutilizando su membresía oculta si la hay.
+
+    Evita duplicar (subgroup_id, user_id) cuando la persona ya había sido
+    quitada de ese subgrupo antes.
+    """
+    hidden = find_soft_deleted(SubGroupMember, subgroup_id=subgroup_id, user_id=user_id)
+    if hidden:
+        hidden.restore()
+        return hidden
+    membership = SubGroupMember(subgroup_id=subgroup_id, user_id=user_id)
+    scheduler_db.session.add(membership)
+    return membership
+
 from app.authz import require_group_admin_or_owner
 from app.services.subgroup_service import SubGroupService
 
@@ -259,7 +276,7 @@ def undo(group_id):
             ).all()
 
         for subgroup in subgroups:
-            scheduler_db.session.delete(subgroup)
+            subgroup.soft_delete()
         
         # Marcar job como undone
         last_job.status = 'undone'
@@ -478,7 +495,7 @@ def delete(group_id, subgroup_id):
     subgroup_name = subgroup.name
 
     try:
-        scheduler_db.session.delete(subgroup)
+        subgroup.soft_delete()
         scheduler_db.session.commit()
         flash(f'Se eliminó el subgrupo "{subgroup_name}".', 'success')
     except Exception as exc:
@@ -516,12 +533,7 @@ def add_member(group_id, subgroup_id):
         return _subgroups_index_redirect(group_id)
 
     try:
-        scheduler_db.session.add(
-            SubGroupMember(
-                subgroup_id=subgroup.id,
-                user_id=user_id,
-            )
-        )
+        _add_subgroup_member(subgroup.id, user_id)
         scheduler_db.session.commit()
         flash(
             f'{_member_display_name(group_member.user)} fue agregado a "{subgroup.name}".',
@@ -554,7 +566,7 @@ def remove_member(group_id, subgroup_id, user_id):
     user = membership.user
 
     try:
-        scheduler_db.session.delete(membership)
+        membership.soft_delete()
         scheduler_db.session.commit()
         flash(
             f'{_member_display_name(user)} fue quitado de "{subgroup.name}".',
@@ -603,13 +615,8 @@ def move_member(group_id, subgroup_id, user_id):
 
     try:
         if not target_membership:
-            scheduler_db.session.add(
-                SubGroupMember(
-                    subgroup_id=target_subgroup.id,
-                    user_id=user_id,
-                )
-            )
-        scheduler_db.session.delete(source_membership)
+            _add_subgroup_member(target_subgroup.id, user_id)
+        source_membership.soft_delete()
         scheduler_db.session.commit()
         flash(
             f'{_member_display_name(user)} fue movido de "{source_subgroup.name}" a "{target_subgroup.name}".',

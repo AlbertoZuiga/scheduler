@@ -825,6 +825,9 @@
       });
       if (res.ok) {
         showInlineAlert(`Categoría "${catName}" eliminada.`, 'success');
+        // El chip de filtro viene del servidor: si no se saca acá, queda
+        // filtrando por una categoría que ya no existe hasta recargar.
+        document.querySelector(`[data-schedule-filter-category="${catId}"]`)?.remove();
         await loadCategories();
       } else {
         const data = await res.json().catch(() => ({}));
