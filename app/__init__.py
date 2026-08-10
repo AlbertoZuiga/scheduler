@@ -125,6 +125,13 @@ def create_app():
             return jsonify({"error": "Recurso no encontrado."}), 404
         return render_template("404.html"), 404
 
+    @app.errorhandler(429)
+    def too_many_requests_error(error):
+        """SEC-009: el rate limit del join corta acá, con una página usable."""
+        if _wants_json():
+            return jsonify({"error": "Demasiados intentos. Espera unos minutos."}), 429
+        return render_template("429.html"), 429
+
     @app.errorhandler(500)
     def internal_error(error):
         # Flask ya loguea la excepción con stack trace en app.logger antes de
