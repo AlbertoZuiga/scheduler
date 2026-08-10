@@ -16,3 +16,5 @@ services:
           fromDatabase:
             name: scheduler-db
             property: connectionString
+        - key: SECRET_KEY
+          generateValue: true
