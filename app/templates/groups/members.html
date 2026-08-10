@@ -188,13 +188,16 @@
 
           <div class="flex flex-wrap items-center gap-2">
             {% if current_user.id == group.owner.id %}
-            <form method="POST" action="{{ url_for('groups.update_role', group_id=group.id, user_id=member.user.id) }}" class="flex-shrink-0">
+            <form method="POST" action="{{ url_for('groups.update_role', group_id=group.id, user_id=member.user.id) }}" class="flex-shrink-0 flex items-center gap-2">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <label for="role_{{ member.user.id }}" class="sr-only">Rol</label>
-              <select id="role_{{ member.user.id }}" name="role" class="px-3 py-2 text-sm rounded-lg border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background min-h-[40px]" onchange="this.form.submit()">
+              <label for="role_{{ member.user.id }}" class="sr-only">Rol de {{ member.user.name }}</label>
+              <select id="role_{{ member.user.id }}" name="role" class="px-3 py-2 text-sm rounded-lg border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                 <option value="ADMIN" {% if member.role.name == 'ADMIN' %}selected{% endif %}>Admin</option>
                 <option value="MEMBER" {% if member.role.name == 'MEMBER' %}selected{% endif %}>Miembro</option>
               </select>
+              <button type="submit" class="inline-flex items-center px-3 py-2 text-xs sm:text-sm rounded-lg border border-primary text-primary hover:bg-primary hover:text-white transition min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" aria-label="Guardar el rol de {{ member.user.name }}">
+                Guardar rol
+              </button>
             </form>
             {% endif %}
 
