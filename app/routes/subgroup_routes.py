@@ -6,6 +6,7 @@ import io
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for, abort, jsonify, make_response
 from flask_login import current_user, login_required
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import selectinload
 from werkzeug.exceptions import HTTPException
 
 from app.extensions import scheduler_db
@@ -54,7 +55,13 @@ def _get_subgroup_or_404(group_id, subgroup_id):
 
 
 def _get_group_members_sorted(group_id):
-    members = GroupMember.query.filter_by(group_id=group_id).all()
+    # El orden es por nombre y email del usuario: sin el eager loading el sort
+    # dispara un SELECT de User por miembro.
+    members = (
+        GroupMember.query.options(selectinload(GroupMember.user))
+        .filter_by(group_id=group_id)
+        .all()
+    )
     return sorted(
         members,
         key=lambda member: (
@@ -86,8 +93,13 @@ def new(group_id):
     # Convertir categorías a formato serializable
     categories_list = [{'id': cat.id, 'name': cat.name} for cat in categories]
     
-    # Contar miembros del grupo
-    group_members = GroupMember.query.filter_by(group_id=group_id).all()
+    # Contar miembros del grupo (con su usuario: el roster serializado de abajo
+    # lo recorre entero, y en lazy era un SELECT por miembro).
+    group_members = (
+        GroupMember.query.options(selectinload(GroupMember.user))
+        .filter_by(group_id=group_id)
+        .all()
+    )
     member_count = len(group_members)
     members_list = [
         {
@@ -440,6 +452,7 @@ def index(group_id):
 
     all_subgroups = (
         SubGroup.query.filter_by(parent_group_id=group_id)
+        .options(selectinload(SubGroup.members).selectinload(SubGroupMember.user))
         .order_by(SubGroup.created_at.asc(), SubGroup.id.asc())
         .all()
     )

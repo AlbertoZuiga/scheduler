@@ -305,12 +305,10 @@
   <div id="categoriesList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
     {% if group_categories %}
       {% for category in group_categories %}
-        {% set names = [] %}
-        {% for m in group.members %}
-          {% if category.id in member_category_map.get(m.id, []) %}
-            {% set _ = names.append(m.user.name if m.user.name else m.user.email) %}
-          {% endif %}
-        {% endfor %}
+        {# El roster viene resuelto desde la ruta (category_member_names): armarlo
+           acá recorría todos los miembros por cada categoría y recargaba
+           `group.members` en cada vuelta. #}
+        {% set names = category_member_names.get(category.id, []) %}
         <div class="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border shadow p-4 flex flex-col gap-2" data-category-card="{{ category.id }}">
           <div class="flex items-center justify-between">
             <h6 class="font-semibold">{{ category.name }}</h6>

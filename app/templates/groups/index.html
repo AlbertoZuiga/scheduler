@@ -49,11 +49,11 @@
             <div class="flex gap-3 sm:gap-4 mb-3 sm:mb-4 text-xs text-light-text-muted dark:text-dark-text-muted">
               <div title="Miembros" class="flex items-center gap-1">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-5a4 4 0 11-8 0 4 4 0 018 0zm6 4v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5a2 2 0 012-2h12a2 2 0 012 2z" /></svg>
-                {{ group.members|length }}
+                {{ member_counts.get(group.id, 0) }}
               </div>
               <div title="Categorías" class="flex items-center gap-1">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                {{ group.categories|length if group.categories else 0 }}
+                {{ category_counts.get(group.id, 0) }}
               </div>
             </div>
             <div class="flex flex-col gap-2 mt-auto">

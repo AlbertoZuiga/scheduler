@@ -6,7 +6,7 @@ from typing import List, Dict, Set, Tuple, Optional
 from collections import defaultdict
 import itertools
 from sqlalchemy import func
-from sqlalchemy.orm import contains_eager
+from sqlalchemy.orm import contains_eager, selectinload
 from app.extensions import scheduler_db
 from app.models.user import User
 from app.models.group_member import GroupMember
@@ -40,7 +40,12 @@ class SubGroupService:
         """
         Carga todos los miembros del grupo con sus categorías.
         """
-        members = GroupMember.query.filter_by(
+        # Eager loading: el bucle de abajo lee `member.user` y las categorías de
+        # cada miembro, que en lazy son ~3 SELECT por miembro.
+        members = GroupMember.query.options(
+            selectinload(GroupMember.user),
+            selectinload(GroupMember.categories).selectinload(GroupMemberCategory.category),
+        ).filter_by(
             group_id=self.parent_group_id
         ).all()
 
@@ -59,13 +64,10 @@ class SubGroupService:
 
         self.members = []
         for member in members:
-            # Cargar categorías del miembro
-            member_categories = GroupMemberCategory.query.filter_by(
-                group_member_id=member.id
-            ).all()
-            
-            category_names = {mc.category.name for mc in member_categories if mc.category}
-            
+            # Las categorías ya vienen cargadas con el miembro (selectinload):
+            # acá era una consulta por miembro más otra por categoría.
+            category_names = {mc.category.name for mc in member.categories if mc.category}
+
             self.user_categories[member.user_id] = category_names
             
             # Disponibilidades del usuario en este grupo
