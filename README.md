@@ -352,7 +352,7 @@ docker exec -it backend_container python -m app.db.reset
 # Poblar con datos de prueba
 docker exec -it backend_container python -m app.db.seed
 
-# Crear tablas
+# Aplicar migraciones (crea las tablas si la base está vacía)
 docker exec -it backend_container python -m app.db.migrate
 
 # Eliminar tablas
@@ -553,7 +553,7 @@ scheduler/
 │   │   ├── __init__.py
 │   │   ├── create.py            # Crear tablas
 │   │   ├── drop.py              # Eliminar tablas
-│   │   ├── migrate.py           # Migraciones (futuro)
+│   │   ├── migrate.py           # Runner de Alembic (adopción + upgrade head)
 │   │   ├── reset.py             # Resetear BD (drop + create)
 │   │   ├── seed.py              # Datos de prueba
 │   │   └── setup.py             # Configuración inicial completa
@@ -716,8 +716,43 @@ python -m app.db.reset
 # Poblar con datos de prueba
 python -m app.db.seed
 
-# Migraciones (en desarrollo)
+# Migraciones (Alembic)
 python -m app.db.migrate
+```
+
+### 🧬 Migraciones con Alembic
+
+El esquema lo versiona **Alembic** (`alembic.ini` + `alembic/versions/`).
+`python -m app.db.migrate` es el único punto de entrada y es idempotente:
+
+| Estado de la base | Qué hace |
+|---|---|
+| Vacía | `create_all()` desde los modelos + `stamp head` (ya está al día) |
+| Con tablas y **sin** `alembic_version` (bases ya desplegadas en Render) | pone al día las columnas heredadas, `stamp 0001_baseline` — **no recrea ni borra ninguna tabla** — y luego aplica `0002` en adelante |
+| Ya versionada | `upgrade head` |
+
+**Qué reemplaza a qué:**
+
+- `run.py` **ya no** llama a `create_all()` al importar. Antes cada worker de
+  gunicorn emitía DDL al arrancar; ahora el DDL corre una sola vez, en el build
+  (`render-build.sh`) o al levantar el contenedor (`command` de
+  `docker-compose.yml`).
+- El runner DDL manual de `app/db/migrate.py` (`COLUMN_MIGRATIONS` /
+  `DROP_COLUMN_MIGRATIONS`) queda **solo** para la adopción: pone al día una base
+  vieja antes de estampar el baseline. No se le agregan entradas nuevas; todo
+  cambio de esquema de ahora en más es una revisión de Alembic.
+
+**Efecto en las bases ya desplegadas en Render:** el primer deploy con este
+cambio las adopta sin downtime de datos — el baseline es un no-op, así que solo
+se crea `alembic_version` y se aplican las revisiones nuevas (dedup + unique,
+índices, `division_jobs`).
+
+Crear una revisión nueva:
+
+```bash
+alembic revision --autogenerate -m "descripcion"   # compara contra los modelos
+alembic upgrade head
+alembic downgrade -1
 ```
 
 ---
@@ -1462,7 +1497,7 @@ cat backup.sql | docker exec -i postgres_container psql -U postgres -d scheduler
 
 ### 🗄️ Base de Datos y Performance
 
-- [ ] **Migraciones con Alembic** (en lugar de scripts manuales)
+- [x] **Migraciones con Alembic** (en lugar de scripts manuales)
 - [ ] **Caché con Redis** para consultas frecuentes
 - [ ] **Índices optimizados** en queries lentas
 - [ ] **Paginación** en listas de grupos/miembros

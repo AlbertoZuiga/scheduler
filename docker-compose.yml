@@ -18,9 +18,11 @@ services:
     container_name: backend_container
     # El CMD de la imagen mas --reload: el volumen ./app es para editar en
     # caliente y gunicorn, a diferencia del dev server, no recarga solo.
+    # Las migraciones van antes de servir: `run.py` ya no hace create_all().
     command:
-      ["gunicorn", "--workers", "1", "--threads", "4", "--access-logfile", "-",
-       "--reload", "run:scheduler_app"]
+      ["sh", "-c",
+       "python -m app.db.migrate && exec gunicorn --workers 1 --threads 4 \
+        --access-logfile - --reload run:scheduler_app"]
     environment:
       DATABASE_URI: postgresql://postgres:postgres@db:5432/scheduler
       DB_HOST: db
