@@ -244,7 +244,7 @@
                 <svg class="w-4 h-4 text-blue-400 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-8 4a1 1 0 100-2 1 1 0 000 2zm.93-7.412a1 1 0 00-1.858 0l-.518 1.036A1 1 0 008.618 9h2.764a1 1 0 00.964-1.376l-.518-1.036z"/></svg>
               </span>
             </label>
-            <input type="number" class="w-full px-3 py-3 rounded-lg text-base border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary focus:ring-2 focus:ring-primary touch-manipulation" id="num_groups" min="2" value="3" required>
+            <input type="number" class="w-full px-3 py-3 rounded-lg text-base border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary focus-visible:ring-2 focus-visible:ring-primary touch-manipulation" id="num_groups" min="2" value="3" required>
             <small class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Total de miembros activos: {{ member_count }}. <b>Recomendación:</b> Elige un número que permita grupos equilibrados.</small>
           </div>
 
@@ -260,7 +260,7 @@
                 <svg class="w-4 h-4 text-blue-400 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-8 4a1 1 0 100-2 1 1 0 000 2zm.93-7.412a1 1 0 00-1.858 0l-.518 1.036A1 1 0 008.618 9h2.764a1 1 0 00.964-1.376l-.518-1.036z"/></svg>
               </span>
             </label>
-            <input type="number" class="w-full px-3 py-3 rounded-lg text-base border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary focus:ring-2 focus:ring-primary touch-manipulation" id="max_group_size" min="1" value="{{ (member_count // 3) + 1 }}" placeholder="Sin límite">
+            <input type="number" class="w-full px-3 py-3 rounded-lg text-base border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary focus-visible:ring-2 focus-visible:ring-primary touch-manipulation" id="max_group_size" min="1" value="{{ (member_count // 3) + 1 }}" placeholder="Sin límite">
             <small class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Dejar vacío para no limitar el tamaño de los subgrupos.</small>
           </div>
 
@@ -273,14 +273,14 @@
                 <svg class="w-4 h-4 text-blue-400 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-8 4a1 1 0 100-2 1 1 0 000 2zm.93-7.412a1 1 0 00-1.858 0l-.518 1.036A1 1 0 008.618 9h2.764a1 1 0 00.964-1.376l-.518-1.036z"/></svg>
               </span>
             </label>
-            <input type="number" class="w-full px-3 py-3 rounded-lg text-base border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary focus:ring-2 focus:ring-primary touch-manipulation" id="compatibility_threshold" min="1" value="3" step="1" required>
+            <input type="number" class="w-full px-3 py-3 rounded-lg text-base border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-primary dark:text-dark-text-primary focus-visible:ring-2 focus-visible:ring-primary touch-manipulation" id="compatibility_threshold" min="1" value="3" step="1" required>
             <small class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Define el solapamiento mínimo de horarios requerido entre miembros para que puedan estar juntos en un subgrupo.</small>
           </div>
 
 
           <div class="mb-3">
             <div class="flex items-center min-h-[44px]">
-              <input class="w-5 h-5 text-primary bg-light-muted/30 dark:bg-dark-muted/30 border-light-border dark:border-dark-border rounded focus:ring-2 focus:ring-primary cursor-pointer touch-manipulation" type="checkbox" id="allow_multiple_membership">
+              <input class="w-5 h-5 text-primary bg-light-muted/30 dark:bg-dark-muted/30 border-light-border dark:border-dark-border rounded focus-visible:ring-2 focus-visible:ring-primary cursor-pointer touch-manipulation" type="checkbox" id="allow_multiple_membership">
               <label class="ml-3 text-xs sm:text-sm text-light-text-primary dark:text-dark-text-primary flex items-center gap-1 cursor-pointer flex-1" for="allow_multiple_membership">
                 <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path></svg>
                 <span>Permitir Membresía Múltiple</span>
@@ -295,7 +295,7 @@
 
           <div class="mb-3">
             <div class="flex items-center min-h-[44px]">
-              <input class="w-5 h-5 text-primary bg-light-muted/30 dark:bg-dark-muted/30 border-light-border dark:border-dark-border rounded focus:ring-2 focus:ring-primary cursor-pointer touch-manipulation" type="checkbox" id="require_all_members" checked>
+              <input class="w-5 h-5 text-primary bg-light-muted/30 dark:bg-dark-muted/30 border-light-border dark:border-dark-border rounded focus-visible:ring-2 focus-visible:ring-primary cursor-pointer touch-manipulation" type="checkbox" id="require_all_members" checked>
               <label class="ml-3 text-xs sm:text-sm text-light-text-primary dark:text-dark-text-primary flex items-center gap-1 cursor-pointer flex-1" for="require_all_members">
                 <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
                 <span>Todos los miembros deben estar en al menos un grupo</span>
@@ -351,7 +351,7 @@
                 <input
                   type="search"
                   id="together-member-search"
-                  class="w-full rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm text-light-text-primary dark:text-slate-100 placeholder:text-light-text-secondary dark:placeholder:text-slate-400 focus:ring-2 focus:ring-amber-500"
+                  class="w-full rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm text-light-text-primary dark:text-slate-100 placeholder:text-light-text-secondary dark:placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-amber-500"
                   placeholder="Buscar por nombre o correo"
                   autocomplete="off"
                 >
