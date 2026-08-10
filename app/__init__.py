@@ -4,6 +4,7 @@ import sys
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user
+from flask_wtf.csrf import CSRFError, CSRFProtect
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.extensions import scheduler_db, login_manager
@@ -11,6 +12,8 @@ from app.models.user import User
 from app.routes import blueprints
 from app.soft_delete import install_soft_delete_filter
 from config import Config
+
+csrf = CSRFProtect()
 
 
 def _configure_logging(app):
@@ -43,6 +46,9 @@ def create_app():
     # url_for(_external=True) genera http://.
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
     scheduler_db.init_app(app)
+    # Protege por defecto todo POST/PUT/PATCH/DELETE. El token viaja en el hidden
+    # `csrf_token` de los forms o en el header `X-CSRFToken` de los fetch.
+    csrf.init_app(app)
     install_soft_delete_filter()
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
@@ -64,6 +70,20 @@ def create_app():
         # en la página stub de werkzeug. Se renderiza la página de error, que
         # además muestra el flash que authz.py deja antes del abort(403).
         return render_template("403.html"), 403
+
+    @app.errorhandler(CSRFError)
+    def csrf_error(error):
+        """Token CSRF ausente, inválido o expirado: 400 con una página usable.
+
+        El caso normal no es un ataque sino una sesión que caducó con el
+        formulario abierto, así que la página explica que hay que reintentar.
+        """
+        app.logger.warning(
+            "CSRF rechazado en %s %s: %s", request.method, request.path, error.description
+        )
+        if _wants_json():
+            return jsonify({"error": "Token CSRF inválido o expirado. Recarga la página."}), 400
+        return render_template("csrf_error.html", reason=error.description), 400
 
     @app.errorhandler(404)
     def not_found_error(error):

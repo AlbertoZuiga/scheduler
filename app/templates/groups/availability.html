@@ -14,6 +14,7 @@
   </div>
 
   <form method="POST" id="availability-form" class="space-y-6">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <!-- Inputs canónicos: un solo set enviado al backend -->
     <div class="hidden" aria-hidden="true">
       {% for day in active_weekdays %}

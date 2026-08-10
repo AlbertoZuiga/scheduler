@@ -17,6 +17,7 @@
     </div>
     <div class="p-4 sm:p-5">
       <form method="POST" class="space-y-4" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div>
           <label for="group_name" class="block text-sm font-medium mb-2">Nombre del Grupo <span class="text-red-500">*</span></label>
           <input type="text" id="group_name" name="group_name" required minlength="3" maxlength="100" placeholder="Ej: Equipo de Desarrollo..." class="w-full px-3 sm:px-4 py-3 rounded-lg text-base border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background focus:outline-none focus:ring-2 focus:ring-primary touch-manipulation">

@@ -8,6 +8,7 @@ from flask import (
 )
 from markupsafe import Markup, escape
 from flask_login import current_user, login_required
+from flask_wtf.csrf import generate_csrf
 
 from app.extensions import scheduler_db
 from app.models import (
@@ -510,7 +511,7 @@ def create():
     return render_template("groups/create.html")
 
 
-@group_bp.route("/join/<token>", methods=["GET"])
+@group_bp.route("/join/<token>", methods=["GET", "POST"])
 @login_required
 def join(token):
     group = Group.query.filter_by(join_token=token).first()
@@ -524,6 +525,12 @@ def join(token):
     if GroupMember.query.filter_by(group_id=group.id, user_id=user_id).first():
         flash(f"ℹ️ Ya eres miembro del grupo '{group.name}'.", "info")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group.id))
+
+    # El GET sólo muestra la confirmación: así el link de invitación compartido
+    # sigue siendo un link normal (y sobrevive al rebote por OAuth), pero unirse
+    # exige un POST con token, que un <img> o un prefetch ajeno no puede emitir.
+    if request.method == "GET":
+        return render_template("groups/join.html", group=group, token=token)
 
     # Si ya estuvo en el grupo y lo removieron, se reutiliza esa membresía (con
     # sus categorías) en vez de insertar una fila duplicada que dejaría al mismo
@@ -820,11 +827,15 @@ def delete(group_id):
     group.soft_delete()
     scheduler_db.session.commit()
 
+    # "Deshacer" restaura, así que es un POST con token, no un link.
     restore_url = url_for("groups.restore", group_id=group.id)
     flash(
         Markup(
             f"🗑️ Grupo '{escape(group_name)}' movido a la papelera. "
-            f'<a class="underline font-medium" href="{restore_url}">Deshacer</a>'
+            f'<form method="POST" action="{restore_url}" style="display:inline">'
+            f'<input type="hidden" name="csrf_token" value="{escape(generate_csrf())}">'
+            '<button type="submit" class="underline font-medium">Deshacer</button>'
+            "</form>"
         ),
         "success",
     )
@@ -844,7 +855,7 @@ def trash():
     return render_template("groups/trash.html", groups=groups)
 
 
-@group_bp.route("/<int:group_id>/restore", methods=["GET", "POST"])
+@group_bp.route("/<int:group_id>/restore", methods=["POST"])
 @login_required
 def restore(group_id):
     group = (
@@ -907,14 +918,17 @@ def remove(group_id, user_id):
     flash(
         Markup(
             "🗑️ Miembro removido del grupo. "
-            f'<a class="underline font-medium" href="{restore_url}">Deshacer</a>'
+            f'<form method="POST" action="{restore_url}" style="display:inline">'
+            f'<input type="hidden" name="csrf_token" value="{escape(generate_csrf())}">'
+            '<button type="submit" class="underline font-medium">Deshacer</button>'
+            "</form>"
         ),
         "success",
     )
     return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
 
-@group_bp.route("/<int:group_id>/restore_member/<int:user_id>", methods=["GET", "POST"])
+@group_bp.route("/<int:group_id>/restore_member/<int:user_id>", methods=["POST"])
 @login_required
 def restore_member(group_id, user_id):
     """Reincorpora a un miembro removido, con su disponibilidad y categorías."""
