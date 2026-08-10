@@ -159,6 +159,10 @@ def _process_posted_availability(group_id, form_data, group, user_id, active_wee
 GROUP_SHOW_URL = "groups.show"
 GROUP_INDEX_URL = "groups.index"
 
+# Largo de la columna `Group.name` (String(150)): pasado ese punto el INSERT
+# falla en la BD, así que la request se rechaza antes de llegar ahí.
+GROUP_NAME_MAX_LENGTH = 150
+
 # Cotas de los listados que crecen sin techo. No es paginación: es el techo que
 # evita que una vista se vuelva ilegible (y cara) cuando el grupo se dispara.
 # Todos los listados acotados llevan además un orden total, para que el corte
@@ -578,7 +582,18 @@ def show(group_id):
 @login_required
 def create():
     if request.method == "POST":
-        group_name = request.form["group_name"]
+        group_name = request.form["group_name"].strip()
+        # `Group.name` es String(150): sin este chequeo Postgres tira DataError y
+        # el usuario ve un 500 crudo. El maxlength del template no basta (UX-004).
+        if not group_name:
+            flash("❌ El nombre del grupo es obligatorio.", "warning")
+            return render_template("groups/create.html"), 400
+        if len(group_name) > GROUP_NAME_MAX_LENGTH:
+            flash(
+                f"❌ El nombre del grupo no puede superar los {GROUP_NAME_MAX_LENGTH} caracteres.",
+                "warning",
+            )
+            return render_template("groups/create.html"), 400
 
         join_token = uuid.uuid4().hex[:10]
         user_id = current_user.id

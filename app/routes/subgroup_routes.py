@@ -45,6 +45,12 @@ SUBGROUP_INDEX_ENDPOINT = 'subgroups.index'
 # fila JSON gorda con nombres y correos). Se conservan los más recientes; el
 # resto se oculta. Ver DATA-003.
 RETAINED_JOBS_PER_GROUP = 10
+# Largo de la columna `SubGroup.name` (String(200)): pasado ese punto el INSERT
+# falla en la BD con DataError y el usuario ve un 500 crudo.
+SUBGROUP_NAME_MAX_LENGTH = 200
+SUBGROUP_NAME_TOO_LONG_MSG = (
+    f'El nombre del subgrupo no puede superar los {SUBGROUP_NAME_MAX_LENGTH} caracteres.'
+)
 
 
 def _get_active_job_or_404(group_id, job_id):
@@ -555,6 +561,9 @@ def create_manual(group_id):
     if not name:
         flash('Debes indicar un nombre para el subgrupo manual.', 'warning')
         return _subgroups_index_redirect(group_id)
+    if len(name) > SUBGROUP_NAME_MAX_LENGTH:
+        flash(SUBGROUP_NAME_TOO_LONG_MSG, 'warning')
+        return _subgroups_index_redirect(group_id)
 
     try:
         subgroup = SubGroup(
@@ -587,6 +596,9 @@ def rename(group_id, subgroup_id):
     new_name = (request.form.get('name') or '').strip()
     if not new_name:
         flash('El nombre del subgrupo no puede estar vacío.', 'warning')
+        return _subgroups_index_redirect(group_id)
+    if len(new_name) > SUBGROUP_NAME_MAX_LENGTH:
+        flash(SUBGROUP_NAME_TOO_LONG_MSG, 'warning')
         return _subgroups_index_redirect(group_id)
 
     subgroup.name = new_name

@@ -15,6 +15,10 @@ category_bp = Blueprint("categories", __name__, url_prefix="/categories")
 
 DUPLICATE_MSG = "Ya existe una categoría con ese nombre."
 NAME_REQUIRED_MSG = "El nombre de la categoría es requerido."
+# Largo de la columna `Category.name` (String(150)): pasado ese punto el INSERT
+# falla en la BD con DataError, así que se rechaza antes de llegar ahí.
+NAME_MAX_LENGTH = 150
+NAME_TOO_LONG_MSG = f"El nombre de la categoría no puede superar los {NAME_MAX_LENGTH} caracteres."
 GROUP_CATEGORIES_ENDPOINT = "categories.group_categories"
 
 
@@ -63,6 +67,11 @@ def _handle_create_category(group_id: int):
     name = request.form.get("name") or (request.is_json and request.json.get("name"))
     if not name:
         return _json_or_flash(False, NAME_REQUIRED_MSG, 400, url_for("groups.show", group_id=group_id))
+    # Se mide el valor tal cual se inserta (sin strip): es lo que ve la columna.
+    if len(name) > NAME_MAX_LENGTH:
+        return _json_or_flash(
+            False, NAME_TOO_LONG_MSG, 400, url_for(GROUP_CATEGORIES_ENDPOINT, group_id=group_id)
+        )
     if _category_exists(group_id, name):
         return _json_or_flash(False, DUPLICATE_MSG, 409, url_for(GROUP_CATEGORIES_ENDPOINT, group_id=group_id))
 
