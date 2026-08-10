@@ -380,7 +380,15 @@
           chip.className = `member-cat-chip inline-flex items-center gap-1 text-xs rounded-full px-2 py-1 border border-light-border dark:border-dark-border ${getCategoryStyle(categoryId)} ${member.can_edit_categories ? 'cursor-pointer' : 'cursor-default'}`;
           chip.title = member.can_edit_categories ? 'Click para quitar' : 'Categoría asignada';
           chip.disabled = !member.can_edit_categories;
-          chip.innerHTML = `<span>${categoryName(categoryId)}</span>${member.can_edit_categories ? '<span aria-hidden="true">x</span>' : ''}`;
+          const chipLabel = document.createElement('span');
+          chipLabel.textContent = categoryName(categoryId);
+          chip.appendChild(chipLabel);
+          if (member.can_edit_categories) {
+            const chipRemove = document.createElement('span');
+            chipRemove.setAttribute('aria-hidden', 'true');
+            chipRemove.textContent = 'x';
+            chip.appendChild(chipRemove);
+          }
           container.appendChild(chip);
         }
       }
@@ -678,13 +686,22 @@
 
           const item = document.createElement('label');
           item.className = 'flex items-center justify-between gap-2 rounded-lg border border-light-border dark:border-dark-border p-2 hover:bg-light-muted/30 dark:hover:bg-dark-muted/30';
-          item.innerHTML = `
-            <div>
-              <p class="text-sm font-medium">${member.name}</p>
-              <p class="text-xs text-light-text-secondary dark:text-dark-text-secondary">${member.email}</p>
-            </div>
-            <input type="checkbox" class="category-modal-member accent-primary w-4 h-4" value="${member.group_member_id}" ${checked ? 'checked' : ''}>
-          `;
+          const info = document.createElement('div');
+          const nameEl = document.createElement('p');
+          nameEl.className = 'text-sm font-medium';
+          nameEl.textContent = member.name;
+          const emailEl = document.createElement('p');
+          emailEl.className = 'text-xs text-light-text-secondary dark:text-dark-text-secondary';
+          emailEl.textContent = member.email;
+          info.append(nameEl, emailEl);
+
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.className = 'category-modal-member accent-primary w-4 h-4';
+          checkbox.value = member.group_member_id;
+          checkbox.checked = checked;
+
+          item.append(info, checkbox);
           modalMembers.appendChild(item);
         }
 

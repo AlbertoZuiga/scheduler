@@ -10,6 +10,15 @@
   let manualGroupCounter = 0;
   let manualGroups = [];
 
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
   const members = Array.isArray(globalThis.MEMBERS) ? globalThis.MEMBERS : [];
   const membersById = new Map(
     members.map((member) => [Number.parseInt(member.id), member]),
@@ -299,24 +308,40 @@
       return;
     }
 
-    togetherGroupsList.innerHTML = manualGroups
-      .map((group) => {
-        const membersText = group.memberIds
-          .map((memberId) => memberLabel(memberId))
-          .join(", ");
-        return `
-          <div class="together-group-chip flex items-start justify-between gap-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900/80 px-3 py-2 shadow-sm">
-            <div>
-              <div class="text-sm font-semibold text-light-text-primary dark:text-slate-100">Grupo manual ${group.id}</div>
-              <div class="text-xs text-light-text-secondary dark:text-slate-300">${membersText}</div>
-            </div>
-            <button type="button" class="remove-together-group-btn shrink-0 px-2 py-1 text-xs rounded border border-red-300 dark:border-red-700 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/40 transition-colors" data-group-id="${group.id}">
-              Quitar
-            </button>
-          </div>
-        `;
-      })
-      .join("");
+    togetherGroupsList.innerHTML = "";
+    for (const group of manualGroups) {
+      const membersText = group.memberIds
+        .map((memberId) => memberLabel(memberId))
+        .join(", ");
+
+      const chip = document.createElement("div");
+      chip.className =
+        "together-group-chip flex items-start justify-between gap-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900/80 px-3 py-2 shadow-sm";
+
+      const info = document.createElement("div");
+
+      const title = document.createElement("div");
+      title.className =
+        "text-sm font-semibold text-light-text-primary dark:text-slate-100";
+      title.textContent = `Grupo manual ${group.id}`;
+
+      const membersLine = document.createElement("div");
+      membersLine.className =
+        "text-xs text-light-text-secondary dark:text-slate-300";
+      membersLine.textContent = membersText;
+
+      info.append(title, membersLine);
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className =
+        "remove-together-group-btn shrink-0 px-2 py-1 text-xs rounded border border-red-300 dark:border-red-700 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/40 transition-colors";
+      removeBtn.dataset.groupId = group.id;
+      removeBtn.textContent = "Quitar";
+
+      chip.append(info, removeBtn);
+      togetherGroupsList.appendChild(chip);
+    }
 
     if (noTogetherGroupsMsg) {
       noTogetherGroupsMsg.style.display = "none";
@@ -523,7 +548,7 @@
         } de ${data.total_members_available}</p>
         <p class="mb-0"><strong>Reglas incumplidas:</strong> ${
           data.unfulfilled_rules.length > 0
-            ? data.unfulfilled_rules.join(", ")
+            ? escapeHtml(data.unfulfilled_rules.join(", "))
             : "Ninguna"
         }</p>
       </div>
@@ -539,7 +564,7 @@
                 (group, index) => `
                   <div class="rounded border border-amber-200 dark:border-amber-700 bg-white dark:bg-slate-900/80 px-3 py-2 text-sm">
                     <span class="font-semibold text-gray-900 dark:text-slate-100">Grupo manual ${index + 1}:</span>
-                    <span class="text-gray-700 dark:text-slate-200">${group.member_names.join(", ")}</span>
+                    <span class="text-gray-700 dark:text-slate-200">${escapeHtml(group.member_names.join(", "))}</span>
                   </div>
                 `,
               )
@@ -567,7 +592,7 @@
           }">
             <div class="flex items-center justify-between">
               <span class="flex items-center gap-2">
-                <i class="bi bi-people-fill"></i> ${group.name}
+                <i class="bi bi-people-fill"></i> ${escapeHtml(group.name)}
               </span>
               <span class="inline-block px-3 py-1 rounded-full bg-gray-600 dark:bg-slate-600 text-white text-sm font-medium">${
                 group.members.length
@@ -596,7 +621,7 @@
                     <span class="rule-status-badge ${
                       r.fulfilled ? "rule-fulfilled" : "rule-unfulfilled"
                     }">
-                      Requisito ${r.rule}: ${r.count}/${r.min}${
+                      Requisito ${escapeHtml(r.rule)}: ${r.count}/${r.min}${
                         r.max ? "-" + r.max : "+"
                       } 
                       ${r.fulfilled ? "✓" : "✗"}
@@ -619,7 +644,7 @@
                     (member) => `
                   <div class="px-3 py-2 text-sm border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
                     <div class="flex items-center gap-2 text-gray-900 dark:text-slate-100 font-medium">
-                      <i class="bi bi-person"></i> ${member.name}
+                      <i class="bi bi-person"></i> ${escapeHtml(member.name)}
                     </div>
                     ${
                       member.categories.length > 0
@@ -628,7 +653,7 @@
                         ${member.categories
                           .map(
                             (cat) =>
-                              `<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-slate-100">${cat}</span>`,
+                              `<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-slate-100">${escapeHtml(cat)}</span>`,
                           )
                           .join(" ")}
                       </div>
