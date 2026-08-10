@@ -4,6 +4,50 @@
  */
 
 // ============================================
+// CSRF
+// ============================================
+
+/**
+ * Envuelve fetch para adjuntar el token CSRF en toda petición mutante.
+ *
+ * Se hace acá y no en cada llamada porque los fetch están repartidos entre
+ * subgroups.js y varios <script> inline: olvidar uno lo rompería con un 400.
+ *
+ * Orden: main.js es un <script> síncrono al final del <body>, así que corre
+ * antes de DOMContentLoaded. Los <script> inline que están dentro de
+ * `{% block content %}` se parsean antes que este archivo, pero todos sus fetch
+ * salen desde un handler de DOMContentLoaded o de una interacción, o sea con el
+ * wrapper ya puesto. Un fetch mutante en top-level de un inline sí se escaparía.
+ */
+(() => {
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  const token = meta && meta.getAttribute('content');
+  if (!token) {
+    return;
+  }
+  const SAFE = new Set(['GET', 'HEAD', 'OPTIONS', 'TRACE']);
+  const nativeFetch = globalThis.fetch.bind(globalThis);
+
+  globalThis.fetch = (input, init) => {
+    const opts = init ? { ...init } : {};
+    const method = (opts.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+
+    // Sólo same-origin: no se filtra el token a terceros.
+    const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : String(input));
+    const sameOrigin = new URL(url, document.baseURI).origin === globalThis.location.origin;
+
+    if (!SAFE.has(method) && sameOrigin) {
+      const headers = new Headers(opts.headers || (input instanceof Request ? input.headers : undefined));
+      if (!headers.has('X-CSRFToken')) {
+        headers.set('X-CSRFToken', token);
+      }
+      opts.headers = headers;
+    }
+    return nativeFetch(input, opts);
+  };
+})();
+
+// ============================================
 // GLOBAL UTILITIES
 // ============================================
 
