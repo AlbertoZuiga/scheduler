@@ -5,9 +5,13 @@ basados en compatibilidad horaria y reglas de categorías.
 from typing import List, Dict, Set, Tuple, Optional
 from collections import defaultdict
 import itertools
+from sqlalchemy import func
+from sqlalchemy.orm import contains_eager
+from app.extensions import scheduler_db
 from app.models.user import User
 from app.models.group_member import GroupMember
 from app.models.user_availability import UserAvailability
+from app.models.availability import Availability
 from app.models.group_member_category import GroupMemberCategory
 
 
@@ -40,6 +44,19 @@ class SubGroupService:
             group_id=self.parent_group_id
         ).all()
 
+        # Conteo de bloques por usuario en una sola consulta: dentro del bucle
+        # era un SELECT por miembro.
+        avail_counts = dict(
+            scheduler_db.session.query(
+                UserAvailability.user_id, func.count(UserAvailability.id)
+            ).join(
+                Availability, UserAvailability.availability_id == Availability.id
+            ).filter(
+                UserAvailability.user_id.in_([m.user_id for m in members]),
+                Availability.group_id == self.parent_group_id
+            ).group_by(UserAvailability.user_id).all()
+        )
+
         self.members = []
         for member in members:
             # Cargar categorías del miembro
@@ -51,11 +68,9 @@ class SubGroupService:
             
             self.user_categories[member.user_id] = category_names
             
-            # Contar disponibilidades del usuario
-            avail_count = UserAvailability.query.filter_by(
-                user_id=member.user_id
-            ).count()
-            
+            # Disponibilidades del usuario en este grupo
+            avail_count = avail_counts.get(member.user_id, 0)
+
             self.user_availability_count[member.user_id] = avail_count
             
             self.members.append({
@@ -78,9 +93,15 @@ class SubGroupService:
         """
         user_ids = [m['id'] for m in self.members]
 
-        # Cargar todas las disponibilidades de una vez
-        availabilities = UserAvailability.query.filter(
-            UserAvailability.user_id.in_(user_ids)
+        # Cargar todas las disponibilidades de una vez. contains_eager reutiliza
+        # el join para poblar avail.availability y evita un SELECT por fila.
+        availabilities = UserAvailability.query.join(
+            UserAvailability.availability
+        ).options(
+            contains_eager(UserAvailability.availability)
+        ).filter(
+            UserAvailability.user_id.in_(user_ids),
+            Availability.group_id == self.parent_group_id
         ).all()
 
         # Organizar por usuario
