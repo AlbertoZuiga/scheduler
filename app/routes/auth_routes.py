@@ -4,7 +4,7 @@ from urllib.parse import urljoin, urlparse
 
 import google.auth.transport.requests
 import google.oauth2.id_token
-from flask import Blueprint, redirect, request, session, url_for
+from flask import Blueprint, flash, redirect, request, session, url_for
 from flask_login import login_required, login_user, logout_user
 from google_auth_oauthlib.flow import Flow
 
@@ -22,7 +22,8 @@ def is_safe_url(target):
 
 @auth_bp.route("/login")
 def login():
-    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+    if Config.DEBUG:
+        os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
     client_secrets_file = os.path.join(
         pathlib.Path(__file__).parent.parent.parent, "client_secret.json"
     )
@@ -44,6 +45,11 @@ def login():
 
 @auth_bp.route("/auth/google/callback")
 def callback():
+    state = session.pop("state", None)
+    if not state or state != request.args.get("state"):
+        flash("La sesión expiró, intenta de nuevo", "warning")
+        return redirect(url_for("main.index"))
+
     client_secrets_file = os.path.join(
         pathlib.Path(__file__).parent.parent.parent, "client_secret.json"
     )
@@ -55,12 +61,10 @@ def callback():
             "openid",
         ],
         redirect_uri=f"{Config.URL}/auth/google/callback",
+        state=state,
     )
 
     flow.fetch_token(authorization_response=request.url)
-
-    if session["state"] != request.args["state"]:
-        return "Estado inválido", 500
 
     credentials = flow.credentials
 
@@ -68,6 +72,9 @@ def callback():
     id_info = google.oauth2.id_token.verify_oauth2_token(
         credentials.id_token, request_session, flow.client_config["client_id"]
     )
+
+    if id_info.get("email_verified") is not True:
+        return "El email de la cuenta no está verificado", 400
 
     user = User.get_or_create_from_oauth(id_info)
     if user:
