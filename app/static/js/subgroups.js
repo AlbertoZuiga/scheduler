@@ -541,8 +541,8 @@
 
     // Resumen general
     html += `
-      <div class="alert alert-info mb-3">
-        <h3><i class="bi bi-info-circle"></i> Resumen</h3>
+      <div class="mb-3 rounded-lg border border-sky-300 dark:border-sky-700 bg-sky-50 dark:bg-sky-900/30 p-3">
+        <h6 class="font-semibold mb-2">Resumen</h6>
         <p class="mb-1"><strong>Miembros asignados:</strong> ${
           data.total_members_assigned
         } de ${data.total_members_available}</p>
@@ -592,7 +592,7 @@
           }">
             <div class="flex items-center justify-between">
               <span class="flex items-center gap-2">
-                <i class="bi bi-people-fill"></i> ${escapeHtml(group.name)}
+                ${escapeHtml(group.name)}
               </span>
               <span class="inline-block px-3 py-1 rounded-full bg-gray-600 dark:bg-slate-600 text-white text-sm font-medium">${
                 group.members.length
@@ -644,7 +644,7 @@
                     (member) => `
                   <div class="px-3 py-2 text-sm border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
                     <div class="flex items-center gap-2 text-gray-900 dark:text-slate-100 font-medium">
-                      <i class="bi bi-person"></i> ${escapeHtml(member.name)}
+                      ${escapeHtml(member.name)}
                     </div>
                     ${
                       member.categories.length > 0

@@ -53,7 +53,7 @@
     </div>
 
     <!-- Desktop/Tablet View - Tabla (solo visible en md y superior) -->
-    <div class="hidden md:block w-full overflow-x-auto rounded-lg border border-light-border dark:border-dark-border shadow-card dark:shadow-card-dark">
+    <div class="hidden md:block w-full overflow-x-auto rounded-lg border border-light-border dark:border-dark-border">
       <table class="w-full text-center border-collapse bg-light-surface dark:bg-dark-surface select-none">
         <thead>
           <tr class="bg-gradient-to-r from-primary/10 to-accent/10 dark:from-primary/20 dark:to-accent/20">
@@ -124,7 +124,7 @@
     <!-- Mobile View - Tarjetas por día (solo visible en pantallas menores a md) -->
     <div class="md:hidden w-full space-y-4">
       {% for day_index in active_weekdays %}
-      <details class="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border shadow-card dark:shadow-card-dark overflow-hidden" open>
+      <details class="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border overflow-hidden" open>
         <summary class="px-4 py-3 cursor-pointer select-none bg-gradient-to-r from-primary/5 to-accent/5 dark:from-primary/10 dark:to-accent/10 hover:from-primary/10 hover:to-accent/10 dark:hover:from-primary/15 dark:hover:to-accent/15 transition-all">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
