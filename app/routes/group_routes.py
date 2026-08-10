@@ -10,6 +10,7 @@ from markupsafe import Markup, escape
 from flask_login import current_user, login_required
 from flask_wtf.csrf import generate_csrf
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.extensions import scheduler_db
@@ -167,6 +168,24 @@ GROUP_INDEX_URL = "groups.index"
 MEMBERS_LIST_LIMIT = 500
 TRASH_LIST_LIMIT = 200
 AVAILABILITY_SUMMARY_LIMIT = 200
+
+def _commit_or_flash_conflict(message, log_message, *log_args):
+    """Commitea; si un unique de BD rechaza el duplicado, avisa en limpio.
+
+    Los unique parciales de DATA-001 son lo que atrapa la carrera entre dos
+    requests que pasan a la vez el chequeo previo en Python. Sin este manejo el
+    segundo vería un 500 crudo en vez de un mensaje.
+    """
+    try:
+        scheduler_db.session.commit()
+        return True
+    except IntegrityError:
+        scheduler_db.session.rollback()
+        current_app.logger.warning(log_message, *log_args)
+        flash(message, "warning")
+        return False
+
+
 COLORS = [
     "bg-primary",
     "bg-success",
@@ -636,7 +655,11 @@ def join(token):
         scheduler_db.session.add(
             GroupMember(group_id=group.id, user_id=user_id, role=RoleEnum.MEMBER)
         )
-    scheduler_db.session.commit()
+    if not _commit_or_flash_conflict(
+        f"ℹ️ Ya eres miembro del grupo '{group.name}'.",
+        "join duplicado (group_id=%s user_id=%s)", group.id, user_id,
+    ):
+        return redirect(url_for(GROUP_SHOW_URL, group_id=group.id))
 
     flash(f"✅ ¡Bienvenido! Te has unido al grupo '{group.name}' exitosamente.", "success")
     return redirect(url_for(GROUP_SHOW_URL, group_id=group.id))
@@ -983,7 +1006,12 @@ def restore(group_id):
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
     restore_batch(group)
-    scheduler_db.session.commit()
+    if not _commit_or_flash_conflict(
+        "⚠️ No se pudo restaurar el grupo: hay datos activos que chocan con los "
+        "de la papelera.",
+        "restore de grupo con conflicto de unique (group_id=%s)", group_id,
+    ):
+        return redirect(url_for("groups.trash"))
 
     flash(f"✅ Grupo '{group.name}' restaurado.", "success")
     return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
@@ -1053,7 +1081,12 @@ def restore_member(group_id, user_id):
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
     restore_batch(membership)
-    scheduler_db.session.commit()
+    if not _commit_or_flash_conflict(
+        "ℹ️ Esa persona ya volvió a ser miembro del grupo.",
+        "restore_member con conflicto de unique (group_id=%s user_id=%s)",
+        group_id, user_id,
+    ):
+        return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
     flash("✅ Miembro reincorporado al grupo.", "success")
     return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))

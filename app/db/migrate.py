@@ -36,6 +36,12 @@ _ALEMBIC_INI = os.path.join(_PROJECT_ROOT, "alembic.ini")
 # falla con "Path doesn't exist: alembic".
 _SCRIPT_LOCATION = os.path.join(_PROJECT_ROOT, "alembic")
 
+# Los unique parciales de DATA-001 (`WHERE deleted_at IS NULL`) no existen en
+# MySQL: ahí `postgresql_where`/`sqlite_where` se ignoran y el índice quedaría
+# total, rechazando reingresar a un grupo o recrear una categoría cuyo registro
+# borrado sigue en la tabla. Mejor fallar acá que dejar la base mal.
+SUPPORTED_DIALECTS = ("postgresql", "sqlite")
+
 # Migraciones aditivas por tabla: (columna, DDL) o (columna, DDL, backfill). El
 # backfill corre una sola vez, justo después de crear la columna, para poblarla
 # a partir de datos preexistentes. Se consulta el schema antes de cada ALTER,
@@ -216,6 +222,13 @@ def _adopt_alembic():
 
 def migrate_database():
     with scheduler_app.app_context():
+        dialect = scheduler_db.engine.dialect.name
+        if dialect not in SUPPORTED_DIALECTS:
+            raise RuntimeError(
+                f"El esquema no se puede migrar sobre '{dialect}': las revisiones "
+                f"usan índices unique parciales, que solo soportan "
+                f"{' y '.join(SUPPORTED_DIALECTS)}."
+            )
         print("Migrando base de datos...")
         _adopt_alembic()
         with scheduler_db.engine.begin() as connection:

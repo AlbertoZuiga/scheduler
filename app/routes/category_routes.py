@@ -1,5 +1,8 @@
-from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
+from flask import (
+    Blueprint, current_app, request, jsonify, render_template, redirect, url_for, flash
+)
 from flask_login import login_required, current_user
+from sqlalchemy.exc import IntegrityError
 
 from app.extensions import scheduler_db
 from app.models import Category, GroupMember, GroupMemberCategory, GroupPermissionGrant
@@ -28,6 +31,22 @@ def _json_or_flash(ok: bool, message: str, status: int = 200, redirect_to: str |
     if redirect_to:
         return redirect(redirect_to)
     return ("", status)
+
+
+def _commit_or_duplicate(message, redirect_to, log_message, *log_args):
+    """Commitea; devuelve una respuesta 409 si un unique de BD rechaza la fila.
+
+    El chequeo previo en Python no cubre dos requests simultáneos: ahí el que
+    pierde la carrera choca contra el unique parcial (DATA-001) y sin esto vería
+    un 500 crudo en vez del mismo mensaje de duplicado.
+    """
+    try:
+        scheduler_db.session.commit()
+        return None
+    except IntegrityError:
+        scheduler_db.session.rollback()
+        current_app.logger.warning(log_message, *log_args)
+        return _json_or_flash(False, message, 409, redirect_to)
 
 
 def _category_exists(group_id: int, name: str) -> bool:
@@ -61,7 +80,13 @@ def _handle_create_category(group_id: int):
     else:
         category = Category(group_id=group_id, name=name)
         scheduler_db.session.add(category)
-    scheduler_db.session.commit()
+    conflict = _commit_or_duplicate(
+        DUPLICATE_MSG,
+        url_for(GROUP_CATEGORIES_ENDPOINT, group_id=group_id),
+        "categoría duplicada en carrera (group_id=%s)", group_id,
+    )
+    if conflict:
+        return conflict
     if request.is_json:
         return jsonify({"ok": True, "id": category.id, "name": category.name}), 201
     flash("Categoría creada.", "success")
@@ -189,7 +214,14 @@ def _handle_member_post(group, membership, gm, group_member_id):
     else:
         assoc = GroupMemberCategory(group_member_id=group_member_id, category_id=category_id)
         scheduler_db.session.add(assoc)
-    scheduler_db.session.commit()
+    conflict = _commit_or_duplicate(
+        "Esa categoría ya está asociada al miembro.",
+        url_for("categories.member_categories", group_member_id=group_member_id),
+        "asignación de categoría duplicada (group_member_id=%s category_id=%s)",
+        group_member_id, category_id,
+    )
+    if conflict:
+        return conflict
     if request.is_json:
         return jsonify({"ok": True}), 201
     flash("Categoría asociada.", "success")
@@ -268,7 +300,13 @@ def _bulk_do_assign(gid, mids, cids):
                         GroupMemberCategory(group_member_id=mid, category_id=cid)
                     )
                 created += 1
-    scheduler_db.session.commit()
+    conflict = _commit_or_duplicate(
+        "Alguna de las asignaciones ya existía. Recarga y vuelve a intentar.",
+        None,
+        "bulk_assign con conflicto de unique (group_id=%s)", gid,
+    )
+    if conflict:
+        return conflict
     return jsonify({"ok": True, "created": created})
 
 

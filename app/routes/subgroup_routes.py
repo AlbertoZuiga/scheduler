@@ -239,13 +239,11 @@ def confirm(group_id):
             scheduler_db.session.add(subgroup)
             scheduler_db.session.flush()  # Para obtener el ID
             
-            # Añadir miembros
+            # Añadir miembros. Vía el helper: insertar directo duplicaba
+            # (subgroup_id, user_id) cuando la persona ya había estado en ese
+            # subgrupo, y ahora además violaría uq_subgroup_member_active.
             for member_data in group_data['members']:
-                subgroup_member = SubGroupMember(
-                    subgroup_id=subgroup.id,
-                    user_id=member_data['id']
-                )
-                scheduler_db.session.add(subgroup_member)
+                _add_subgroup_member(subgroup.id, member_data['id'])
             
             created_subgroups.append(subgroup.to_dict())
 

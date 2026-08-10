@@ -3,7 +3,7 @@ Modelos para subgrupos optimizados y división automática de grupos.
 """
 from datetime import datetime
 from app.extensions import scheduler_db
-from app.models.mixins import SoftDeleteMixin
+from app.models.mixins import ACTIVE_ROWS, SoftDeleteMixin
 
 
 class SubGroup(SoftDeleteMixin, scheduler_db.Model):
@@ -58,9 +58,16 @@ class SubGroupMember(SoftDeleteMixin, scheduler_db.Model):
     subgroup = scheduler_db.relationship('SubGroup', back_populates='members')
     user = scheduler_db.relationship('User', backref=scheduler_db.backref('subgroup_memberships', lazy='dynamic'))
 
-    # Constraint único si allow_multiple_membership=False (se valida en lógica de negocio)
     __table_args__ = (
         scheduler_db.Index('idx_subgroup_user', 'subgroup_id', 'user_id'),
+        scheduler_db.Index(
+            'uq_subgroup_member_active',
+            'subgroup_id',
+            'user_id',
+            unique=True,
+            postgresql_where=ACTIVE_ROWS,
+            sqlite_where=ACTIVE_ROWS,
+        ),
     )
 
     def __repr__(self):

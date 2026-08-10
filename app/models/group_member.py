@@ -1,7 +1,7 @@
 import enum
 
 from app.extensions import scheduler_db
-from app.models.mixins import SoftDeleteMixin
+from app.models.mixins import ACTIVE_ROWS, SoftDeleteMixin
 
 
 class RoleEnum(enum.IntEnum):
@@ -28,6 +28,17 @@ class GroupMember(SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too
     )
     permission_grants = scheduler_db.relationship(
         "GroupPermissionGrant", back_populates="group_member", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        scheduler_db.Index(
+            "uq_group_member_active",
+            "group_id",
+            "user_id",
+            unique=True,
+            postgresql_where=ACTIVE_ROWS,
+            sqlite_where=ACTIVE_ROWS,
+        ),
     )
 
     def soft_delete_cascade(self):

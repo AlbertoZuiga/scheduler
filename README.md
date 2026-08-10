@@ -156,7 +156,8 @@ docker exec -it backend_container python -m app.db.seed
 
 - **Python 3.11+**
 - **Node.js 18+** y **npm** (para compilar los estilos de TailwindCSS)
-- **PostgreSQL** (recomendado) o **MySQL**
+- **PostgreSQL** (SQLite solo se usa en los tests; MySQL ya no sirve: ver
+  [Migraciones con Alembic](#-migraciones-con-alembic))
 - **Git**
 - Credenciales de **Google OAuth 2.0**
 
@@ -417,18 +418,10 @@ npm run watch:css
 
 ### 2. Configurar Base de Datos
 
-Asegúrate de tener **PostgreSQL** o **MySQL** instalado y crea la base de datos:
-
-**PostgreSQL:**
+Asegúrate de tener **PostgreSQL** instalado y crea la base de datos:
 
 ```sql
 CREATE DATABASE scheduler_db;
-```
-
-**MySQL:**
-
-```sql
-CREATE DATABASE scheduler_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
 ### 3. Configurar Variables de Entorno
@@ -669,7 +662,9 @@ GroupMember
 
 ### Configuración de Conexión
 
-La aplicación soporta tanto **PostgreSQL** (recomendado) como **MySQL**:
+El motor es **PostgreSQL**. SQLite funciona para los tests; MySQL ya no, porque
+no tiene índices unique parciales (ver
+[Migraciones con Alembic](#-migraciones-con-alembic)).
 
 **Con Docker (PostgreSQL - configurado automáticamente):**
 
@@ -682,15 +677,6 @@ DATABASE_URI=postgresql://postgres:postgres@db:5432/scheduler
 ```env
 DB_HOST=localhost
 DB_USER=postgres
-DB_PASSWORD=tu_password
-DB_NAME=scheduler_db
-```
-
-**Ejecución Local con MySQL:**
-
-```env
-DB_HOST=localhost
-DB_USER=root
 DB_PASSWORD=tu_password
 DB_NAME=scheduler_db
 ```
@@ -730,6 +716,13 @@ El esquema lo versiona **Alembic** (`alembic.ini` + `alembic/versions/`).
 | Vacía | `create_all()` desde los modelos + `stamp head` (ya está al día) |
 | Con tablas y **sin** `alembic_version` (bases ya desplegadas en Render) | pone al día las columnas heredadas, `stamp 0001_baseline` — **no recrea ni borra ninguna tabla** — y luego aplica `0002` en adelante |
 | Ya versionada | `upgrade head` |
+
+**Motores soportados: PostgreSQL y SQLite (tests).** `migrate` aborta con un
+error explícito en cualquier otro. Los unique de DATA-001 son *parciales*
+(`WHERE deleted_at IS NULL`) y MySQL no los tiene: ahí el índice quedaría total
+y rechazaría reingresar a un grupo o recrear una categoría cuyo registro borrado
+sigue en la tabla. Migrar en MySQL dejaría la base silenciosamente mal, así que
+no se intenta.
 
 **Qué reemplaza a qué:**
 

@@ -1,5 +1,7 @@
+from sqlalchemy import func
+
 from app.extensions import scheduler_db
-from app.models.mixins import SoftDeleteMixin
+from app.models.mixins import ACTIVE_ROWS, SoftDeleteMixin
 
 
 class Category(SoftDeleteMixin, scheduler_db.Model):  # pylint: disable=too-few-public-methods
@@ -15,6 +17,20 @@ class Category(SoftDeleteMixin, scheduler_db.Model):  # pylint: disable=too-few-
     )
     permission_grants = scheduler_db.relationship(
         "GroupPermissionGrant", back_populates="category", cascade="all, delete-orphan"
+    )
+
+    # El nombre es único sin distinguir mayúsculas: es como lo compara la ruta
+    # que crea categorías (`_category_exists`), así que el índice va sobre
+    # lower(name) para que la BD imponga exactamente el mismo criterio.
+    __table_args__ = (
+        scheduler_db.Index(
+            "uq_category_active_name",
+            "group_id",
+            func.lower(name),
+            unique=True,
+            postgresql_where=ACTIVE_ROWS,
+            sqlite_where=ACTIVE_ROWS,
+        ),
     )
 
     def soft_delete_cascade(self):
