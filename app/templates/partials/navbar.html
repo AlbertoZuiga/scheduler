@@ -120,10 +120,11 @@ document.addEventListener('DOMContentLoaded', function () {
       iconSun.classList.toggle('hidden', !dark);
       iconMoon.classList.toggle('hidden', dark);
     }
-    // Inicialización
-    const userPref = localStorage.getItem('theme');
-    const systemPref = globalThis.matchMedia('(prefers-color-scheme: dark)').matches;
-    setDarkMode(userPref === 'dark' || (!userPref && systemPref));
+    // La clase .dark ya la aplicó el script bloqueante de base.html; aquí solo
+    // se sincronizan los iconos con el estado actual.
+    const isDark = document.documentElement.classList.contains('dark');
+    iconSun.classList.toggle('hidden', !isDark);
+    iconMoon.classList.toggle('hidden', isDark);
     darkToggle.addEventListener('click', () => {
       setDarkMode(!document.documentElement.classList.contains('dark'));
     });
@@ -144,11 +145,11 @@ document.addEventListener('DOMContentLoaded', function () {
       darkModeText.textContent = dark ? 'Modo claro' : 'Modo oscuro';
     }
     
-    // Inicialización
-    const userPref = localStorage.getItem('theme');
-    const systemPref = globalThis.matchMedia('(prefers-color-scheme: dark)').matches;
-    setDarkModeMobile(userPref === 'dark' || (!userPref && systemPref));
-    
+    const isDarkMobile = document.documentElement.classList.contains('dark');
+    iconSunMobile.classList.toggle('hidden', !isDarkMobile);
+    iconMoonMobile.classList.toggle('hidden', isDarkMobile);
+    darkModeText.textContent = isDarkMobile ? 'Modo claro' : 'Modo oscuro';
+
     darkToggleMobile.addEventListener('click', () => {
       setDarkModeMobile(!document.documentElement.classList.contains('dark'));
     });

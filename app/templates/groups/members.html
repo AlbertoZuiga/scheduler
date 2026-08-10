@@ -664,6 +664,7 @@
         const category = categoryById.get(activeCategoryId);
         modalTitle.textContent = `Categoría: ${category ? category.name : activeCategoryId}`;
 
+        modalMembers.parentElement.querySelector('[data-modal-alert]')?.remove();
         modalMembers.innerHTML = '';
         originalSelection = new Set();
 
@@ -722,9 +723,47 @@
         const toAssign = Array.from(currentSelection).filter((id) => !originalSelection.has(id));
         const toUnassign = Array.from(originalSelection).filter((id) => !currentSelection.has(id));
 
+        // El modal solo se cierra si el server confirmó ambos lotes; cada lote
+        // aplicado en el server se refleja localmente aunque el otro falle.
+        // El modal es un overlay fixed con backdrop; showInlineAlert prepende en
+        // <main>, que queda tapado, así que el aviso se mueve dentro del modal.
+        const alertInModal = (message) => {
+          modalMembers.parentElement.querySelector('[data-modal-alert]')?.remove();
+          const alertEl = showInlineAlert(message, 'danger');
+          alertEl.dataset.modalAlert = 'true';
+          modalMembers.parentElement.prepend(alertEl);
+        };
+
+        const failWith = async (response) => {
+          const errorBody = await response.json().catch(() => ({}));
+          alertInModal(errorBody.message || 'No se pudo guardar el cambio de categoría.');
+        };
+
+        const applyAssigned = () => {
+          for (const memberId of toAssign) {
+            const member = membersById.get(Number.parseInt(memberId));
+            if (member && !member.categories.includes(activeCategoryId)) {
+              member.categories.push(activeCategoryId);
+              renderMemberChips(memberId);
+            }
+            originalSelection.add(Number.parseInt(memberId));
+          }
+        };
+
+        const applyUnassigned = () => {
+          for (const memberId of toUnassign) {
+            const member = membersById.get(Number.parseInt(memberId));
+            if (member) {
+              member.categories = member.categories.filter((id) => id !== activeCategoryId);
+              renderMemberChips(memberId);
+            }
+            originalSelection.delete(Number.parseInt(memberId));
+          }
+        };
+
         try {
           if (toAssign.length > 0) {
-            await fetch('/categories/bulk_assign', {
+            const response = await fetch('/categories/bulk_assign', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -737,10 +776,15 @@
                 action: 'assign'
               })
             });
+            if (!response.ok) {
+              await failWith(response);
+              return;
+            }
+            applyAssigned();
           }
 
           if (toUnassign.length > 0) {
-            await fetch('/categories/bulk_assign', {
+            const response = await fetch('/categories/bulk_assign', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -753,29 +797,18 @@
                 action: 'unassign'
               })
             });
-          }
-
-          for (const memberId of toAssign) {
-            const member = membersById.get(Number.parseInt(memberId));
-            if (member && !member.categories.includes(activeCategoryId)) {
-              member.categories.push(activeCategoryId);
-              renderMemberChips(memberId);
+            if (!response.ok) {
+              await failWith(response);
+              return;
             }
-          }
-
-          for (const memberId of toUnassign) {
-            const member = membersById.get(Number.parseInt(memberId));
-            if (member) {
-              member.categories = member.categories.filter((id) => id !== activeCategoryId);
-              renderMemberChips(memberId);
-            }
+            applyUnassigned();
           }
 
           showInlineAlert('Miembros actualizados para la categoría.', 'success');
           closeModal();
         } catch (error) {
           console.error('saveCategoryMembers error:', error);
-          showInlineAlert('No se pudo guardar el cambio de categoría.', 'danger');
+          alertInModal('No se pudo guardar el cambio de categoría.');
         }
       });
     }

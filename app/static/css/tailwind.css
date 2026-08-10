@@ -3,6 +3,9 @@
 @variant dark (&:where(.dark, .dark *));
 
 @theme {
+  /* 📐 Breakpoints extra (Tailwind v4 solo trae sm..2xl) */
+  --breakpoint-xs: 30rem;
+
   /* 🎨 Colores Principales */
   --color-primary: #6366f1;
   --color-primary-light: #818cf8;
