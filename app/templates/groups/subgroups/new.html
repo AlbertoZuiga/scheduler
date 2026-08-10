@@ -654,7 +654,7 @@
   });
 </script>
 
-<script src="{{ url_for('static', filename='js/subgroups.js') }}"></script>
+<script defer src="{{ static_url('js/subgroups.js') }}"></script>
 <script>
 // Reemplaza __IDX__ por un índice único al clonar el template
 document.addEventListener('DOMContentLoaded', function() {

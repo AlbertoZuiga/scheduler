@@ -9,6 +9,8 @@ from flask import (
 from markupsafe import Markup, escape
 from flask_login import current_user, login_required
 from flask_wtf.csrf import generate_csrf
+from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 
 from app.extensions import scheduler_db
 from app.models import (
@@ -157,6 +159,14 @@ def _process_posted_availability(group_id, form_data, group, user_id, active_wee
 
 GROUP_SHOW_URL = "groups.show"
 GROUP_INDEX_URL = "groups.index"
+
+# Cotas de los listados que crecen sin techo. No es paginación: es el techo que
+# evita que una vista se vuelva ilegible (y cara) cuando el grupo se dispara.
+# Todos los listados acotados llevan además un orden total, para que el corte
+# sea el mismo entre requests con los mismos datos.
+MEMBERS_LIST_LIMIT = 500
+TRASH_LIST_LIMIT = 200
+AVAILABILITY_SUMMARY_LIMIT = 200
 COLORS = [
     "bg-primary",
     "bg-success",
@@ -190,6 +200,18 @@ def convert_float_to_time_string(hour):
         return _format_minutes(_hour_to_minutes(hour))
     except (ValueError, TypeError) as exc:
         raise ValueError("Invalid hour value. Expected a float.") from exc
+
+
+def _counts_by_group(model, group_ids):
+    """{group_id: filas activas de `model`} en una sola consulta agregada."""
+    if not group_ids:
+        return {}
+    return dict(
+        scheduler_db.session.query(model.group_id, func.count(model.id))
+        .filter(model.group_id.in_(group_ids))
+        .group_by(model.group_id)
+        .all()
+    )
 
 
 def _active_member_user_ids(group_id):
@@ -292,50 +314,87 @@ def _move_marks(group, row, targets, known):
     return moved
 
 
-def get_availability_data(group_id):
+def get_availability_data(group_id, limit=AVAILABILITY_SUMMARY_LIMIT):
+    """Bloques del grupo con sus asistentes, del más concurrido al menos.
+
+    Se resuelve en dos pasos para no traer todas las marcas del grupo en cada
+    page view: primero un GROUP BY que ordena los bloques por concurrencia y se
+    queda con los `limit` primeros, y recién después las marcas de esos bloques.
+    El corte es por la cola (los bloques con menos gente), así que "los horarios
+    en que pueden todos" —que es lo que la vista destaca— nunca se pierde.
+    """
     if not group_id:
         return {}
 
-    results = (
+    member_ids = _active_member_user_ids(group_id)
+    if not member_ids:
+        return {}
+
+    top_blocks = (
         scheduler_db.session.query(
             Availability.id,
             Availability.weekday,
             Availability.hour,
-            Availability.group_id,
-            UserAvailability.user_id,
+            func.count(UserAvailability.id).label("count_users"),
         )
         .join(UserAvailability, UserAvailability.availability_id == Availability.id)
         .filter(Availability.group_id == group_id)
-        .filter(UserAvailability.user_id.in_(_active_member_user_ids(group_id)))
+        .filter(UserAvailability.user_id.in_(member_ids))
+        .group_by(Availability.id, Availability.weekday, Availability.hour)
+        # `Availability.id` desempata: sin orden total el LIMIT devuelve
+        # bloques distintos entre requests con los mismos datos.
+        .order_by(func.count(UserAvailability.id).desc(), Availability.id.asc())
+        .limit(limit)
         .all()
     )
+    if not top_blocks:
+        return {}
 
-    data = {}
-    for availability_id, weekday, hour, _, user_id in results:
-        if availability_id not in data:
-            data[availability_id] = {
-                "availability": Availability(
-                    id=availability_id, weekday=weekday, hour=hour, group_id=group_id
-                ),
-                "users": [],
-                "count_users": 0,
-            }
+    data = {
+        availability_id: {
+            "availability": Availability(
+                id=availability_id, weekday=weekday, hour=hour, group_id=group_id
+            ),
+            "users": [],
+            "count_users": count_users,
+        }
+        for availability_id, weekday, hour, count_users in top_blocks
+    }
+
+    rows = (
+        scheduler_db.session.query(
+            UserAvailability.availability_id, UserAvailability.user_id
+        )
+        .filter(UserAvailability.availability_id.in_(data.keys()))
+        .filter(UserAvailability.user_id.in_(member_ids))
+        .all()
+    )
+    for availability_id, user_id in rows:
         data[availability_id]["users"].append(user_id)
-        data[availability_id]["count_users"] += 1
 
-    sorted_data = dict(sorted(data.items(), key=lambda item: item[1]["count_users"], reverse=True))
-
-    return sorted_data
+    return data
 
 
 @group_bp.route("/", methods=["GET"])
 @login_required
 def index():
-    groups = Group.query.join(GroupMember).filter(GroupMember.user_id == current_user.id).all()
+    groups = (
+        Group.query.join(GroupMember)
+        .filter(GroupMember.user_id == current_user.id)
+        .order_by(Group.name.asc(), Group.id.asc())
+        .all()
+    )
     memberships = GroupMember.query.filter_by(user_id=current_user.id).all()
     admin_group_ids = {
         m.group_id for m in memberships if m.role == RoleEnum.ADMIN
     }
+
+    # Los contadores de la tarjeta salen de dos GROUP BY, no de `|length` sobre
+    # las relaciones lazy: eso cargaba miembros y categorías completos de cada
+    # grupo (dos SELECT por fila) solo para contarlos.
+    group_ids = [group.id for group in groups]
+    member_counts = _counts_by_group(GroupMember, group_ids)
+    category_counts = _counts_by_group(Category, group_ids)
 
     trash_count = (
         Group.query.execution_options(**{INCLUDE_DELETED: True})
@@ -348,6 +407,8 @@ def index():
         groups=groups,
         admin_group_ids=admin_group_ids,
         trash_count=trash_count,
+        member_counts=member_counts,
+        category_counts=category_counts,
     )
 
 
@@ -358,7 +419,15 @@ def show(group_id):
     blocks = [label for _, label in _generate_time_blocks(group)]
     active_weekdays = group.get_active_weekdays()
 
-    group_members = GroupMember.query.filter_by(group_id=group.id).all()
+    # Eager loading: la vista recorre `member.user` y `member.categories` de
+    # todos los miembros, que en lazy son dos SELECT por miembro.
+    group_members = (
+        GroupMember.query.filter_by(group_id=group.id)
+        .options(selectinload(GroupMember.user), selectinload(GroupMember.categories))
+        .order_by(GroupMember.id.asc())
+        .limit(MEMBERS_LIST_LIMIT)
+        .all()
+    )
     color_map = assign_colors_to_members(group_members)
     user_info_map = {
         member.user.id: {
@@ -429,8 +498,19 @@ def show(group_id):
         for gm in group_members
     }
     user_gm_map = {gm.user_id: gm.id for gm in group_members}
+    # El roster de cada categoría se arma acá, no en la plantilla: allá era un
+    # bucle de miembros dentro del bucle de categorías (O(categorías×miembros))
+    # que además volvía a tocar `group.members` en cada vuelta.
+    category_member_names = {category.id: [] for category in group_categories}
+    for gm in group_members:
+        display_name = gm.user.name or gm.user.email
+        for assoc in gm.categories:
+            if assoc.category_id in category_member_names:
+                category_member_names[assoc.category_id].append(display_name)
+
     subgroups = (
         SubGroup.query.filter_by(parent_group_id=group.id)
+        .options(selectinload(SubGroup.members))
         .order_by(SubGroup.created_at.desc(), SubGroup.id.asc())
         .all()
     )
@@ -463,6 +543,7 @@ def show(group_id):
         can_manage=can_manage,
         perms=perms,
         group_categories=group_categories,
+        category_member_names=category_member_names,
         group_subgroups=group_subgroups,
         member_category_map=member_category_map,
         user_subgroup_map=user_subgroup_map,
@@ -555,7 +636,13 @@ def join(token):
 @login_required
 def members(group_id):
     group, membership = require_group_member(group_id)
-    group_members = GroupMember.query.filter_by(group_id=group.id).all()
+    group_members = (
+        GroupMember.query.filter_by(group_id=group.id)
+        .options(selectinload(GroupMember.user), selectinload(GroupMember.categories))
+        .order_by(GroupMember.id.asc())
+        .limit(MEMBERS_LIST_LIMIT)
+        .all()
+    )
     can_manage = (group.owner_id == current_user.id) or (membership.role == RoleEnum.ADMIN)
     categories = Category.query.filter_by(group_id=group.id).all()
     responded_user_ids = {
@@ -577,8 +664,10 @@ def members(group_id):
     if can_manage:
         removed_members = (
             GroupMember.query.execution_options(**{INCLUDE_DELETED: True})
+            .options(selectinload(GroupMember.user))
             .filter(GroupMember.group_id == group.id, GroupMember.deleted_at.isnot(None))
-            .order_by(GroupMember.deleted_at.desc())
+            .order_by(GroupMember.deleted_at.desc(), GroupMember.id.desc())
+            .limit(MEMBERS_LIST_LIMIT)
             .all()
         )
 
@@ -600,7 +689,28 @@ def export_members_csv(group_id):
     # Exporta emails de todo el grupo: exclusivo de owner/admin, igual que el
     # resto de la administración de usuarios (antes cualquier miembro podía).
     group, _ = require_group_admin_or_owner(group_id)
-    group_members = GroupMember.query.filter_by(group_id=group.id).all()
+    group_members = (
+        GroupMember.query.filter_by(group_id=group.id)
+        .options(
+            selectinload(GroupMember.user),
+            selectinload(GroupMember.categories).selectinload(GroupMemberCategory.category),
+        )
+        .order_by(GroupMember.id.asc())
+        .all()
+    )
+
+    # Un GROUP BY para todo el grupo en vez de un COUNT por miembro dentro del
+    # bucle: el export era O(miembros) consultas.
+    availability_counts = dict(
+        scheduler_db.session.query(
+            UserAvailability.user_id, func.count(UserAvailability.id)
+        )
+        .join(Availability, UserAvailability.availability_id == Availability.id)
+        .filter(Availability.group_id == group.id)
+        .filter(UserAvailability.user_id.in_([member.user_id for member in group_members]))
+        .group_by(UserAvailability.user_id)
+        .all()
+    )
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -612,15 +722,7 @@ def export_members_csv(group_id):
             for assoc in member.categories
             if assoc.category and assoc.category.name
         )
-        availability_count = (
-            scheduler_db.session.query(UserAvailability)
-            .join(Availability)
-            .filter(
-                UserAvailability.user_id == member.user.id,
-                Availability.group_id == group.id
-            )
-            .count()
-        )
+        availability_count = availability_counts.get(member.user_id, 0)
         writer.writerow([
             member.user.name if member.user else "",
             member.user.email if member.user else "",
@@ -849,7 +951,8 @@ def trash():
     groups = (
         Group.query.execution_options(**{INCLUDE_DELETED: True})
         .filter(Group.deleted_at.isnot(None), Group.owner_id == current_user.id)
-        .order_by(Group.deleted_at.desc())
+        .order_by(Group.deleted_at.desc(), Group.id.desc())
+        .limit(TRASH_LIST_LIMIT)
         .all()
     )
     return render_template("groups/trash.html", groups=groups)
@@ -982,9 +1085,24 @@ def permissions(group_id):
 
     categories = Category.query.filter_by(group_id=group.id).all()
     categories_by_id = {cat.id: cat for cat in categories}
-    group_members = GroupMember.query.filter_by(group_id=group.id).all()
+    group_members = (
+        GroupMember.query.filter_by(group_id=group.id)
+        .options(selectinload(GroupMember.user))
+        .all()
+    )
     members_by_id = {member.id: member for member in group_members}
     sources = grant_sources(group)
+
+    # Miembros por categoría en un solo GROUP BY: antes era un COUNT por fila
+    # de la tabla de permisos.
+    category_member_counts = dict(
+        scheduler_db.session.query(
+            GroupMemberCategory.category_id, func.count(GroupMemberCategory.id)
+        )
+        .filter(GroupMemberCategory.category_id.in_(list(categories_by_id)))
+        .group_by(GroupMemberCategory.category_id)
+        .all()
+    ) if categories_by_id else {}
 
     category_rows = []
     for cat_id, direct in sources["categories"].items():
@@ -994,7 +1112,7 @@ def permissions(group_id):
         category_rows.append({
             "category": cat,
             "level": level_of(direct),
-            "member_count": GroupMemberCategory.query.filter_by(category_id=cat_id).count(),
+            "member_count": category_member_counts.get(cat_id, 0),
         })
     category_rows.sort(key=lambda row: row["category"].name)
 
