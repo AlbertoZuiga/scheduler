@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}Iniciar sesión{% endblock %}
+
+{% block content %}
+<section class="max-w-md mx-auto py-10 sm:py-16 text-center">
+  <div class="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border shadow-card dark:shadow-card-dark p-6 sm:p-8">
+    <h1 class="text-2xl sm:text-3xl font-semibold">Inicia sesión en Scheduler</h1>
+    <p class="mt-3 text-light-text-secondary dark:text-dark-text-secondary">
+      Usamos tu cuenta de Google para identificarte. No publicamos nada ni accedemos
+      a tu correo: solo leemos tu nombre, tu email y tu foto de perfil.
+    </p>
+
+    <a id="google-login"
+       href="{{ url_for('auth.login_google') }}"
+       class="mt-8 w-full inline-flex items-center justify-center gap-3 px-5 py-3 min-h-[48px] rounded-lg bg-white text-[#1f1f1f] border border-[#dadce0] font-medium shadow hover:shadow-md transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+      <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 18 18" aria-hidden="true">
+        <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/>
+        <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/>
+        <path fill="#FBBC05" d="M3.97 10.72a5.41 5.41 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/>
+        <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/>
+      </svg>
+      <span data-state="idle">Iniciar sesión con Google</span>
+      <span data-state="loading" class="hidden inline-flex items-center gap-2">
+        <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+        </svg>
+        Conectando con Google…
+      </span>
+    </a>
+
+    <p class="mt-6 text-xs text-light-text-secondary dark:text-dark-text-secondary">
+      Al continuar aceptas que tu nombre y tu disponibilidad sean visibles para
+      los miembros de los grupos a los que te unas.
+    </p>
+  </div>
+</section>
+{% endblock %}
+
+{% block script %}
+<script>
+  // Estado de carga: el salto a Google puede tardar en redes lentas y sin esto
+  // el botón parece no haber respondido.
+  const loginLink = document.getElementById('google-login');
+
+  function setLoading(loading) {
+    if (!loginLink) return;
+    loginLink.setAttribute('aria-busy', loading ? 'true' : 'false');
+    loginLink.classList.toggle('pointer-events-none', loading);
+    loginLink.classList.toggle('opacity-70', loading);
+    loginLink.querySelector('[data-state="idle"]').classList.toggle('hidden', loading);
+    loginLink.querySelector('[data-state="loading"]').classList.toggle('hidden', !loading);
+  }
+
+  loginLink?.addEventListener('click', () => setLoading(true));
+
+  // Volver atrás desde Google restaura la página desde el bfcache con el DOM
+  // tal cual quedó: sin esto el botón se queda en "Conectando…" y con los
+  // clicks desactivados, así que el usuario no puede reintentar.
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) setLoading(false);
+  });
+</script>
+{% endblock %}
