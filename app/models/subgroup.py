@@ -23,6 +23,10 @@ class SubGroup(SoftDeleteMixin, scheduler_db.Model):
     parent_group = scheduler_db.relationship('Group', backref=scheduler_db.backref('subgroups', lazy='dynamic', cascade='all, delete-orphan'))
     members = scheduler_db.relationship('SubGroupMember', back_populates='subgroup', cascade='all, delete-orphan')
 
+    __table_args__ = (
+        scheduler_db.Index('ix_subgroups_parent_deleted', 'parent_group_id', 'deleted_at'),
+    )
+
     def soft_delete_cascade(self):
         return list(self.members)
 

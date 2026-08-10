@@ -17,6 +17,12 @@ class UserAvailability(SoftDeleteMixin, scheduler_db.Model):    # pylint: disabl
 
     __table_args__ = (
         scheduler_db.Index(
+            "ix_user_availability_user_avail_deleted",
+            "user_id",
+            "availability_id",
+            "deleted_at",
+        ),
+        scheduler_db.Index(
             "uq_user_availability_active",
             "user_id",
             "availability_id",

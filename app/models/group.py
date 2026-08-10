@@ -28,6 +28,10 @@ class Group(SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-p
         "Category", back_populates="group", cascade="all, delete-orphan"
     )
 
+    __table_args__ = (
+        scheduler_db.Index("ix_group_owner_deleted", "owner_id", "deleted_at"),
+    )
+
     def __repr__(self):
         return (
             f"<Group id={self.id} name={self.name} "

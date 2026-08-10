@@ -11,6 +11,7 @@ class Availability(scheduler_db.Model):    # pylint: disable=too-few-public-meth
 
     # Sin borrado lógico en esta tabla: el unique es total, no parcial.
     __table_args__ = (
+        scheduler_db.Index("ix_availability_group", "group_id"),
         scheduler_db.UniqueConstraint(
             "group_id", "weekday", "hour", name="uq_availability_slot"
         ),

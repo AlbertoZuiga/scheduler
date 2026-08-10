@@ -23,6 +23,7 @@ class Category(SoftDeleteMixin, scheduler_db.Model):  # pylint: disable=too-few-
     # que crea categorías (`_category_exists`), así que el índice va sobre
     # lower(name) para que la BD imponga exactamente el mismo criterio.
     __table_args__ = (
+        scheduler_db.Index("ix_category_group_deleted", "group_id", "deleted_at"),
         scheduler_db.Index(
             "uq_category_active_name",
             "group_id",

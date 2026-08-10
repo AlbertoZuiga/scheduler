@@ -16,6 +16,12 @@ class GroupMemberCategory(SoftDeleteMixin, scheduler_db.Model):  # pylint: disab
 
     __table_args__ = (
         scheduler_db.Index(
+            "ix_group_member_category_member_cat_deleted",
+            "group_member_id",
+            "category_id",
+            "deleted_at",
+        ),
+        scheduler_db.Index(
             "uq_group_member_category_active",
             "group_member_id",
             "category_id",

@@ -30,7 +30,12 @@ class GroupMember(SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too
         "GroupPermissionGrant", back_populates="group_member", cascade="all, delete-orphan"
     )
 
+    # El filtro global `deleted_at IS NULL` va en cada SELECT, así que los
+    # índices de FK lo llevan como última columna (DATA-002).
     __table_args__ = (
+        scheduler_db.Index(
+            "ix_group_member_group_user_deleted", "group_id", "user_id", "deleted_at"
+        ),
         scheduler_db.Index(
             "uq_group_member_active",
             "group_id",
