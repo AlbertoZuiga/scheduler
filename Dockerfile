@@ -1,10 +1,14 @@
-FROM python:3.12
+FROM python:3.12.11-slim
 
 WORKDIR /proyect
 
 RUN apt-get update && apt-get install -y \
-    nodejs \
-    npm \
+    curl \
+    ca-certificates \
+    libpq-dev \
+    gcc \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
