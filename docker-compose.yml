@@ -16,6 +16,11 @@ services:
     build:
       context: .
     container_name: backend_container
+    # El CMD de la imagen mas --reload: el volumen ./app es para editar en
+    # caliente y gunicorn, a diferencia del dev server, no recarga solo.
+    command:
+      ["gunicorn", "--workers", "1", "--threads", "4", "--access-logfile", "-",
+       "--reload", "run:scheduler_app"]
     environment:
       DATABASE_URI: postgresql://postgres:postgres@db:5432/scheduler
       DB_HOST: db
@@ -25,7 +30,7 @@ services:
       GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET}"
       PORT: "5000"
       URL: "http://localhost:5050"
-      DEBUG:  "${DEBUG}"
+      DEBUG:  "${DEBUG:-False}"
     depends_on:
       db:
         condition: service_healthy

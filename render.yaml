@@ -9,7 +9,7 @@ services:
     name: scheduler-app
     env: python
     buildCommand: "./render-build.sh"
-    startCommand: "gunicorn run:scheduler_app"
+    startCommand: "gunicorn --workers 1 --threads 4 --access-logfile - run:scheduler_app"
     plan: free
     envVars:
         - key: PYTHON_VERSION
