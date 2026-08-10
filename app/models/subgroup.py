@@ -89,10 +89,14 @@ class SubGroupMember(SoftDeleteMixin, scheduler_db.Model):
         }
 
 
-class DivisionJob(scheduler_db.Model):
+class DivisionJob(SoftDeleteMixin, scheduler_db.Model):
     """
     Historial de trabajos de división automática.
     Permite hacer undo y tracking de configuraciones previas.
+
+    Lleva borrado lógico (DATA-003): `result_json` guarda nombres y correos de
+    todo el grupo, así que un job tiene que dejar de ser alcanzable cuando su
+    grupo se borra (cascada desde `Group`) o cuando la retención lo jubila.
     """
     __tablename__ = 'division_jobs'
 
@@ -107,6 +111,10 @@ class DivisionJob(scheduler_db.Model):
     # Relaciones
     parent_group = scheduler_db.relationship('Group', backref=scheduler_db.backref('division_jobs', lazy='dynamic'))
     creator = scheduler_db.relationship('User', backref=scheduler_db.backref('division_jobs_created', lazy='dynamic'))
+
+    __table_args__ = (
+        scheduler_db.Index('ix_division_jobs_parent_deleted', 'parent_group_id', 'deleted_at'),
+    )
 
     def __repr__(self):
         return f'<DivisionJob {self.id} group={self.parent_group_id} status={self.status}>'

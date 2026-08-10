@@ -41,6 +41,41 @@ GROUP_SHOW_ENDPOINT = 'groups.show'
 # aloque listas y cicle miembros × grupos en el servicio (DoS).
 MAX_NUM_GROUPS = 200
 SUBGROUP_INDEX_ENDPOINT = 'subgroups.index'
+# Cada click en "Generar" escribe un DivisionJob con el preview completo (una
+# fila JSON gorda con nombres y correos). Se conservan los más recientes; el
+# resto se oculta. Ver DATA-003.
+RETAINED_JOBS_PER_GROUP = 10
+
+
+def _get_active_job_or_404(group_id, job_id):
+    """Job vivo de este grupo, o 404.
+
+    `query.get_or_404` resuelve por identity map y esquiva el filtro de borrado
+    lógico: con él, un job de un grupo borrado (o jubilado por la retención)
+    seguía siendo exportable.
+    """
+    return DivisionJob.query.filter_by(id=job_id, parent_group_id=group_id).first_or_404()
+
+
+def _prune_division_jobs(group_id):
+    """Oculta los jobs viejos del grupo, conservando el último confirmado.
+
+    El confirmado más reciente se preserva siempre: es el que `undo` necesita
+    para revertir la división vigente.
+    """
+    jobs = (
+        DivisionJob.query.filter_by(parent_group_id=group_id)
+        .order_by(DivisionJob.timestamp.desc(), DivisionJob.id.desc())
+        .all()
+    )
+    keep = {job.id for job in jobs[:RETAINED_JOBS_PER_GROUP]}
+    last_confirmed = next((job for job in jobs if job.status == 'confirmed'), None)
+    if last_confirmed is not None:
+        keep.add(last_confirmed.id)
+
+    for job in jobs:
+        if job.id not in keep:
+            job.soft_delete()
 
 
 def _subgroups_index_redirect(group_id):
@@ -171,6 +206,8 @@ def generate(group_id):
             status='pending'
         )
         scheduler_db.session.add(job)
+        scheduler_db.session.flush()
+        _prune_division_jobs(group_id)
         scheduler_db.session.commit()
         
         # Añadir job_id al preview
@@ -208,11 +245,8 @@ def confirm(group_id):
         if not job_id:
             return jsonify({'error': 'job_id no proporcionado'}), 400
         
-        # Buscar el job
-        job = DivisionJob.query.get_or_404(job_id)
-        
-        if job.parent_group_id != group_id:
-            return jsonify({'error': 'Job no corresponde a este grupo'}), 400
+        # Buscar el job (vivo y de este grupo)
+        job = _get_active_job_or_404(group_id, job_id)
         
         if job.status == 'confirmed':
             return jsonify({'error': 'Este job ya fue confirmado'}), 400
@@ -347,11 +381,10 @@ def export(group_id):
     try:
         if job_id:
             # Exportar preview de un job específico
-            job = DivisionJob.query.get_or_404(job_id)
-            
-            if job.parent_group_id != group_id:
-                abort(403)
-            
+            # El job tiene que seguir vivo y pertenecer a este grupo: si el
+            # grupo se borró, la cascada lo ocultó y esta consulta ya no lo ve.
+            job = _get_active_job_or_404(group_id, job_id)
+
             preview = job.result_json
             if not preview or 'groups' not in preview:
                 abort(400)
