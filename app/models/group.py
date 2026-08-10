@@ -28,6 +28,10 @@ class Group(SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-p
         "Category", back_populates="group", cascade="all, delete-orphan"
     )
 
+    __table_args__ = (
+        scheduler_db.Index("ix_group_owner_deleted", "owner_id", "deleted_at"),
+    )
+
     def __repr__(self):
         return (
             f"<Group id={self.id} name={self.name} "
@@ -36,7 +40,10 @@ class Group(SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-p
         )
 
     def soft_delete_cascade(self):
-        return [*self.members, *self.categories, *self.subgroups]
+        # Los DivisionJob entran en la cascada: su `result_json` lleva nombres y
+        # correos de todo el grupo, y sin esto seguían siendo exportables
+        # después de borrar el grupo.
+        return [*self.members, *self.categories, *self.subgroups, *self.division_jobs]
 
     def get_active_weekdays(self):
         """Devuelve la lista ordenada de índices de día (0=Lunes) activos para el grupo."""

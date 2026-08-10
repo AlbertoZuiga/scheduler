@@ -27,4 +27,6 @@ ENV PORT=5000
 
 EXPOSE 5000
 
-CMD ["gunicorn", "--workers", "1", "--threads", "4", "--access-logfile", "-", "run:scheduler_app"]
+# Las migraciones van antes de servir: `run.py` ya no hace create_all(), así que
+# sin esto el contenedor arranca contra una base sin esquema.
+CMD ["sh", "-c", "python -m app.db.migrate && exec gunicorn --workers 1 --threads 4 --access-logfile - run:scheduler_app"]

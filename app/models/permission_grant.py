@@ -32,6 +32,12 @@ class GroupPermissionGrant(SoftDeleteMixin, scheduler_db.Model):  # pylint: disa
 
     __table_args__ = (
         scheduler_db.Index("idx_perm_grant_group", "group_id", "permission"),
+        scheduler_db.Index(
+            "ix_perm_grant_member_cat_deleted",
+            "group_member_id",
+            "category_id",
+            "deleted_at",
+        ),
         # Incluye las concesiones revocadas (soft delete): la ruta que otorga
         # revive la fila oculta en vez de insertar una nueva.
         scheduler_db.UniqueConstraint(

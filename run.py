@@ -1,11 +1,11 @@
-from app import scheduler_app
-from app.extensions import scheduler_db
 import os
 
+from app import scheduler_app
 
-with scheduler_app.app_context():
-    scheduler_db.create_all()
-
+# El esquema NO se crea acá. Antes este módulo hacía `create_all()` al importar,
+# así que cada worker de gunicorn emitía DDL al arrancar. Ahora las migraciones
+# son responsabilidad de Alembic vía `python -m app.db.migrate`, que corre una
+# sola vez en el build (`render-build.sh`) o al levantar el contenedor.
 
 if __name__ == "__main__":
     host = os.getenv("HOST", "0.0.0.0")

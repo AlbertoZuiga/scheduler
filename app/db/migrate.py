@@ -1,8 +1,45 @@
+"""Punto de entrada de las migraciones. Desde ahora, Alembic manda.
+
+Qué reemplaza a qué:
+
+- **Antes:** `run.py` hacía `create_all()` al importar (DDL en cada boot de
+  worker) y este módulo aplicaba un runner DDL manual y aditivo
+  (`COLUMN_MIGRATIONS` / `DROP_COLUMN_MIGRATIONS`), incapaz de expresar
+  constraints o índices.
+- **Ahora:** el esquema lo define Alembic (`alembic/versions/`).
+  `run.py` ya no toca DDL; `render-build.sh`, el `command` de docker-compose y
+  `db-manager.sh` invocan `python -m app.db.migrate`, que es esta función.
+
+El runner manual sobrevive **solo** para la adopción: una base ya desplegada
+puede no tener las columnas de la grilla horaria, así que se ponen al día antes
+de estampar el baseline. En bases nuevas no corre nunca.
+"""
+import os
+
 from sqlalchemy import DateTime, inspect, text
+from alembic import command
+from alembic.config import Config as AlembicConfig
+from alembic.runtime.migration import MigrationContext
 
 from app import scheduler_app
 from app.extensions import scheduler_db
-from app.models.mixins import SoftDeleteMixin
+
+BASELINE_REVISION = "0001_baseline"
+_PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
+_ALEMBIC_INI = os.path.join(_PROJECT_ROOT, "alembic.ini")
+
+# `script_location` en alembic.ini es relativo y Alembic lo resuelve contra el
+# CWD, no contra el .ini: sin esto, invocar el módulo desde otro directorio
+# falla con "Path doesn't exist: alembic".
+_SCRIPT_LOCATION = os.path.join(_PROJECT_ROOT, "alembic")
+
+# Los unique parciales de DATA-001 (`WHERE deleted_at IS NULL`) no existen en
+# MySQL: ahí `postgresql_where`/`sqlite_where` se ignoran y el índice quedaría
+# total, rechazando reingresar a un grupo o recrear una categoría cuyo registro
+# borrado sigue en la tabla. Mejor fallar acá que dejar la base mal.
+SUPPORTED_DIALECTS = ("postgresql", "sqlite")
 
 # Migraciones aditivas por tabla: (columna, DDL) o (columna, DDL, backfill). El
 # backfill corre una sola vez, justo después de crear la columna, para poblarla
@@ -47,13 +84,26 @@ DROP_COLUMN_MIGRATIONS = {
 }
 
 
+# Tablas que tenían `deleted_at` en el baseline. La lista está congelada a
+# propósito: derivarla de los modelos hacía que este runner heredara cada
+# borrado lógico nuevo y chocara con la migración de Alembic que agrega esa
+# misma columna (pasó con `division_jobs` en 0004). Este runner describe el
+# pasado; el presente lo describen las revisiones.
+BASELINE_SOFT_DELETE_TABLES = (
+    "category",
+    "group",
+    "group_member",
+    "group_member_category",
+    "group_permission_grant",
+    "subgroup_members",
+    "subgroups",
+    "user_availability",
+)
+
+
 def _soft_delete_tables():
-    """Tablas de modelos con borrado lógico, según el mapeo real del ORM."""
-    return sorted(
-        mapper.class_.__tablename__
-        for mapper in scheduler_db.Model.registry.mappers
-        if issubclass(mapper.class_, SoftDeleteMixin)
-    )
+    """Tablas con borrado lógico en el esquema pre-Alembic."""
+    return BASELINE_SOFT_DELETE_TABLES
 
 
 def _pending_migrations():
@@ -143,12 +193,58 @@ def _run_drop_migrations():
             scheduler_db.session.commit()
 
 
-def migrate_database():
-    with scheduler_app.app_context():
-        print("Migrando base de datos...")
+def _alembic_config(connection):
+    config = AlembicConfig(_ALEMBIC_INI)
+    config.set_main_option("script_location", _SCRIPT_LOCATION)
+    # env.py reutiliza esta conexión en vez de abrir una propia: así el stamp y
+    # el upgrade corren sobre el mismo engine que la app.
+    config.attributes["connection"] = connection
+    return config
+
+
+def _adopt_alembic():
+    """Deja la base en un estado que Alembic pueda gobernar. Idempotente.
+
+    Devuelve la revisión estampada, o None si la base ya estaba versionada.
+    """
+    with scheduler_db.engine.connect() as connection:
+        if MigrationContext.configure(connection).get_current_revision() is not None:
+            return None
+        tables = set(inspect(connection).get_table_names())
+
+    if not tables:
+        # Base nueva: los modelos ya traen constraints e índices al día, así que
+        # create_all() la deja en head. No se recorre el historial de revisiones.
+        print("  Base vacía: creando el esquema desde los modelos...")
         scheduler_db.create_all()
+        target = "head"
+    else:
+        # Base ya desplegada (Render, local): no se recrea nada. Se ponen al día
+        # las columnas heredadas y se estampa el baseline; el upgrade posterior
+        # aplica solo las revisiones nuevas.
+        print(f"  Base existente sin versionar: adoptando Alembic en {BASELINE_REVISION}...")
         _run_column_migrations()
         _run_drop_migrations()
+        target = BASELINE_REVISION
+
+    with scheduler_db.engine.begin() as connection:
+        command.stamp(_alembic_config(connection), target)
+    return target
+
+
+def migrate_database():
+    with scheduler_app.app_context():
+        dialect = scheduler_db.engine.dialect.name
+        if dialect not in SUPPORTED_DIALECTS:
+            raise RuntimeError(
+                f"El esquema no se puede migrar sobre '{dialect}': las revisiones "
+                f"usan índices unique parciales, que solo soportan "
+                f"{' y '.join(SUPPORTED_DIALECTS)}."
+            )
+        print("Migrando base de datos...")
+        _adopt_alembic()
+        with scheduler_db.engine.begin() as connection:
+            command.upgrade(_alembic_config(connection), "head")
         print("Base de datos migrada con éxito.\n")
 
 

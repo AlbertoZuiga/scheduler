@@ -156,7 +156,8 @@ docker exec -it backend_container python -m app.db.seed
 
 - **Python 3.11+**
 - **Node.js 18+** y **npm** (para compilar los estilos de TailwindCSS)
-- **PostgreSQL** (recomendado) o **MySQL**
+- **PostgreSQL** (SQLite solo se usa en los tests; MySQL ya no sirve: ver
+  [Migraciones con Alembic](#-migraciones-con-alembic))
 - **Git**
 - Credenciales de **Google OAuth 2.0**
 
@@ -352,7 +353,7 @@ docker exec -it backend_container python -m app.db.reset
 # Poblar con datos de prueba
 docker exec -it backend_container python -m app.db.seed
 
-# Crear tablas
+# Aplicar migraciones (crea las tablas si la base está vacía)
 docker exec -it backend_container python -m app.db.migrate
 
 # Eliminar tablas
@@ -417,18 +418,10 @@ npm run watch:css
 
 ### 2. Configurar Base de Datos
 
-Asegúrate de tener **PostgreSQL** o **MySQL** instalado y crea la base de datos:
-
-**PostgreSQL:**
+Asegúrate de tener **PostgreSQL** instalado y crea la base de datos:
 
 ```sql
 CREATE DATABASE scheduler_db;
-```
-
-**MySQL:**
-
-```sql
-CREATE DATABASE scheduler_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
 ### 3. Configurar Variables de Entorno
@@ -553,7 +546,7 @@ scheduler/
 │   │   ├── __init__.py
 │   │   ├── create.py            # Crear tablas
 │   │   ├── drop.py              # Eliminar tablas
-│   │   ├── migrate.py           # Migraciones (futuro)
+│   │   ├── migrate.py           # Runner de Alembic (adopción + upgrade head)
 │   │   ├── reset.py             # Resetear BD (drop + create)
 │   │   ├── seed.py              # Datos de prueba
 │   │   └── setup.py             # Configuración inicial completa
@@ -669,7 +662,9 @@ GroupMember
 
 ### Configuración de Conexión
 
-La aplicación soporta tanto **PostgreSQL** (recomendado) como **MySQL**:
+El motor es **PostgreSQL**. SQLite funciona para los tests; MySQL ya no, porque
+no tiene índices unique parciales (ver
+[Migraciones con Alembic](#-migraciones-con-alembic)).
 
 **Con Docker (PostgreSQL - configurado automáticamente):**
 
@@ -682,15 +677,6 @@ DATABASE_URI=postgresql://postgres:postgres@db:5432/scheduler
 ```env
 DB_HOST=localhost
 DB_USER=postgres
-DB_PASSWORD=tu_password
-DB_NAME=scheduler_db
-```
-
-**Ejecución Local con MySQL:**
-
-```env
-DB_HOST=localhost
-DB_USER=root
 DB_PASSWORD=tu_password
 DB_NAME=scheduler_db
 ```
@@ -716,8 +702,50 @@ python -m app.db.reset
 # Poblar con datos de prueba
 python -m app.db.seed
 
-# Migraciones (en desarrollo)
+# Migraciones (Alembic)
 python -m app.db.migrate
+```
+
+### 🧬 Migraciones con Alembic
+
+El esquema lo versiona **Alembic** (`alembic.ini` + `alembic/versions/`).
+`python -m app.db.migrate` es el único punto de entrada y es idempotente:
+
+| Estado de la base | Qué hace |
+|---|---|
+| Vacía | `create_all()` desde los modelos + `stamp head` (ya está al día) |
+| Con tablas y **sin** `alembic_version` (bases ya desplegadas en Render) | pone al día las columnas heredadas, `stamp 0001_baseline` — **no recrea ni borra ninguna tabla** — y luego aplica `0002` en adelante |
+| Ya versionada | `upgrade head` |
+
+**Motores soportados: PostgreSQL y SQLite (tests).** `migrate` aborta con un
+error explícito en cualquier otro. Los unique de DATA-001 son *parciales*
+(`WHERE deleted_at IS NULL`) y MySQL no los tiene: ahí el índice quedaría total
+y rechazaría reingresar a un grupo o recrear una categoría cuyo registro borrado
+sigue en la tabla. Migrar en MySQL dejaría la base silenciosamente mal, así que
+no se intenta.
+
+**Qué reemplaza a qué:**
+
+- `run.py` **ya no** llama a `create_all()` al importar. Antes cada worker de
+  gunicorn emitía DDL al arrancar; ahora el DDL corre una sola vez, en el build
+  (`render-build.sh`) o al levantar el contenedor (`command` de
+  `docker-compose.yml`).
+- El runner DDL manual de `app/db/migrate.py` (`COLUMN_MIGRATIONS` /
+  `DROP_COLUMN_MIGRATIONS`) queda **solo** para la adopción: pone al día una base
+  vieja antes de estampar el baseline. No se le agregan entradas nuevas; todo
+  cambio de esquema de ahora en más es una revisión de Alembic.
+
+**Efecto en las bases ya desplegadas en Render:** el primer deploy con este
+cambio las adopta sin downtime de datos — el baseline es un no-op, así que solo
+se crea `alembic_version` y se aplican las revisiones nuevas (dedup + unique,
+índices, `division_jobs`).
+
+Crear una revisión nueva:
+
+```bash
+alembic revision --autogenerate -m "descripcion"   # compara contra los modelos
+alembic upgrade head
+alembic downgrade -1
 ```
 
 ---
@@ -1462,7 +1490,7 @@ cat backup.sql | docker exec -i postgres_container psql -U postgres -d scheduler
 
 ### 🗄️ Base de Datos y Performance
 
-- [ ] **Migraciones con Alembic** (en lugar de scripts manuales)
+- [x] **Migraciones con Alembic** (en lugar de scripts manuales)
 - [ ] **Caché con Redis** para consultas frecuentes
 - [ ] **Índices optimizados** en queries lentas
 - [ ] **Paginación** en listas de grupos/miembros

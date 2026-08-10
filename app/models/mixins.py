@@ -1,6 +1,14 @@
 from datetime import datetime
 
+from sqlalchemy import text
+
 from app.extensions import scheduler_db
+
+# Predicado de los índices unique parciales de las tablas con borrado lógico.
+# Una fila oculta comparte la clave con la activa que la reemplazó, así que un
+# unique simple rechazaría reingresos legítimos. Postgres es el motor de
+# producción; `sqlite_where` replica la misma garantía en los tests.
+ACTIVE_ROWS = text("deleted_at IS NULL")
 
 
 class SoftDeleteMixin:

@@ -3,7 +3,7 @@ Modelos para subgrupos optimizados y división automática de grupos.
 """
 from datetime import datetime
 from app.extensions import scheduler_db
-from app.models.mixins import SoftDeleteMixin
+from app.models.mixins import ACTIVE_ROWS, SoftDeleteMixin
 
 
 class SubGroup(SoftDeleteMixin, scheduler_db.Model):
@@ -22,6 +22,10 @@ class SubGroup(SoftDeleteMixin, scheduler_db.Model):
     # Relaciones
     parent_group = scheduler_db.relationship('Group', backref=scheduler_db.backref('subgroups', lazy='dynamic', cascade='all, delete-orphan'))
     members = scheduler_db.relationship('SubGroupMember', back_populates='subgroup', cascade='all, delete-orphan')
+
+    __table_args__ = (
+        scheduler_db.Index('ix_subgroups_parent_deleted', 'parent_group_id', 'deleted_at'),
+    )
 
     def soft_delete_cascade(self):
         return list(self.members)
@@ -58,9 +62,16 @@ class SubGroupMember(SoftDeleteMixin, scheduler_db.Model):
     subgroup = scheduler_db.relationship('SubGroup', back_populates='members')
     user = scheduler_db.relationship('User', backref=scheduler_db.backref('subgroup_memberships', lazy='dynamic'))
 
-    # Constraint único si allow_multiple_membership=False (se valida en lógica de negocio)
     __table_args__ = (
         scheduler_db.Index('idx_subgroup_user', 'subgroup_id', 'user_id'),
+        scheduler_db.Index(
+            'uq_subgroup_member_active',
+            'subgroup_id',
+            'user_id',
+            unique=True,
+            postgresql_where=ACTIVE_ROWS,
+            sqlite_where=ACTIVE_ROWS,
+        ),
     )
 
     def __repr__(self):
@@ -78,10 +89,14 @@ class SubGroupMember(SoftDeleteMixin, scheduler_db.Model):
         }
 
 
-class DivisionJob(scheduler_db.Model):
+class DivisionJob(SoftDeleteMixin, scheduler_db.Model):
     """
     Historial de trabajos de división automática.
     Permite hacer undo y tracking de configuraciones previas.
+
+    Lleva borrado lógico (DATA-003): `result_json` guarda nombres y correos de
+    todo el grupo, así que un job tiene que dejar de ser alcanzable cuando su
+    grupo se borra (cascada desde `Group`) o cuando la retención lo jubila.
     """
     __tablename__ = 'division_jobs'
 
@@ -96,6 +111,10 @@ class DivisionJob(scheduler_db.Model):
     # Relaciones
     parent_group = scheduler_db.relationship('Group', backref=scheduler_db.backref('division_jobs', lazy='dynamic'))
     creator = scheduler_db.relationship('User', backref=scheduler_db.backref('division_jobs_created', lazy='dynamic'))
+
+    __table_args__ = (
+        scheduler_db.Index('ix_division_jobs_parent_deleted', 'parent_group_id', 'deleted_at'),
+    )
 
     def __repr__(self):
         return f'<DivisionJob {self.id} group={self.parent_group_id} status={self.status}>'
