@@ -10,7 +10,7 @@
         <label class="flex items-center justify-between border-2 border-light-border dark:border-dark-border rounded-lg p-3 sm:p-4 cursor-pointer hover:bg-light-surface dark:hover:bg-dark-surface transition-colors bg-light-card dark:bg-dark-card touch-manipulation active:scale-[0.98] min-h-[56px]">
           <span class="text-sm sm:text-base font-medium">{{ cat.name }}</span>
           {% if can_edit %}
-            <input class="ml-2 w-5 h-5 sm:w-4 sm:h-4 text-primary bg-light-muted/30 dark:bg-dark-muted/30 border-light-border dark:border-dark-border rounded focus:ring-2 focus:ring-primary cursor-pointer" type="checkbox" value="{{ cat.id }}" {% if cat.id in assoc_ids %}checked{% endif %} data-cat-id="{{ cat.id }}">
+            <input class="ml-2 w-5 h-5 sm:w-4 sm:h-4 text-primary bg-light-muted/30 dark:bg-dark-muted/30 border-light-border dark:border-dark-border rounded focus-visible:ring-2 focus-visible:ring-primary cursor-pointer" type="checkbox" value="{{ cat.id }}" {% if cat.id in assoc_ids %}checked{% endif %} data-cat-id="{{ cat.id }}">
           {% else %}
             <span class="ml-2 px-2 py-1 text-xs rounded {% if cat.id in assoc_ids %}bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200{% else %}bg-light-muted/40 dark:bg-dark-muted/40 border border-light-border dark:border-dark-border{% endif %}">{% if cat.id in assoc_ids %}Asignada{% else %}No asignada{% endif %}</span>
           {% endif %}

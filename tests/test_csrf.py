@@ -57,11 +57,53 @@ def test_restore_ya_no_muta_por_get(csrf_client, path):
     assert csrf_client.get(path).status_code == 405
 
 
-def test_join_anonimo_rebota_al_login(csrf_client):
-    """El link de invitación sigue siendo GET: el flujo OAuth vuelve a este mismo GET."""
-    response = csrf_client.get("/groups/join/tok-inexistente")
+def test_join_anonimo_ve_el_grupo_y_el_login(csrf_client, db_session):
+    """UX-003: el invitado anónimo ve a qué grupo lo invitaron antes de loguearse."""
+    duenio = User(name="Dueño anónimo", email="duenio-anon@example.com")
+    db_session.add(duenio)
+    db_session.commit()
+    group = Group(name="Grupo Anónimo", owner_id=duenio.id, join_token="tok-anon")
+    db_session.add(group)
+    db_session.commit()
+
+    response = csrf_client.get("/groups/join/tok-anon")
+
+    assert response.status_code == 200
+    assert "Grupo Anónimo".encode() in response.data
+    assert b"/login?next=" in response.data
+
+
+def test_join_anonimo_por_post_es_rechazado_sin_token_csrf(csrf_client, db_session):
+    """Con CSRF activo el POST anónimo ni siquiera llega a la vista."""
+    duenio = User(name="Dueño csrf", email="duenio-csrf@example.com")
+    db_session.add(duenio)
+    db_session.commit()
+    group = Group(name="Grupo CSRF join", owner_id=duenio.id, join_token="tok-csrf-join")
+    db_session.add(group)
+    db_session.commit()
+
+    response = csrf_client.post("/groups/join/tok-csrf-join")
+
+    assert response.status_code == 400
+    assert GroupMember.query.filter_by(group_id=group.id).first() is None
+
+
+def test_join_anonimo_por_post_va_al_login(client, db_session):
+    """El POST sin sesión no une a nadie: manda al login preservando el destino."""
+    duenio = User(name="Dueño post", email="duenio-post@example.com")
+    db_session.add(duenio)
+    db_session.commit()
+    group = Group(name="Grupo Post", owner_id=duenio.id, join_token="tok-post")
+    db_session.add(group)
+    db_session.commit()
+
+    response = client.post("/groups/join/tok-post")
+
     assert response.status_code == 302
     assert "/login" in response.headers["Location"]
+    with client.session_transaction() as sess:
+        assert sess["next_page"] == "/groups/join/tok-post"
+    assert GroupMember.query.filter_by(group_id=group.id).first() is None
 
 
 def test_join_por_get_no_une_solo_confirma(csrf_client, db_session):

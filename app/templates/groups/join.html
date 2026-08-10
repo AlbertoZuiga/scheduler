@@ -4,24 +4,41 @@
 
 {% block content %}
 <section class="max-w-md mx-auto text-center py-10 sm:py-16">
-  <h1 class="text-2xl sm:text-3xl font-semibold">¿Unirte a "{{ group.name }}"?</h1>
+  <p class="text-sm uppercase tracking-wide text-light-text-secondary dark:text-dark-text-secondary">Invitación</p>
+  <h1 class="mt-2 text-2xl sm:text-3xl font-semibold">Te invitaron a "{{ group.name }}"</h1>
   <p class="mt-3 text-light-text-secondary dark:text-dark-text-secondary">
-    Te invitaron a este grupo. Al unirte, el resto de los miembros podrá ver tu nombre
-    y la disponibilidad horaria que registres.
+    Al unirte, el resto de los miembros podrá ver tu nombre y la disponibilidad
+    horaria que registres.
   </p>
 
+  {% if current_user.is_authenticated %}
   <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
     <form method="POST" action="{{ url_for('groups.join', token=token) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit"
-              class="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-primary text-white hover:bg-primary-dark transition-colors">
+              class="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-primary text-white hover:bg-primary-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         Unirme al grupo
       </button>
     </form>
     <a href="{{ url_for('groups.index') }}"
-       class="px-5 py-2.5 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/20 dark:hover:bg-dark-muted/20 transition-colors">
+       class="px-5 py-2.5 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/20 dark:hover:bg-dark-muted/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
       Cancelar
     </a>
   </div>
+  {% else %}
+  <p class="mt-6 text-sm text-light-text-secondary dark:text-dark-text-secondary">
+    Necesitas una cuenta para unirte. Te traeremos de vuelta a esta invitación al terminar.
+  </p>
+  <div class="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+    <a href="{{ url_for('auth.login', next=url_for('groups.join', token=token)) }}"
+       class="px-5 py-2.5 rounded-lg bg-primary text-white hover:bg-primary-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+      Iniciar sesión para unirme
+    </a>
+    <a href="{{ url_for('main.index') }}"
+       class="px-5 py-2.5 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/20 dark:hover:bg-dark-muted/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+      Cancelar
+    </a>
+  </div>
+  {% endif %}
 </section>
 {% endblock %}
