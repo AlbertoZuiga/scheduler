@@ -23,7 +23,6 @@ from alembic.runtime.migration import MigrationContext
 
 from app import scheduler_app
 from app.extensions import scheduler_db
-from app.models.mixins import SoftDeleteMixin
 
 BASELINE_REVISION = "0001_baseline"
 _PROJECT_ROOT = os.path.dirname(
@@ -85,13 +84,26 @@ DROP_COLUMN_MIGRATIONS = {
 }
 
 
+# Tablas que tenían `deleted_at` en el baseline. La lista está congelada a
+# propósito: derivarla de los modelos hacía que este runner heredara cada
+# borrado lógico nuevo y chocara con la migración de Alembic que agrega esa
+# misma columna (pasó con `division_jobs` en 0004). Este runner describe el
+# pasado; el presente lo describen las revisiones.
+BASELINE_SOFT_DELETE_TABLES = (
+    "category",
+    "group",
+    "group_member",
+    "group_member_category",
+    "group_permission_grant",
+    "subgroup_members",
+    "subgroups",
+    "user_availability",
+)
+
+
 def _soft_delete_tables():
-    """Tablas de modelos con borrado lógico, según el mapeo real del ORM."""
-    return sorted(
-        mapper.class_.__tablename__
-        for mapper in scheduler_db.Model.registry.mappers
-        if issubclass(mapper.class_, SoftDeleteMixin)
-    )
+    """Tablas con borrado lógico en el esquema pre-Alembic."""
+    return BASELINE_SOFT_DELETE_TABLES
 
 
 def _pending_migrations():
