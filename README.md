@@ -983,7 +983,11 @@ Resultado esperado: 10 grupos de 6-10 personas cada uno, con:
   - `app/templates/groups/subgroups/new.html` - Interfaz visual
   - `app/static/js/subgroups.js` - Lógica de builder y preview
 - **Tests**:
-  - `tests/test_subgroups.py` - Tests de integración
+  - Aún no hay tests de integración de subgrupos. El repo tiene la
+    infraestructura base (`tests/conftest.py` con fixtures de app/cliente/BD) y
+    smoke tests (`tests/test_smoke.py`), ejecutados en CI con `pytest -q`.
+    Las dependencias de test están en `requirements-dev.txt`
+    (`pip install -r requirements-dev.txt`).
 
 ### 📊 Métricas de rendimiento
 
