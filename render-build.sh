@@ -2,7 +2,7 @@
 
 if ! command -v node &> /dev/null; then
     echo "Node.js no encontrado, instalando..."
-    curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
     apt-get install -y nodejs
 fi
 
