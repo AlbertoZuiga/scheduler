@@ -13,11 +13,13 @@
  * Se hace acá y no en cada llamada porque los fetch están repartidos entre
  * subgroups.js y varios <script> inline: olvidar uno lo rompería con un 400.
  *
- * Orden: main.js es un <script> síncrono al final del <body>, así que corre
- * antes de DOMContentLoaded. Los <script> inline que están dentro de
- * `{% block content %}` se parsean antes que este archivo, pero todos sus fetch
- * salen desde un handler de DOMContentLoaded o de una interacción, o sea con el
- * wrapper ya puesto. Un fetch mutante en top-level de un inline sí se escaparía.
+ * Orden: main.js es un <script defer>, así que corre después del parseo pero
+ * antes de DOMContentLoaded. Los <script> inline se ejecutan antes que este
+ * archivo, pero todos sus fetch salen desde un handler de DOMContentLoaded o de
+ * una interacción, o sea con el wrapper ya puesto. Un fetch mutante en top-level
+ * de un inline sí se escaparía, y esto es más estricto que antes: sin defer este
+ * archivo corría antes que los inline de `{% block script %}`, así que los
+ * cubría. Todo fetch mutante nuevo va dentro de un handler.
  */
 (() => {
   const meta = document.querySelector('meta[name="csrf-token"]');

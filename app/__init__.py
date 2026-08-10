@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import os
 import sys
@@ -28,6 +29,37 @@ def _configure_logging(app):
     app.logger.propagate = False
 
 
+def _register_static_url(app):
+    """Expone `static_url()` en las plantillas: url_for + ?v=<hash del archivo>.
+
+    El CSS compilado y el JS se sirven con el nombre de siempre, así que un
+    deploy que cambia su contenido no invalida la copia cacheada del navegador.
+    El hash del contenido en el query string sí: cambia solo cuando el archivo
+    cambia, y el navegador lo trata como una URL nueva.
+    """
+    versions = {}
+
+    def static_url(filename):
+        version = versions.get(filename)
+        if version is None:
+            path = os.path.join(app.static_folder, filename)
+            try:
+                with open(path, "rb") as handle:
+                    version = hashlib.sha256(handle.read()).hexdigest()[:10]
+            except OSError:
+                # El archivo puede no existir todavía (main.css lo genera el
+                # build de Tailwind): se sirve sin versión antes que romper. El
+                # fallo NO se memoriza: si se cacheara, el worker que atendió una
+                # request antes del build serviría el estático sin versión el
+                # resto de su vida, que es justo lo que esto viene a evitar.
+                return url_for("static", filename=filename)
+            versions[filename] = version
+        url = url_for("static", filename=filename)
+        return f"{url}?v={version}"
+
+    app.jinja_env.globals["static_url"] = static_url
+
+
 def _wants_json():
     """True si el cliente espera JSON (fetch de la app o consumidor de API)."""
     if request.path.startswith("/api/"):
@@ -45,6 +77,7 @@ def create_app():
     # Detrás del proxy TLS de Render: sin esto request.is_secure es False y
     # url_for(_external=True) genera http://.
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+    _register_static_url(app)
     scheduler_db.init_app(app)
     # Protege por defecto todo POST/PUT/PATCH/DELETE. El token viaja en el hidden
     # `csrf_token` de los forms o en el header `X-CSRFToken` de los fetch.
