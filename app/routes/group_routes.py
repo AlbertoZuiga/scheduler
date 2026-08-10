@@ -2,7 +2,10 @@ import uuid
 import csv
 import io
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for, abort, make_response
+from flask import (
+    Blueprint, flash, redirect, render_template, request, url_for, abort, make_response,
+    current_app,
+)
 from markupsafe import Markup, escape
 from flask_login import current_user, login_required
 
@@ -112,7 +115,6 @@ def _clear_existing_availability(group, user_id, active_weekdays):
     for ua, weekday, hour in rows:
         if weekday in visible_weekdays and _hour_to_minutes(hour) in visible_starts:
             ua.soft_delete()
-    scheduler_db.session.commit()
 
 def _mark_user_available(user_id, availability_id):
     """Marca el bloque para el usuario. Devuelve True si hubo cambio real."""
@@ -150,7 +152,6 @@ def _process_posted_availability(group_id, form_data, group, user_id, active_wee
             )
             if _mark_user_available(user_id, group_availability.id):
                 count += 1
-    scheduler_db.session.commit()
     return count
 
 GROUP_SHOW_URL = "groups.show"
@@ -263,7 +264,6 @@ def _remap_availability_marks(group, old_starts, old_block_minutes, weekdays):
 
         remapped += _move_marks(group, row, targets, known)
 
-    scheduler_db.session.commit()
     return remapped
 
 
@@ -487,12 +487,20 @@ def create():
             join_token=join_token,
             owner_id=user_id
         )
-        scheduler_db.session.add(new_group)
-        scheduler_db.session.commit()
-
-        group_member = GroupMember(group_id=new_group.id, user_id=user_id, role=RoleEnum.ADMIN)
-        scheduler_db.session.add(group_member)
-        scheduler_db.session.commit()
+        # El grupo y la membresía del owner van en la misma transacción: un fallo
+        # entre medio dejaría un grupo cuyo dueño no es miembro (huérfano).
+        try:
+            scheduler_db.session.add(new_group)
+            scheduler_db.session.flush()
+            scheduler_db.session.add(
+                GroupMember(group_id=new_group.id, user_id=user_id, role=RoleEnum.ADMIN)
+            )
+            scheduler_db.session.commit()
+        except Exception:  # pylint: disable=broad-except
+            scheduler_db.session.rollback()
+            current_app.logger.exception("create group failed (user_id=%s)", user_id)
+            flash("❌ No se pudo crear el grupo. Inténtalo de nuevo.", "danger")
+            return redirect(url_for(GROUP_INDEX_URL))
 
         flash(
             f"✅ ¡Grupo '{group_name}' creado con éxito! Ya puedes invitar miembros.",
@@ -628,10 +636,21 @@ def availability(group_id):
     active_weekdays = group.get_active_weekdays()
 
     if request.method == "POST":
-        _clear_existing_availability(group, current_user.id, active_weekdays)
-        saved_count = _process_posted_availability(
-            group_id, request.form, group, current_user.id, active_weekdays
-        )
+        # Borrado y reinserción son una sola operación lógica: commitear el
+        # borrado por separado perdería las respuestas si falla la reinserción.
+        try:
+            _clear_existing_availability(group, current_user.id, active_weekdays)
+            saved_count = _process_posted_availability(
+                group_id, request.form, group, current_user.id, active_weekdays
+            )
+            scheduler_db.session.commit()
+        except Exception:  # pylint: disable=broad-except
+            scheduler_db.session.rollback()
+            current_app.logger.exception(
+                "availability save failed (group_id=%s user_id=%s)", group_id, current_user.id
+            )
+            flash("❌ No se pudo guardar la disponibilidad. Inténtalo de nuevo.", "danger")
+            return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
         if saved_count == 0:
             # Dejar la grilla vacía es una respuesta válida ("no puedo ningún
@@ -688,10 +707,18 @@ def availability_autosave(group_id):
         if isinstance(slot, dict)
     }
 
-    _clear_existing_availability(group, current_user.id, active_weekdays)
-    saved_count = _process_posted_availability(
-        group_id, form_data, group, current_user.id, active_weekdays
-    )
+    try:
+        _clear_existing_availability(group, current_user.id, active_weekdays)
+        saved_count = _process_posted_availability(
+            group_id, form_data, group, current_user.id, active_weekdays
+        )
+        scheduler_db.session.commit()
+    except Exception:  # pylint: disable=broad-except
+        scheduler_db.session.rollback()
+        current_app.logger.exception(
+            "availability autosave failed (group_id=%s user_id=%s)", group_id, current_user.id
+        )
+        return {"ok": False, "message": "No se pudo guardar la disponibilidad."}, 500
 
     return {"ok": True, "saved_count": saved_count}
 
@@ -746,17 +773,25 @@ def availability_settings(group_id):
         group_id, start_minutes, end_minutes, weekday_ints
     )
 
-    group.start_minutes = start_minutes
-    group.end_minutes = end_minutes
-    group.block_minutes = block_minutes
-    group.active_weekdays = ",".join(str(d) for d in weekday_ints)
-    scheduler_db.session.commit()
+    # La grilla nueva y el remapeo de las marcas viajan juntos: commitear la
+    # grilla sola dejaría las marcas viejas colgando de bloques inexistentes.
+    try:
+        group.start_minutes = start_minutes
+        group.end_minutes = end_minutes
+        group.block_minutes = block_minutes
+        group.active_weekdays = ",".join(str(d) for d in weekday_ints)
 
-    remapped = 0
-    if grid_changed:
-        remapped = _remap_availability_marks(
-            group, old_starts, old_block_minutes, set(weekday_ints)
-        )
+        remapped = 0
+        if grid_changed:
+            remapped = _remap_availability_marks(
+                group, old_starts, old_block_minutes, set(weekday_ints)
+            )
+        scheduler_db.session.commit()
+    except Exception:  # pylint: disable=broad-except
+        scheduler_db.session.rollback()
+        current_app.logger.exception("availability settings failed (group_id=%s)", group_id)
+        flash("❌ No se pudo actualizar la configuración. Inténtalo de nuevo.", "danger")
+        return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
     flash("✅ Configuración de disponibilidad actualizada.", "success")
     if remapped:
@@ -1040,6 +1075,12 @@ def revoke_permission(group_id):
 
     subject_type = request.form.get("subject_type")
     subject_id = request.form.get("subject_id", type=int)
+
+    # Sin subject_id el filter_by compila a `IS NULL` y barre TODOS los grants
+    # por categoría (o por miembro) del grupo: hay que cortar antes de borrar.
+    if subject_id is None:
+        flash("Parámetros inválidos.", "danger")
+        return redirect(url_for("groups.permissions", group_id=group_id))
 
     if subject_type == "member":
         subject_filters = {"group_member_id": subject_id}
