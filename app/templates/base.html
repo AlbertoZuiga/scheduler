@@ -10,6 +10,17 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>{% block title %}Scheduler{% endblock %} | Coordinación de Horarios</title>
 
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+
+    <!-- Tema: bloqueante y antes del primer paint para evitar el flash claro (FOUC). -->
+    <script>
+      (() => {
+        const pref = localStorage.getItem('theme');
+        const dark = pref === 'dark' || (!pref && globalThis.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', dark);
+      })();
+    </script>
+
     <!-- TailwindCSS compiled stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     {% block extra_css %}{% endblock %}
