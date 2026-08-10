@@ -3,8 +3,10 @@ Rutas para la gestión de subgrupos optimizados.
 """
 import csv
 import io
-from flask import Blueprint, flash, redirect, render_template, request, url_for, abort, jsonify, make_response
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for, abort, jsonify, make_response
 from flask_login import current_user, login_required
+from sqlalchemy.exc import SQLAlchemyError
+from werkzeug.exceptions import HTTPException
 
 from app.extensions import scheduler_db
 from app.models import GroupMember, Category, RoleEnum
@@ -34,6 +36,9 @@ from app.services.subgroup_service import SubGroupService
 subgroup_bp = Blueprint("subgroups", __name__)
 
 GROUP_SHOW_ENDPOINT = 'groups.show'
+# Techo duro de subgrupos por división: evita que un num_groups gigante
+# aloque listas y cicle miembros × grupos en el servicio (DoS).
+MAX_NUM_GROUPS = 200
 SUBGROUP_INDEX_ENDPOINT = 'subgroups.index'
 
 
@@ -121,9 +126,18 @@ def generate(group_id):
         if not config:
             return jsonify({'error': 'Configuración no proporcionada'}), 400
         
-        num_groups = config.get('num_groups')
-        if not num_groups or num_groups < 1:
+        try:
+            num_groups = int(config.get('num_groups'))
+        except (TypeError, ValueError):
             return jsonify({'error': 'Número de grupos inválido'}), 400
+
+        member_count = GroupMember.query.filter_by(group_id=group_id).count()
+        max_allowed = min(MAX_NUM_GROUPS, member_count) or 1
+        if num_groups < 1 or num_groups > max_allowed:
+            return jsonify({
+                'error': f'Número de grupos inválido: debe estar entre 1 y {max_allowed}.'
+            }), 400
+        config['num_groups'] = num_groups
 
         required_membership_categories = config.get('required_membership_categories', [])
         if required_membership_categories is None:
@@ -152,13 +166,18 @@ def generate(group_id):
         
         return jsonify(preview), 200
 
+    except HTTPException:
+        raise
+
     except ValueError as e:
+        # Mensaje de validación del servicio, pensado para el usuario.
         scheduler_db.session.rollback()
         return jsonify({'error': str(e)}), 400
-        
-    except Exception as e:
+
+    except SQLAlchemyError:
         scheduler_db.session.rollback()
-        return jsonify({'error': f'Error al generar subgrupos: {str(e)}'}), 500
+        current_app.logger.exception('Error de BD al generar subgrupos del grupo %s', group_id)
+        return jsonify({'error': 'No se pudo generar la división.'}), 500
 
 
 @subgroup_bp.route('/groups/<int:group_id>/subgroups/confirm', methods=['POST'])
@@ -234,9 +253,13 @@ def confirm(group_id):
             'redirect_url': url_for(GROUP_SHOW_ENDPOINT, group_id=group_id)
         }), 200
         
-    except Exception as e:
+    except HTTPException:
+        raise
+
+    except SQLAlchemyError:
         scheduler_db.session.rollback()
-        return jsonify({'error': f'Error al confirmar subgrupos: {str(e)}'}), 500
+        current_app.logger.exception('Error de BD al confirmar subgrupos del grupo %s', group_id)
+        return jsonify({'error': 'No se pudieron confirmar los subgrupos.'}), 500
 
 
 @subgroup_bp.route('/groups/<int:group_id>/subgroups/undo', methods=['POST'])
@@ -289,9 +312,13 @@ def undo(group_id):
             'message': f'Se eliminaron {len(subgroups)} subgrupos.'
         }), 200
         
-    except Exception as e:
+    except HTTPException:
+        raise
+
+    except SQLAlchemyError:
         scheduler_db.session.rollback()
-        return jsonify({'error': f'Error al deshacer división: {str(e)}'}), 500
+        current_app.logger.exception('Error de BD al deshacer la división del grupo %s', group_id)
+        return jsonify({'error': 'No se pudo deshacer la división.'}), 500
 
 
 @subgroup_bp.route('/groups/<int:group_id>/subgroups/export', methods=['GET'])
@@ -387,8 +414,12 @@ def export(group_id):
         
         return response
         
-    except Exception as e:
-        flash(f'Error al exportar: {str(e)}', 'danger')
+    except HTTPException:
+        raise
+
+    except SQLAlchemyError:
+        current_app.logger.exception('Error de BD al exportar subgrupos del grupo %s', group_id)
+        flash('No se pudo exportar los subgrupos.', 'danger')
         return redirect(url_for(GROUP_SHOW_ENDPOINT, group_id=group_id))
 
 
@@ -491,9 +522,12 @@ def create_manual(group_id):
         scheduler_db.session.add(subgroup)
         scheduler_db.session.commit()
         flash(f'Subgrupo "{name}" creado correctamente.', 'success')
-    except Exception as exc:
+    except HTTPException:
+        raise
+    except SQLAlchemyError:
         scheduler_db.session.rollback()
-        flash(f'No se pudo crear el subgrupo manual: {str(exc)}', 'danger')
+        current_app.logger.exception('Error de BD al crear subgrupo manual en el grupo %s', group_id)
+        flash('No se pudo crear el subgrupo manual.', 'danger')
 
     return _subgroups_index_redirect(group_id)
 
@@ -516,9 +550,12 @@ def rename(group_id, subgroup_id):
     try:
         scheduler_db.session.commit()
         flash(f'Subgrupo renombrado a "{new_name}".', 'success')
-    except Exception as exc:
+    except HTTPException:
+        raise
+    except SQLAlchemyError:
         scheduler_db.session.rollback()
-        flash(f'No se pudo renombrar el subgrupo: {str(exc)}', 'danger')
+        current_app.logger.exception('Error de BD al renombrar el subgrupo %s', subgroup_id)
+        flash('No se pudo renombrar el subgrupo.', 'danger')
 
     return _subgroups_index_redirect(group_id)
 
@@ -537,9 +574,12 @@ def delete(group_id, subgroup_id):
         subgroup.soft_delete()
         scheduler_db.session.commit()
         flash(f'Se eliminó el subgrupo "{subgroup_name}".', 'success')
-    except Exception as exc:
+    except HTTPException:
+        raise
+    except SQLAlchemyError:
         scheduler_db.session.rollback()
-        flash(f'No se pudo eliminar el subgrupo: {str(exc)}', 'danger')
+        current_app.logger.exception('Error de BD al eliminar el subgrupo %s', subgroup_id)
+        flash('No se pudo eliminar el subgrupo.', 'danger')
 
     return _subgroups_index_redirect(group_id)
 
@@ -577,9 +617,14 @@ def add_member(group_id, subgroup_id):
             f'{_member_display_name(group_member.user)} fue agregado a "{subgroup.name}".',
             'success',
         )
-    except Exception as exc:
+    except HTTPException:
+        raise
+    except SQLAlchemyError:
         scheduler_db.session.rollback()
-        flash(f'No se pudo agregar la persona al subgrupo: {str(exc)}', 'danger')
+        current_app.logger.exception(
+            'Error de BD al agregar al usuario %s en el subgrupo %s', user_id, subgroup_id
+        )
+        flash('No se pudo agregar la persona al subgrupo.', 'danger')
 
     return _subgroups_index_redirect(group_id)
 
@@ -609,9 +654,14 @@ def remove_member(group_id, subgroup_id, user_id):
             f'{_member_display_name(user)} fue quitado de "{subgroup.name}".',
             'success',
         )
-    except Exception as exc:
+    except HTTPException:
+        raise
+    except SQLAlchemyError:
         scheduler_db.session.rollback()
-        flash(f'No se pudo quitar la persona del subgrupo: {str(exc)}', 'danger')
+        current_app.logger.exception(
+            'Error de BD al quitar al usuario %s del subgrupo %s', user_id, subgroup_id
+        )
+        flash('No se pudo quitar la persona del subgrupo.', 'danger')
 
     return _subgroups_index_redirect(group_id)
 
@@ -663,8 +713,14 @@ def move_member(group_id, subgroup_id, user_id):
             f'{_member_display_name(user)} fue movido de "{source_subgroup.name}" a "{target_subgroup.name}".',
             'success',
         )
-    except Exception as exc:
+    except HTTPException:
+        raise
+    except SQLAlchemyError:
         scheduler_db.session.rollback()
-        flash(f'No se pudo mover la persona entre subgrupos: {str(exc)}', 'danger')
+        current_app.logger.exception(
+            'Error de BD al mover al usuario %s del subgrupo %s al %s',
+            user_id, subgroup_id, target_subgroup.id
+        )
+        flash('No se pudo mover la persona entre subgrupos.', 'danger')
 
     return _subgroups_index_redirect(group_id)
