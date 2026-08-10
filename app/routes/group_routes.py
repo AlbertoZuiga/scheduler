@@ -3,7 +3,7 @@ import csv
 import io
 
 from flask import (
-    Blueprint, flash, redirect, render_template, request, url_for, abort, make_response,
+    Blueprint, flash, redirect, render_template, request, session, url_for, abort, make_response,
     current_app,
 )
 from markupsafe import Markup, escape
@@ -512,25 +512,35 @@ def create():
 
 
 @group_bp.route("/join/<token>", methods=["GET", "POST"])
-@login_required
 def join(token):
     group = Group.query.filter_by(join_token=token).first()
 
     if not group:
         flash("❌ Grupo no encontrado. Verifica que el enlace de invitación sea correcto.", "danger")
-        return redirect(url_for(GROUP_INDEX_URL))
+        # Un anónimo con un link roto no puede ir a "Mis Grupos": rebotaría al login.
+        target = GROUP_INDEX_URL if current_user.is_authenticated else "main.index"
+        return redirect(url_for(target))
 
-    user_id = current_user.id
-
-    if GroupMember.query.filter_by(group_id=group.id, user_id=user_id).first():
+    if current_user.is_authenticated and GroupMember.query.filter_by(
+        group_id=group.id, user_id=current_user.id
+    ).first():
         flash(f"ℹ️ Ya eres miembro del grupo '{group.name}'.", "info")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group.id))
 
     # El GET sólo muestra la confirmación: así el link de invitación compartido
     # sigue siendo un link normal (y sobrevive al rebote por OAuth), pero unirse
     # exige un POST con token, que un <img> o un prefetch ajeno no puede emitir.
+    # No pide login para que el invitado vea a qué grupo lo invitaron antes de
+    # decidir si crea una cuenta.
     if request.method == "GET":
         return render_template("groups/join.html", group=group, token=token)
+
+    if not current_user.is_authenticated:
+        destino = url_for("groups.join", token=token)
+        session["next_page"] = destino
+        return redirect(url_for("auth.login", next=destino))
+
+    user_id = current_user.id
 
     # Si ya estuvo en el grupo y lo removieron, se reutiliza esa membresía (con
     # sus categorías) en vez de insertar una fila duplicada que dejaría al mismo
