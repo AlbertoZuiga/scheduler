@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, render_template, redirect, url_fo
 from flask_login import login_required, current_user
 
 from app.extensions import scheduler_db
-from app.models import Category, GroupMember, GroupMemberCategory
+from app.models import Category, GroupMember, GroupMemberCategory, GroupPermissionGrant
 from app.authz import require_group_member, require_group_admin_or_owner
 from app.soft_delete import active_or_404, find_soft_deleted, restore_batch
 
@@ -127,6 +127,38 @@ def _can_modify_member(group_owner_id, acting_role_name, gm_user_id):
     return (group_owner_id == current_user.id) or (acting_role_name == "ADMIN") or (gm_user_id == current_user.id)
 
 
+def _is_group_admin_or_owner(group, membership):
+    return group.owner_id == current_user.id or membership.role.name == "ADMIN"
+
+
+def _category_carries_permission(group_id, category_id):
+    """True si la categoría porta alguna concesión de permiso sobre subgrupos."""
+    return (
+        GroupPermissionGrant.query.filter_by(group_id=group_id, category_id=category_id).first()
+        is not None
+    )
+
+
+def _check_category_target(group, membership, gm, category_id, *, block_permission_grants=True):
+    """Valida que la categoría sea del grupo y que el actor pueda tocarla.
+
+    Un miembro que no es owner/admin no puede asignarse una categoría que
+    porte permisos: sería una escalada de privilegios. Quitársela no lo es
+    (solo pierde permisos), así que el borrado pasa `block_permission_grants=False`.
+    Devuelve (category, None) si está permitido, o (None, error) si no.
+    """
+    category = Category.query.filter_by(id=category_id, group_id=gm.group_id).first()
+    if category is None:
+        return None, ("Not found", 404)
+    if (
+        block_permission_grants
+        and not _is_group_admin_or_owner(group, membership)
+        and _category_carries_permission(gm.group_id, category.id)
+    ):
+        return None, ("Forbidden", 403)
+    return category, None
+
+
 def _handle_member_post(group, membership, gm, group_member_id):
     category_id = request.form.get("category_id") or (request.is_json and request.json.get("category_id"))
     if not category_id:
@@ -135,6 +167,16 @@ def _handle_member_post(group, membership, gm, group_member_id):
     # permission
     if not _can_modify_member(group.owner_id, membership.role.name, gm.user_id):
         return _json_or_flash(False, "No tienes permisos para asociar categorías.", 403)
+
+    category, error = _check_category_target(group, membership, gm, category_id)
+    if error:
+        status = error[1]
+        return _json_or_flash(
+            False,
+            "Categoría inválida." if status == 404 else "No tienes permisos para asociar esta categoría.",
+            status,
+        )
+    category_id = category.id
 
     existing = GroupMemberCategory.query.filter_by(group_member_id=group_member_id, category_id=category_id).first()
     if existing:
@@ -160,6 +202,12 @@ def _handle_member_delete(group, membership, gm, group_member_id):
         return ("category_id required", 400)
     if not _can_modify_member(group.owner_id, membership.role.name, gm.user_id):
         return ("Forbidden", 403)
+    category, error = _check_category_target(
+        group, membership, gm, category_id, block_permission_grants=False
+    )
+    if error:
+        return error
+    category_id = category.id
     assoc = GroupMemberCategory.query.filter_by(group_member_id=group_member_id, category_id=category_id).first()
     if not assoc:
         return ("Not found", 404)
