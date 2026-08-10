@@ -99,8 +99,10 @@
                 <button
                   type="button"
                   data-target="availability_{{ day }}_{{ block_index }}"
-                  class="availability-toggle desktop-toggle cursor-pointer select-none flex items-center justify-center w-14 h-10 rounded-lg border-2 transition-all border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:border-primary hover:bg-primary/10 dark:hover:border-accent dark:hover:bg-accent/10 hover:scale-105 active:scale-95"
+                  class="availability-toggle desktop-toggle cursor-pointer select-none flex items-center justify-center w-14 h-10 rounded-lg border-2 transition-all border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:border-primary hover:bg-primary/10 dark:hover:border-accent dark:hover:bg-accent/10 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   aria-pressed="false"
+                  data-slot-label="{{ weekday_names[day] }} {{ block_time }}"
+                  aria-label="{{ weekday_names[day] }} {{ block_time }}, no disponible"
                 >
                   <svg class="w-5 h-5 hidden" data-state="checked" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
@@ -155,8 +157,10 @@
             <button
               type="button"
               data-target="availability_{{ day_index }}_{{ block_index }}"
-              class="availability-toggle mobile-toggle flex flex-col items-center justify-center gap-1 px-3 py-4 rounded-lg border-2 cursor-pointer transition-all select-none min-h-[72px] border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:border-primary hover:bg-primary/5 dark:hover:border-accent dark:hover:bg-accent/5 active:scale-95"
+              class="availability-toggle mobile-toggle flex flex-col items-center justify-center gap-1 px-3 py-4 rounded-lg border-2 cursor-pointer transition-all select-none min-h-[72px] border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:border-primary hover:bg-primary/5 dark:hover:border-accent dark:hover:bg-accent/5 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               aria-pressed="false"
+              data-slot-label="{{ weekday_names[day_index] }} {{ block_time }}"
+              aria-label="{{ weekday_names[day_index] }} {{ block_time }}, no disponible"
             >
               <svg class="w-4 h-4 text-light-text-secondary dark:text-dark-text-secondary hidden" data-state="checked" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
@@ -216,6 +220,16 @@
       for (const control of controls) {
         control.classList.toggle('is-checked', checked);
         control.setAttribute('aria-pressed', checked ? 'true' : 'false');
+
+        // El botón sólo contiene un ícono: sin aria-label el lector anuncia
+        // "botón, no pulsado" sin decir de qué día ni de qué hora se trata.
+        const slotLabel = control.dataset.slotLabel;
+        if (slotLabel) {
+          control.setAttribute(
+            'aria-label',
+            `${slotLabel}, ${checked ? 'disponible' : 'no disponible'}`
+          );
+        }
 
         for (const checkedState of control.querySelectorAll('[data-state="checked"]')) {
           checkedState.classList.toggle('hidden', !checked);
