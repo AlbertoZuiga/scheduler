@@ -25,6 +25,12 @@ from app.models import (
     UserAvailability,
 )
 from app.models.subgroup import SubGroup
+from app.models.audit_log import (
+    ACTION_PERMISSION_GRANTED,
+    ACTION_PERMISSION_REVOKED,
+    ACTION_ROLE_CHANGED,
+    record_action,
+)
 from app.authz import (
     require_group_member,
     require_group_admin_or_owner,
@@ -1107,7 +1113,16 @@ def update_role(group_id, user_id):
         flash("⚠️ No puedes cambiar el rol del propietario del grupo.", "warning")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
     
+    rol_previo = member.role.name if member.role is not None else None
     member.role = RoleEnum[role_str]
+    record_action(
+        group_id=group.id,
+        actor=current_user,
+        action=ACTION_ROLE_CHANGED,
+        subject_type="member",
+        subject_id=member.id,
+        detail={"from": rol_previo, "to": role_str},
+    )
     scheduler_db.session.commit()
 
     flash("Rol actualizado con éxito.", "success")
@@ -1237,6 +1252,15 @@ def set_permission_level(group_id):
         else:
             scheduler_db.session.add(GroupPermissionGrant(**filters))
 
+    action = ACTION_PERMISSION_GRANTED if wanted else ACTION_PERMISSION_REVOKED
+    record_action(
+        group_id=group.id,
+        actor=current_user,
+        action=action,
+        subject_type=subject_type,
+        subject_id=subject_id,
+        detail={"level": level, "permissions": sorted(wanted)},
+    )
     scheduler_db.session.commit()
     flash("Permisos actualizados.", "success")
     return redirect(url_for("groups.permissions", group_id=group_id))
@@ -1269,6 +1293,15 @@ def revoke_permission(group_id):
     for grant in grants:
         grant.soft_delete()
 
+    if grants:
+        record_action(
+            group_id=group.id,
+            actor=current_user,
+            action=ACTION_PERMISSION_REVOKED,
+            subject_type=subject_type,
+            subject_id=subject_id,
+            detail={"permissions": sorted(grant.permission for grant in grants)},
+        )
     scheduler_db.session.commit()
     flash("Permisos revocados.", "success")
     return redirect(url_for("groups.permissions", group_id=group_id))

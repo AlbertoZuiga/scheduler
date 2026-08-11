@@ -1,8 +1,8 @@
 from app.extensions import scheduler_db
-from app.models.mixins import ACTIVE_ROWS, SoftDeleteMixin
+from app.models.mixins import ACTIVE_ROWS, SoftDeleteMixin, TimestampMixin
 
 
-class UserAvailability(SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-public-methods
+class UserAvailability(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-public-methods
     __tablename__ = "user_availability"
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     user_id = scheduler_db.Column(

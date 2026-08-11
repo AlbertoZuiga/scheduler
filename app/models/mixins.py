@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import text
+from sqlalchemy import func, text
 
 from app.extensions import scheduler_db
 
@@ -9,6 +9,28 @@ from app.extensions import scheduler_db
 # unique simple rechazaría reingresos legítimos. Postgres es el motor de
 # producción; `sqlite_where` replica la misma garantía en los tests.
 ACTIVE_ROWS = text("deleted_at IS NULL")
+
+
+class TimestampMixin:
+    """Cuándo se creó y cuándo se tocó por última vez cada fila.
+
+    `default` cubre lo que inserta el ORM y `server_default` lo que entra por
+    SQL crudo (seed, migraciones, backfills), para que no haya filas sin fecha.
+    """
+
+    created_at = scheduler_db.Column(
+        scheduler_db.DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        server_default=func.now(),
+    )
+    updated_at = scheduler_db.Column(
+        scheduler_db.DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        server_default=func.now(),
+    )
 
 
 class SoftDeleteMixin:

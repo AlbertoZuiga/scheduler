@@ -1,7 +1,7 @@
 import enum
 
 from app.extensions import scheduler_db
-from app.models.mixins import ACTIVE_ROWS, SoftDeleteMixin
+from app.models.mixins import ACTIVE_ROWS, SoftDeleteMixin, TimestampMixin
 
 
 class RoleEnum(enum.IntEnum):
@@ -9,7 +9,7 @@ class RoleEnum(enum.IntEnum):
     ADMIN = 1
 
 
-class GroupMember(SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-public-methods
+class GroupMember(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-public-methods
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     group_id = scheduler_db.Column(
         scheduler_db.Integer,

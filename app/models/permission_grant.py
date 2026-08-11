@@ -1,8 +1,8 @@
 from app.extensions import scheduler_db
-from app.models.mixins import SoftDeleteMixin
+from app.models.mixins import SoftDeleteMixin, TimestampMixin
 
 
-class GroupPermissionGrant(SoftDeleteMixin, scheduler_db.Model):  # pylint: disable=too-few-public-methods
+class GroupPermissionGrant(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):  # pylint: disable=too-few-public-methods
     """Concesión puntual de un permiso extra sobre subgrupos.
 
     Otorgada por el owner del grupo a un miembro específico o a una categoría
