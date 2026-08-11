@@ -56,7 +56,7 @@
 {% endblock %}
 
 {% block script %}
-<script>
+<script nonce="{{ csp_nonce() }}">
   document.addEventListener('DOMContentLoaded', () => {
     const nameInput = document.getElementById('group_name');
     nameInput?.focus();

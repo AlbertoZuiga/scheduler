@@ -37,11 +37,11 @@
 
 {% block script %}
 {{ super() }}
-<script type="application/json" id="embed-gm">{{ {
+<script type="application/json" id="embed-gm" nonce="{{ csp_nonce() }}">{{ {
   'gm_id': member.id,
   'can_edit': can_edit
 } | tojson }}</script>
-<script>
+<script nonce="{{ csp_nonce() }}">
   const __GM__ = JSON.parse(document.getElementById('embed-gm').textContent || '{}');
   const GM_ID = __GM__.gm_id;
   const CAN_EDIT = !!__GM__.can_edit;

@@ -40,7 +40,7 @@
 {% endblock %}
 
 {% block script %}
-<script>
+<script nonce="{{ csp_nonce() }}">
   // Estado de carga: el salto a Google puede tardar en redes lentas y sin esto
   // el botón parece no haber respondido.
   const loginLink = document.getElementById('google-login');

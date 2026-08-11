@@ -225,7 +225,7 @@
 
 {% block script %}
 {{ super() }}
-<script>
+<script nonce="{{ csp_nonce() }}">
   document.addEventListener('DOMContentLoaded', () => {
     for (const toggle of document.querySelectorAll('.rename-toggle')) {
       toggle.addEventListener('click', () => {

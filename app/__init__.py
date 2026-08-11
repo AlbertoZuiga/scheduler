@@ -1,9 +1,12 @@
 import hashlib
 import logging
 import os
+import secrets
 import sys
 
-from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import (
+    Flask, flash, g, jsonify, make_response, redirect, render_template, request, session, url_for
+)
 from flask_login import current_user
 from flask_wtf.csrf import CSRFError, CSRFProtect
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -60,6 +63,84 @@ def _register_static_url(app):
     app.jinja_env.globals["static_url"] = static_url
 
 
+def _csp_nonce():
+    """Nonce de CSP de esta request: el mismo para el header y para las plantillas.
+
+    Se genera perezosamente y se guarda en `g` porque lo piden dos lados: cada
+    `<script nonce="{{ csp_nonce() }}">` al renderizar y el `after_request` al
+    armar el header. Si difirieran, el navegador bloquearía el script.
+    """
+    nonce = g.get("csp_nonce")
+    if nonce is None:
+        nonce = secrets.token_urlsafe(16)
+        g.csp_nonce = nonce
+    return nonce
+
+
+def _content_security_policy(nonce, *, debug=False):
+    """CSP por nonce: cada `<script>` inline de la app lleva el nonce de la request.
+
+    La app tiene ~1450 líneas de JS inline repartidas en 11 bloques, así que la
+    opción barata era `script-src 'unsafe-inline'`, que no protege de nada: es
+    exactamente lo que un XSS necesita. Con nonce esos bloques siguen donde
+    están (no hay que extraerlos a archivos) y un `<script>` inyectado no
+    corre, porque el atacante no puede adivinar el nonce.
+
+    `style-src` sí lleva `'unsafe-inline'`: quedan dos `<style>` y un atributo
+    `style=` en las plantillas, y el atributo no se puede cubrir con nonce
+    (el nonce solo aplica a elementos). El riesgo que deja abierto es
+    inyección de CSS, muy por debajo de la ejecución de script.
+
+    `img-src` acepta `https:` porque el avatar del usuario lo sirve Google
+    desde hosts de `googleusercontent.com` que rotan.
+    """
+    directivas = [
+        "default-src 'self'",
+        f"script-src 'self' 'nonce-{nonce}'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: https:",
+        "font-src 'self'",
+        # Todos los fetch de la app (autosave, bulk_assign, categorías) son al
+        # mismo origen; no hay API externa que consultar desde el navegador.
+        "connect-src 'self'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        # El login con Google es un redirect del servidor, no un iframe ni un
+        # POST cross-origin: nada de esto lo toca.
+        "frame-ancestors 'none'",
+        "object-src 'none'",
+    ]
+    if not debug:
+        directivas.append("upgrade-insecure-requests")
+    return "; ".join(directivas)
+
+
+def _register_security_headers(app):
+    """Headers de seguridad en toda respuesta (fase 9 del roadmap)."""
+
+    app.jinja_env.globals["csp_nonce"] = _csp_nonce
+
+    @app.after_request
+    def set_security_headers(response):
+        response.headers["Content-Security-Policy"] = _content_security_policy(_csp_nonce(), debug=app.config['DEBUG'])
+        # Sin esto el navegador puede adivinar el tipo de un archivo subido o de
+        # una respuesta y ejecutarlo como HTML/JS.
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        # Los links de invitación viajan en la URL: no se filtran a terceros.
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        # `frame-ancestors` ya lo cubre en navegadores actuales; X-Frame-Options
+        # queda para los que no leen CSP nivel 2.
+        response.headers["X-Frame-Options"] = "DENY"
+        # HSTS solo sobre HTTPS real: mandarlo en dev (http) no hace nada, y
+        # mandarlo desde un host que después no sirve TLS deja al usuario sin
+        # poder entrar durante un año.
+        if not app.config['DEBUG'] and request.is_secure:
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
+        return response
+
+
 def _wants_json():
     """True si el cliente espera JSON (fetch de la app o consumidor de API)."""
     if request.path.startswith("/api/"):
@@ -78,6 +159,7 @@ def create_app():
     # url_for(_external=True) genera http://.
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
     _register_static_url(app)
+    _register_security_headers(app)
     scheduler_db.init_app(app)
     # Protege por defecto todo POST/PUT/PATCH/DELETE. El token viaja en el hidden
     # `csrf_token` de los forms o en el header `X-CSRFToken` de los fetch.
@@ -128,9 +210,14 @@ def create_app():
     @app.errorhandler(429)
     def too_many_requests_error(error):
         """SEC-009: el rate limit del join corta acá, con una página usable."""
+        retry_after = str(getattr(g, "rate_limit_retry_after", 300))
         if _wants_json():
-            return jsonify({"error": "Demasiados intentos. Espera unos minutos."}), 429
-        return render_template("429.html"), 429
+            resp = jsonify({"error": "Demasiados intentos. Espera unos minutos."})
+            resp.headers["Retry-After"] = retry_after
+            return resp, 429
+        resp = make_response(render_template("429.html"), 429)
+        resp.headers["Retry-After"] = retry_after
+        return resp
 
     @app.errorhandler(500)
     def internal_error(error):

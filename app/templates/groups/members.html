@@ -270,12 +270,12 @@
 </details>
 {% endif %}
 
-<script type="application/json" id="members-embed-data">{{ embed_data | tojson }}</script>
+<script type="application/json" id="members-embed-data" nonce="{{ csp_nonce() }}">{{ embed_data | tojson }}</script>
 {% endblock %}
 
 {% block script %}
 {{ super() }}
-<script>
+<script nonce="{{ csp_nonce() }}">
   document.addEventListener('DOMContentLoaded', () => {
     const data = JSON.parse(document.getElementById('members-embed-data').textContent || '{}');
     const groupId = Number.parseInt(data.group_id);

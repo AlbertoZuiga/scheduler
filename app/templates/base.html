@@ -30,7 +30,7 @@
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
 
     <!-- Tema: bloqueante y antes del primer paint para evitar el flash claro (FOUC). -->
-    <script>
+    <script nonce="{{ csp_nonce() }}">
       (() => {
         const pref = localStorage.getItem('theme');
         const dark = pref === 'dark' || (!pref && globalThis.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -53,7 +53,7 @@
     {% include 'partials/footer.html' %}
 
     <!-- Custom JS -->
-    <script defer src="{{ static_url('js/main.js') }}"></script>
+    <script defer src="{{ static_url('js/main.js') }}" nonce="{{ csp_nonce() }}"></script>
     {% block script %}{% endblock %}
   </body>
 </html>

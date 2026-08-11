@@ -60,7 +60,7 @@
     <span class="text-xs font-semibold text-light-text-secondary dark:text-dark-text-secondary whitespace-nowrap">Link de invitación:</span>
     <div class="flex gap-2 flex-1">
       <input type="text" class="flex-1 min-w-0 px-2 py-1.5 rounded border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background text-xs" value="{{ url_for('groups.join', token=group.join_token, _external=True) }}" id="inviteLink-{{ group.id }}" readonly>
-      <button type="button" onclick="copyInviteLink('{{ group.id }}')" class="px-2.5 py-1.5 rounded border border-light-border dark:border-dark-border bg-light-muted/30 dark:bg-dark-muted/30 hover:bg-primary hover:text-white transition-all text-xs flex-shrink-0" title="Copiar enlace">Copiar</button>
+      <button type="button" data-copy-invite="{{ group.id }}" class="px-2.5 py-1.5 rounded border border-light-border dark:border-dark-border bg-light-muted/30 dark:bg-dark-muted/30 hover:bg-primary hover:text-white transition-all text-xs flex-shrink-0" title="Copiar enlace">Copiar</button>
       {% if current_user.id == group.owner_id %}
       <form method="POST" action="{{ url_for('groups.rotate_join_token', group_id=group.id) }}" data-confirm="El link actual dejará de funcionar y nadie podrá unirse con él. ¿Regenerar el link de invitación?" data-confirm-label="Regenerar" class="flex-shrink-0">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -366,9 +366,9 @@
   'availability': availability | map('list') | list,
   'responded_user_ids': responded_user_ids
 } %}
-<script type="application/json" id="embed-data">{{ embed_data | tojson }}</script>
+<script type="application/json" id="embed-data" nonce="{{ csp_nonce() }}">{{ embed_data | tojson }}</script>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
   globalThis.__EMBED__ = JSON.parse(document.getElementById('embed-data').textContent || '{}');
   globalThis.GROUP_ID = globalThis.__EMBED__.group_id;
   globalThis.CAN_MANAGE = !!globalThis.__EMBED__.can_manage;
