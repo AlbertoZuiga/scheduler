@@ -1,10 +1,11 @@
 {% extends 'base.html' %}
+{% from 'macros/ui.html' import card %}
 
 {% block title %}Iniciar sesión{% endblock %}
 
 {% block content %}
 <section class="max-w-md mx-auto py-10 sm:py-16 text-center">
-  <div class="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border p-6 sm:p-8">
+  {% call card(class='p-6 sm:p-8', shadow=false) %}
     <h1 class="text-2xl sm:text-3xl font-semibold">Inicia sesión en Scheduler</h1>
     <p class="mt-3 text-light-text-secondary dark:text-dark-text-secondary">
       Usamos tu cuenta de Google para identificarte. No publicamos nada ni accedemos
@@ -34,7 +35,7 @@
       Al continuar aceptas que tu nombre y tu disponibilidad sean visibles para
       los miembros de los grupos a los que te unas.
     </p>
-  </div>
+  {% endcall %}
 </section>
 {% endblock %}
 

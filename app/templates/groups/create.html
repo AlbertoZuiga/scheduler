@@ -1,28 +1,28 @@
 {% extends 'base.html' %}
+{% from 'macros/ui.html' import button, card, card_header, csrf, field, icon %}
 
 {% block title %}Crear Grupo{% endblock %}
 
 {% block content %}
 <div class="w-full max-w-2xl mx-auto">
-  <a href="{{ url_for('groups.index') }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 mb-4 touch-manipulation active:scale-95 transition min-h-[44px] text-sm">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+  {% call button(variant='secondary', size='sm', href=url_for('groups.index'), class='mb-4') %}
+    {{ icon('arrow-left', 'w-4 h-4') }}
     <span class="hidden xs:inline">Volver a Mis Grupos</span>
     <span class="xs:hidden">Volver</span>
-  </a>
+  {% endcall %}
 
-  <div class="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border shadow">
-    <div class="px-4 sm:px-5 py-3 sm:py-4 border-b border-light-border dark:border-dark-border">
-      <h1 class="text-lg sm:text-xl font-bold">Crear Nuevo Grupo</h1>
+  {% call card() %}
+    {% call card_header() %}
+      <h3 class="text-lg sm:text-xl font-bold">Crear Nuevo Grupo</h3>
       <p class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary mt-1">Crea un grupo para coordinar disponibilidad horaria con tu equipo.</p>
-    </div>
+    {% endcall %}
     <div class="p-4 sm:p-5">
-      <form method="POST" class="space-y-4">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div>
-          <label for="group_name" class="block text-sm font-medium mb-2">Nombre del Grupo <span class="text-red-500">*</span></label>
-          <input type="text" id="group_name" name="group_name" required minlength="3" maxlength="100" placeholder="Ej: Equipo de Desarrollo..." class="w-full px-3 sm:px-4 py-3 rounded-lg text-base border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary touch-manipulation">
-          <p class="text-xs text-light-text-muted dark:text-dark-text-muted mt-1">Usa un nombre descriptivo que identifique fácilmente tu grupo</p>
-        </div>
+      <form method="POST" class="space-y-4" novalidate>
+        {{ csrf() }}
+        {{ field('group_name', label='Nombre del Grupo', required=true,
+                 placeholder='Ej: Equipo de Desarrollo...',
+                 help='Usa un nombre descriptivo que identifique fácilmente tu grupo',
+                 attrs={'minlength': 3, 'maxlength': 100}) }}
         <div class="rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-900/20 p-3 sm:p-4 text-xs sm:text-sm text-blue-800 dark:text-blue-200">
           <strong class="block mb-2">¿Qué sucede después?</strong>
           <ul class="list-disc list-inside space-y-1">
@@ -32,18 +32,18 @@
           </ul>
         </div>
         <div class="flex flex-col sm:flex-row gap-2">
-          <button type="submit" class="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-primary text-white hover:opacity-90 touch-manipulation active:scale-95 transition font-medium min-h-[48px]">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          {% call button(size='lg') %}
+            {{ icon('plus') }}
             Crear Grupo
-          </button>
-          <a href="{{ url_for('groups.index') }}" class="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 touch-manipulation active:scale-95 transition min-h-[48px]">Cancelar</a>
+          {% endcall %}
+          {{ button('Cancelar', variant='secondary', size='lg', href=url_for('groups.index')) }}
         </div>
       </form>
     </div>
-  </div>
+  {% endcall %}
 
-  <div class="mt-4 rounded-xl border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card p-3 sm:p-4">
-    <h2 class="font-semibold mb-2 text-sm sm:text-base">¿Necesitas ayuda?</h2>
+  {% call card(class='mt-4 p-3 sm:p-4', shadow=false) %}
+    <h6 class="font-semibold mb-2 text-sm sm:text-base">¿Necesitas ayuda?</h6>
     <p class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary mb-2">Un grupo te permite coordinar horarios con múltiples personas. Después de crearlo, podrás:</p>
     <ul class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary list-disc list-inside space-y-1">
       <li>Invitar miembros y asignar roles (Owner, Admin, Member)</li>
@@ -51,7 +51,7 @@
       <li>Definir bloques de disponibilidad horaria</li>
       <li>Visualizar cuándo todos están disponibles</li>
     </ul>
-  </div>
+  {% endcall %}
 </div>
 {% endblock %}
 

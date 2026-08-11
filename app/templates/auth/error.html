@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from 'macros/ui.html' import button %}
 
 {% block title %}Error de inicio de sesión{% endblock %}
 
@@ -15,14 +16,8 @@
   </p>
 
   <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-    <a href="{{ url_for('auth.login') }}"
-       class="px-5 py-2.5 rounded-lg bg-primary text-white hover:bg-primary-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
-      Reintentar
-    </a>
-    <a href="{{ url_for('main.index') }}"
-       class="px-5 py-2.5 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/20 dark:hover:bg-dark-muted/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
-      Volver al inicio
-    </a>
+    {{ button('Reintentar', href=url_for('auth.login')) }}
+    {{ button('Volver al inicio', variant='secondary', href=url_for('main.index')) }}
   </div>
 </section>
 {% endblock %}

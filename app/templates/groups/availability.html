@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from 'macros/ui.html' import button, icon %}
 
 {% block title %}Mi disponibilidad - {{ group.name }}{% endblock %}
 
@@ -184,24 +185,14 @@
     <!-- Action Buttons - Sticky en móvil -->
     <div class="sticky bottom-0 left-0 right-0 bg-light-background dark:bg-dark-background border-t border-light-border dark:border-dark-border p-4 md:p-0 md:border-0 md:relative shadow-lg md:shadow-none z-20 -mx-4 md:mx-0">
       <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <a
-          href="{{ url_for('groups.show', group_id=group_id) }}"
-          class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border-2 border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 text-light-text-primary dark:text-dark-text-primary font-medium transition-all active:scale-95"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+        {% call button(variant='secondary', size='lg', href=url_for('groups.show', group_id=group_id)) %}
+          {{ icon('x') }}
           Volver
-        </a>
-        <button
-          type="submit"
-          class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border-2 border-success dark:border-success-dark bg-success dark:bg-success-dark hover:bg-success-dark hover:border-success-dark dark:hover:bg-success-light dark:hover:border-success-light text-white font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-          </svg>
+        {% endcall %}
+        {% call button(variant='success', size='lg') %}
+          {{ icon('check') }}
           <span>Guardar y volver</span>
-        </button>
+        {% endcall %}
       </div>
     </div>
   </form>
