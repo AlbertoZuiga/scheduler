@@ -16,7 +16,7 @@
       <p class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary mt-1">Crea un grupo para coordinar disponibilidad horaria con tu equipo.</p>
     </div>
     <div class="p-4 sm:p-5">
-      <form method="POST" class="space-y-4" novalidate>
+      <form method="POST" class="space-y-4">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div>
           <label for="group_name" class="block text-sm font-medium mb-2">Nombre del Grupo <span class="text-red-500">*</span></label>
