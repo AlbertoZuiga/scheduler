@@ -36,7 +36,7 @@ def arbol(db_session):
 
     member = GroupMember(group_id=group.id, user_id=duenio.id)
     category = Category(group_id=group.id, name="Cat")
-    slot = Availability(group_id=group.id, weekday=0, hour=8.5)
+    slot = Availability(group_id=group.id, weekday=0, start_minutes=510)
     subgroup = SubGroup(parent_group_id=group.id, name="Sub")
     db_session.add_all([member, category, slot, subgroup])
     db_session.flush()

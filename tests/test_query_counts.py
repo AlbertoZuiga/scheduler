@@ -89,7 +89,7 @@ def _seed_group(db_session, n_members, token):
         )
 
     availabilities = [
-        Availability(group_id=group.id, weekday=weekday, hour=9 + block)
+        Availability(group_id=group.id, weekday=weekday, start_minutes=(9 + block) * 60)
         for weekday in range(3)
         for block in range(4)
     ]

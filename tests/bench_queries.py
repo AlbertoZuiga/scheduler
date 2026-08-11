@@ -94,7 +94,7 @@ def seed():
             )
 
     availabilities = [
-        Availability(group_id=group.id, weekday=weekday, hour=8 + block)
+        Availability(group_id=group.id, weekday=weekday, start_minutes=(8 + block) * 60)
         for weekday in range(WEEKDAYS)
         for block in range(BLOCKS_PER_DAY)
     ]

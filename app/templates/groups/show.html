@@ -160,7 +160,7 @@
             <li class="availability-summary-row availability-all-row"
                 data-availability-id="{{ availability_id }}"
                 data-weekday="{{ data.availability.weekday }}"
-                data-hour="{{ data.availability.hour }}">{{ weekdays[data.availability.weekday] }} {{ convert_float_to_time_string(data.availability.hour) }}</li>
+                data-start-minutes="{{ data.availability.start_minutes }}">{{ weekdays[data.availability.weekday] }} {{ format_minutes(data.availability.start_minutes) }}</li>
           {% endif %}
         {% endfor %}
       </ul>
@@ -173,9 +173,9 @@
           <details class="bg-light-surface dark:bg-dark-surface border border-light-border dark:border-dark-border rounded p-3 availability-partial-card"
                    data-availability-id="{{ availability_id }}"
                    data-weekday="{{ data.availability.weekday }}"
-                   data-hour="{{ data.availability.hour }}">
+                   data-start-minutes="{{ data.availability.start_minutes }}">
             <summary class="cursor-pointer text-sm">
-              {{ weekdays[data.availability.weekday] }} {{ convert_float_to_time_string(data.availability.hour) }} —
+              {{ weekdays[data.availability.weekday] }} {{ format_minutes(data.availability.start_minutes) }} —
               <span class="availability-visible-count" data-base-count="{{ data.count_users }}">{{ data.count_users }}</span>
               <span class="availability-visible-label">{{ "personas disponibles" if data.count_users > 1 else "persona disponible" }}</span>
             </summary>
@@ -493,9 +493,9 @@
       return visibility;
     };
 
-    const toTimeString = (hour) => {
-      const h = Math.floor(hour);
-      const m = Math.round((hour - h) * 60);
+    const toTimeString = (startMinutes) => {
+      const h = Math.floor(startMinutes / 60);
+      const m = startMinutes % 60;
       return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     };
 
@@ -522,11 +522,11 @@
     const buildFilteredAvailability = (filteredUsers) => {
       const availabilityBySlot = new Map();
 
-      for (const [userId, weekday, hour] of availabilityRows) {
+      for (const [userId, weekday, startMinutes] of availabilityRows) {
         const parsedUserId = Number.parseInt(userId);
         const parsedWeekday = Number.parseInt(weekday);
-        const parsedHour = Number(hour);
-        if (!Number.isInteger(parsedUserId) || !Number.isInteger(parsedWeekday) || Number.isNaN(parsedHour)) {
+        const parsedMinutes = Number.parseInt(startMinutes);
+        if (!Number.isInteger(parsedUserId) || !Number.isInteger(parsedWeekday) || !Number.isInteger(parsedMinutes)) {
           continue;
         }
 
@@ -534,7 +534,7 @@
           continue;
         }
 
-        const key = `${parsedWeekday}|${parsedHour}`;
+        const key = `${parsedWeekday}|${parsedMinutes}`;
         if (!availabilityBySlot.has(key)) {
           availabilityBySlot.set(key, new Set());
         }
@@ -556,12 +556,12 @@
       const allSlots = [];
       for (const [slot, users] of availabilityBySlot.entries()) {
         if (users.size === filteredCount) {
-          const [weekday, hour] = slot.split('|');
-          allSlots.push({ weekday: Number.parseInt(weekday), hour: Number(hour) });
+          const [weekday, startMinutes] = slot.split('|');
+          allSlots.push({ weekday: Number.parseInt(weekday), startMinutes: Number.parseInt(startMinutes) });
         }
       }
 
-      allSlots.sort((a, b) => (a.weekday - b.weekday) || (a.hour - b.hour));
+      allSlots.sort((a, b) => (a.weekday - b.weekday) || (a.startMinutes - b.startMinutes));
 
       if (allSlots.length === 0) {
         allList.innerHTML = '<li class="text-xs text-light-text-secondary dark:text-dark-text-secondary">No hay bloques donde puedan todos los usuarios filtrados.</li>';
@@ -570,7 +570,7 @@
 
       for (const slot of allSlots) {
         const li = document.createElement('li');
-        li.textContent = `${weekdayNames[slot.weekday]} ${toTimeString(slot.hour)}`;
+        li.textContent = `${weekdayNames[slot.weekday]} ${toTimeString(slot.startMinutes)}`;
         allList.appendChild(li);
       }
     };
@@ -588,15 +588,15 @@
       const partialSlots = [];
       for (const [slot, users] of availabilityBySlot.entries()) {
         if (users.size > 0 && users.size < filteredCount) {
-          const [weekday, hour] = slot.split('|');
-          partialSlots.push({ weekday: Number.parseInt(weekday), hour: Number(hour), users: Array.from(users) });
+          const [weekday, startMinutes] = slot.split('|');
+          partialSlots.push({ weekday: Number.parseInt(weekday), startMinutes: Number.parseInt(startMinutes), users: Array.from(users) });
         }
       }
 
       partialSlots.sort((a, b) => {
         const byCount = b.users.length - a.users.length;
         if (byCount !== 0) return byCount;
-        return (a.weekday - b.weekday) || (a.hour - b.hour);
+        return (a.weekday - b.weekday) || (a.startMinutes - b.startMinutes);
       });
 
       if (partialSlots.length === 0) {
@@ -611,7 +611,7 @@
         const summary = document.createElement('summary');
         summary.className = 'cursor-pointer text-sm';
         const count = slot.users.length;
-        summary.textContent = `${weekdayNames[slot.weekday]} ${toTimeString(slot.hour)} — ${count} ${count === 1 ? 'persona disponible' : 'personas disponibles'}`;
+        summary.textContent = `${weekdayNames[slot.weekday]} ${toTimeString(slot.startMinutes)} — ${count} ${count === 1 ? 'persona disponible' : 'personas disponibles'}`;
         details.appendChild(summary);
 
         const ul = document.createElement('ul');

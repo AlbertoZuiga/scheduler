@@ -159,7 +159,7 @@ def seed_database():
         block_starts = group.block_starts()
         for weekday in range(7):
             for start_minutes in random.sample(block_starts, k=min(3, len(block_starts))):
-                availability_list.append(Availability(group_id=group.id, weekday=weekday, hour=start_minutes / 60))
+                availability_list.append(Availability(group_id=group.id, weekday=weekday, start_minutes=start_minutes))
     scheduler_db.session.add_all(availability_list)
     scheduler_db.session.commit()
 

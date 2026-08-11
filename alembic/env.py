@@ -22,6 +22,17 @@ target_metadata = scheduler_db.metadata
 
 
 def _configure_and_run(connection):
+    if connection.dialect.name == "sqlite":
+        # Batch mode recrea la tabla (DROP + CREATE + copia). Desde DATA-006 la
+        # app enciende `PRAGMA foreign_keys` en cada conexión, así que ese DROP
+        # lo rechazan las FKs que apuntan a la tabla. Se apagan durante la
+        # migración y se vuelven a encender al terminar para no contaminar el pool.
+        connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        # El PRAGMA abre la transacción implícita de SQLAlchemy; sin cerrarla
+        # acá, la que abre Alembic después no es la misma y las migraciones se
+        # pierden al soltar la conexión.
+        connection.commit()
+
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
@@ -31,6 +42,8 @@ def _configure_and_run(connection):
     )
     with context.begin_transaction():
         context.run_migrations()
+    if connection.dialect.name == "sqlite":
+        connection.exec_driver_sql("PRAGMA foreign_keys=ON")
 
 
 def run_migrations_offline():
