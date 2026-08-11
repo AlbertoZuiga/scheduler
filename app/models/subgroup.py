@@ -20,8 +20,8 @@ class SubGroup(SoftDeleteMixin, scheduler_db.Model):
     created_at = scheduler_db.Column(scheduler_db.DateTime, default=datetime.utcnow, nullable=False)
 
     # Relaciones
-    parent_group = scheduler_db.relationship('Group', backref=scheduler_db.backref('subgroups', lazy='dynamic', cascade='all, delete-orphan'))
-    members = scheduler_db.relationship('SubGroupMember', back_populates='subgroup', cascade='all, delete-orphan')
+    parent_group = scheduler_db.relationship('Group', backref=scheduler_db.backref('subgroups', lazy='dynamic', cascade='all, delete-orphan', passive_deletes=True))
+    members = scheduler_db.relationship('SubGroupMember', back_populates='subgroup', cascade='all, delete-orphan', passive_deletes=True)
 
     __table_args__ = (
         scheduler_db.Index('ix_subgroups_parent_deleted', 'parent_group_id', 'deleted_at'),
@@ -60,7 +60,7 @@ class SubGroupMember(SoftDeleteMixin, scheduler_db.Model):
 
     # Relaciones
     subgroup = scheduler_db.relationship('SubGroup', back_populates='members')
-    user = scheduler_db.relationship('User', backref=scheduler_db.backref('subgroup_memberships', lazy='dynamic'))
+    user = scheduler_db.relationship('User', backref=scheduler_db.backref('subgroup_memberships', lazy='dynamic', cascade='all, delete-orphan', passive_deletes=True))
 
     __table_args__ = (
         scheduler_db.Index('idx_subgroup_user', 'subgroup_id', 'user_id'),
@@ -109,8 +109,9 @@ class DivisionJob(SoftDeleteMixin, scheduler_db.Model):
     timestamp = scheduler_db.Column(scheduler_db.DateTime, default=datetime.utcnow, nullable=False)
 
     # Relaciones
-    parent_group = scheduler_db.relationship('Group', backref=scheduler_db.backref('division_jobs', lazy='dynamic'))
-    creator = scheduler_db.relationship('User', backref=scheduler_db.backref('division_jobs_created', lazy='dynamic'))
+    parent_group = scheduler_db.relationship('Group', backref=scheduler_db.backref('division_jobs', lazy='dynamic', cascade='all, delete-orphan', passive_deletes=True))
+    # `created_by` es SET NULL: el job sobrevive al borrado de quien lo lanzó.
+    creator = scheduler_db.relationship('User', backref=scheduler_db.backref('division_jobs_created', lazy='dynamic', passive_deletes=True))
 
     __table_args__ = (
         scheduler_db.Index('ix_division_jobs_parent_deleted', 'parent_group_id', 'deleted_at'),

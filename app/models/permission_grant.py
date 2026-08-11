@@ -12,14 +12,20 @@ class GroupPermissionGrant(SoftDeleteMixin, scheduler_db.Model):  # pylint: disa
     """
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     group_id = scheduler_db.Column(
-        scheduler_db.Integer, scheduler_db.ForeignKey("group.id"), nullable=False
+        scheduler_db.Integer,
+        scheduler_db.ForeignKey("group.id", ondelete="CASCADE"),
+        nullable=False,
     )
     permission = scheduler_db.Column(scheduler_db.String(50), nullable=False)
     group_member_id = scheduler_db.Column(
-        scheduler_db.Integer, scheduler_db.ForeignKey("group_member.id"), nullable=True
+        scheduler_db.Integer,
+        scheduler_db.ForeignKey("group_member.id", ondelete="CASCADE"),
+        nullable=True,
     )
     category_id = scheduler_db.Column(
-        scheduler_db.Integer, scheduler_db.ForeignKey("category.id"), nullable=True
+        scheduler_db.Integer,
+        scheduler_db.ForeignKey("category.id", ondelete="CASCADE"),
+        nullable=True,
     )
     # Discriminador del sujeto ("m<id>" / "c<id>") para poder hacer UNIQUE. No
     # se puede usar (group_member_id, category_id) directamente: uno de los dos

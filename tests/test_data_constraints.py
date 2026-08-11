@@ -26,10 +26,17 @@ from app.models.subgroup import SubGroup, SubGroupMember
 
 
 def _flush_expecting_conflict(session, row):
+    """El conflicto se revierte con un SAVEPOINT, no con la transacción entera.
+
+    Un `rollback()` completo se llevaría también las filas del fixture, y la
+    segunda mitad de cada test —reinsertar la clave tras el borrado lógico—
+    pasaría por vacuidad, sobre una tabla vacía.
+    """
+    savepoint = session.begin_nested()
     session.add(row)
     with pytest.raises(IntegrityError):
         session.flush()
-    session.rollback()
+    savepoint.rollback()
 
 
 @pytest.fixture()

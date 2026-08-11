@@ -6,10 +6,19 @@ class Group(SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-p
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     name = scheduler_db.Column(scheduler_db.String(150), nullable=False)
     join_token = scheduler_db.Column(scheduler_db.String(64), unique=True, nullable=False)
+    # `owner_id` es NOT NULL, así que borrar al dueño no puede dejar el grupo
+    # huérfano: el grupo se va con él (es lo que el seed hacía a mano).
     owner_id = scheduler_db.Column(
-        scheduler_db.Integer, scheduler_db.ForeignKey("user.id"), nullable=False
+        scheduler_db.Integer,
+        scheduler_db.ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
     )
-    owner = scheduler_db.relationship("User", backref="groups")
+    owner = scheduler_db.relationship(
+        "User",
+        backref=scheduler_db.backref(
+            "groups", cascade="all, delete-orphan", passive_deletes=True
+        ),
+    )
     # Rango horario y días visibles en la grilla de disponibilidad del grupo.
     # El rango se guarda en minutos desde medianoche para permitir horas con
     # minutos (08:15, 13:45); `block_minutes` es la extensión de cada bloque.
@@ -21,11 +30,17 @@ class Group(SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-p
         scheduler_db.String(20), nullable=False, default="0,1,2,3,4,5,6"
     )
     members = scheduler_db.relationship(
-        "GroupMember", back_populates="group", cascade="all, delete-orphan"
+        "GroupMember",
+        back_populates="group",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     # Categories that belong to this group
     categories = scheduler_db.relationship(
-        "Category", back_populates="group", cascade="all, delete-orphan"
+        "Category",
+        back_populates="group",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     __table_args__ = (

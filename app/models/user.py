@@ -11,7 +11,8 @@ class User(UserMixin, scheduler_db.Model):
     memberships = scheduler_db.relationship(
         "GroupMember",
         back_populates="user",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     @classmethod
