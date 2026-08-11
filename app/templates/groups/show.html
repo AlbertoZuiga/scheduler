@@ -350,8 +350,6 @@
   'group_id': group.id,
   'can_manage': True if can_manage else False,
   'members': members_data,
-  'categories': group_categories | map(attribute='name') | list,
-  'subgroups': group_subgroups,
   'member_category_map': member_category_map,
   'user_subgroup_map': user_subgroup_map,
   'user_gm_map': user_gm_map,
