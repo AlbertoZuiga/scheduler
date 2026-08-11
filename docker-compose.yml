@@ -37,7 +37,8 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5000/ || exit 1"]
+      # `/health` toca la BD: pegarle a `/` reportaba sano con Postgres caído.
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
       interval: 1m30s
       timeout: 30s
       retries: 5
