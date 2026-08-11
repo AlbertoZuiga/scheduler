@@ -1,8 +1,10 @@
 {% extends 'base.html' %}
 
+{% block title %}Categorías de {{ member.user.email }}{% endblock %}
+
 {% block content %}
 <div class="w-full max-w-5xl mx-auto">
-  <h4 class="text-xl sm:text-2xl font-bold mb-4">Categorías para: <span class="block sm:inline mt-1 sm:mt-0 break-all">{{ member.user.email }}</span></h4>
+  <h1 class="text-xl sm:text-2xl font-bold mb-4">Categorías para: <span class="block sm:inline mt-1 sm:mt-0 break-all">{{ member.user.email }}</span></h1>
 
   <div class="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
     {% for cat in categories %}

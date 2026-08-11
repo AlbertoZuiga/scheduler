@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 
+{% block title %}{{ group.name }}{% endblock %}
+
 {% block content %}
 <div class="w-full">
   <!-- Page Header -->
@@ -240,9 +242,9 @@
     <table class="w-full text-center align-middle border-collapse">
       <thead>
         <tr class="bg-light-muted/30 dark:bg-dark-muted/30">
-          <th class="px-3 py-2 border border-light-border dark:border-dark-border">Bloque</th>
+          <th scope="col" class="px-3 py-2 border border-light-border dark:border-dark-border">Bloque</th>
           {% for day_index in active_weekdays %}
-            <th class="px-3 py-2 border border-light-border dark:border-dark-border">{{ weekdays[day_index] }}</th>
+            <th scope="col" class="px-3 py-2 border border-light-border dark:border-dark-border">{{ weekdays[day_index] }}</th>
           {% endfor %}
         </tr>
       </thead>
@@ -250,7 +252,7 @@
         {% for block in blocks %}
         {% set block_index = loop.index0 %}
         <tr class="odd:bg-light-background even:bg-light-surface dark:odd:bg-dark-background dark:even:bg-dark-surface">
-          <td class="px-3 py-2 border border-light-border dark:border-dark-border text-sm">{{ block }}</td>
+          <th scope="row" class="px-3 py-2 border border-light-border dark:border-dark-border text-sm font-normal">{{ block }}</th>
           {% for day_index in active_weekdays %}
           <td class="px-3 py-2 border border-light-border dark:border-dark-border align-top">
             <div class="space-y-1 schedule-cell-body" data-weekday="{{ day_index }}" data-block-index="{{ block_index }}">
@@ -289,9 +291,9 @@
 {% if can_manage %}
 <div class="mt-8">
   <div class="flex items-center justify-between mb-4">
-    <h3 class="text-xl font-bold">Categorías</h3>
+    <h2 class="text-xl font-bold">Categorías</h2>
   </div>
-  <form id="createCategoryForm" class="flex flex-col sm:flex-row gap-2 mb-4" autocomplete="off" novalidate>
+  <form id="createCategoryForm" class="flex flex-col sm:flex-row gap-2 mb-4" autocomplete="off">
     <div class="flex-1">
       <input type="text" id="newCategoryName" class="w-full px-3 py-2 rounded border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background" placeholder="Nueva categoría (p. ej. Backend, Diseño)" required>
       <div id="nameFeedback" class="text-xs mt-1"></div>
@@ -311,7 +313,7 @@
         {% set names = category_member_names.get(category.id, []) %}
         <div class="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border shadow p-4 flex flex-col gap-2" data-category-card="{{ category.id }}">
           <div class="flex items-center justify-between">
-            <h6 class="font-semibold">{{ category.name }}</h6>
+            <h3 class="font-semibold">{{ category.name }}</h3>
             <div class="flex items-center gap-2">
               <span class="inline-flex items-center justify-center w-6 h-6 text-xs rounded-full bg-light-muted/40 dark:bg-dark-muted/40 text-light-text-primary dark:text-dark-text-primary">{{ names|length }}</span>
               <button class="px-2 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 delete-category-btn" data-category-id="{{ category.id }}" data-category-name="{{ category.name }}">Eliminar</button>
@@ -799,7 +801,7 @@
         card.className = 'bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border shadow p-4 flex flex-col gap-2';
         card.innerHTML = `
           <div class="flex items-center justify-between">
-            <h6 class="font-semibold" data-category-name></h6>
+            <h3 class="font-semibold" data-category-name></h3>
             <div class="flex items-center gap-2">
               <span class="inline-flex items-center justify-center w-6 h-6 text-xs rounded-full bg-light-muted/40 dark:bg-dark-muted/40 text-light-text-primary dark:text-dark-text-primary">${count}</span>
               ${globalThis.CAN_MANAGE ? '<button class="px-2 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 delete-category-btn">Eliminar</button>' : ''}

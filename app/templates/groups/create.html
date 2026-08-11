@@ -12,11 +12,11 @@
 
   <div class="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border shadow">
     <div class="px-4 sm:px-5 py-3 sm:py-4 border-b border-light-border dark:border-dark-border">
-      <h3 class="text-lg sm:text-xl font-bold">Crear Nuevo Grupo</h3>
+      <h1 class="text-lg sm:text-xl font-bold">Crear Nuevo Grupo</h1>
       <p class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary mt-1">Crea un grupo para coordinar disponibilidad horaria con tu equipo.</p>
     </div>
     <div class="p-4 sm:p-5">
-      <form method="POST" class="space-y-4" novalidate>
+      <form method="POST" class="space-y-4">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div>
           <label for="group_name" class="block text-sm font-medium mb-2">Nombre del Grupo <span class="text-red-500">*</span></label>
@@ -43,7 +43,7 @@
   </div>
 
   <div class="mt-4 rounded-xl border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card p-3 sm:p-4">
-    <h6 class="font-semibold mb-2 text-sm sm:text-base">¿Necesitas ayuda?</h6>
+    <h2 class="font-semibold mb-2 text-sm sm:text-base">¿Necesitas ayuda?</h2>
     <p class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary mb-2">Un grupo te permite coordinar horarios con múltiples personas. Después de crearlo, podrás:</p>
     <ul class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary list-disc list-inside space-y-1">
       <li>Invitar miembros y asignar roles (Owner, Admin, Member)</li>

@@ -2,6 +2,11 @@
 
 {% block title %}Inicio{% endblock %}
 
+{% block robots %}index, follow{% endblock %}
+
+{% block og_title %}Scheduler — coordina horarios con tu grupo{% endblock %}
+{% block og_description %}Crea un grupo, invita a tu equipo con un enlace y encuentra los horarios en que todos pueden.{% endblock %}
+
 {% block content %}
 <!-- Hero -->
 <section class="text-center mb-8 sm:mb-10">
@@ -30,17 +35,17 @@
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
     <div class="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border p-5 sm:p-6 text-center shadow hover:shadow-md transition-all">
       <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl">👥</div>
-      <h5 class="font-semibold mb-2 text-base">Gestión de Grupos</h5>
+      <h3 class="font-semibold mb-2 text-base">Gestión de Grupos</h3>
       <p class="text-light-text-secondary dark:text-dark-text-secondary text-sm">Crea y administra grupos con facilidad. Invita miembros con un enlace y gestiona roles de forma intuitiva.</p>
     </div>
     <div class="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border p-5 sm:p-6 text-center shadow hover:shadow-md transition-all">
       <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl">📅</div>
-      <h5 class="font-semibold mb-2 text-base">Disponibilidad Compartida</h5>
+      <h3 class="font-semibold mb-2 text-base">Disponibilidad Compartida</h3>
       <p class="text-light-text-secondary dark:text-dark-text-secondary text-sm">Visualiza disponibilidad en tiempo real y encuentra los mejores horarios para reuniones.</p>
     </div>
     <div class="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border p-5 sm:p-6 text-center shadow hover:shadow-md transition-all sm:col-span-2 lg:col-span-1">
       <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl">🔒</div>
-      <h5 class="font-semibold mb-2 text-base">Seguridad Garantizada</h5>
+      <h3 class="font-semibold mb-2 text-base">Seguridad Garantizada</h3>
       <p class="text-light-text-secondary dark:text-dark-text-secondary text-sm">Autenticación con Google OAuth 2.0 y control de acceso basado en roles.</p>
     </div>
   </div>
@@ -58,7 +63,7 @@
     ] %}
     <div class="text-center">
       <div class="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 rounded-full bg-primary text-white flex items-center justify-center text-xl sm:text-2xl font-bold shadow-lg">{{ n }}</div>
-      <h5 class="font-semibold text-sm sm:text-base mb-1">{{ title }}</h5>
+      <h3 class="font-semibold text-sm sm:text-base mb-1">{{ title }}</h3>
       <p class="text-light-text-secondary dark:text-dark-text-secondary text-xs sm:text-sm px-2">{{ desc }}</p>
     </div>
     {% endfor %}
@@ -69,7 +74,7 @@
 {% if not current_user.is_authenticated %}
 <section class="my-10 sm:my-12 px-2 sm:px-0">
   <div class="rounded-xl shadow-lg border border-light-border dark:border-dark-border text-center py-10 sm:py-12 px-4 sm:px-6 bg-gradient-to-tr from-primary to-accent text-white">
-    <h3 class="text-xl sm:text-2xl font-bold mb-2">¿Listo para empezar?</h3>
+    <h2 class="text-xl sm:text-2xl font-bold mb-2">¿Listo para empezar?</h2>
     <p class="mb-4 sm:mb-6 text-sm sm:text-base">Únete a Scheduler y simplifica la coordinación de horarios</p>
     <a href="{{ url_for('auth.login') }}" class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-primary hover:opacity-90 transition-all shadow-lg hover:shadow-xl touch-manipulation active:scale-95 font-semibold min-h-[48px]">Iniciar Sesión con Google</a>
   </div>

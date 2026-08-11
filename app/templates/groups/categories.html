@@ -1,8 +1,10 @@
 {% extends 'base.html' %}
 
+{% block title %}Categorías - {{ group.name }}{% endblock %}
+
 {% block content %}
 <div class="w-full max-w-3xl mx-auto">
-  <h3 class="text-xl sm:text-2xl font-bold mb-4">Categorías del grupo: <span class="block sm:inline mt-1 sm:mt-0">{{ group.name }}</span></h3>
+  <h1 class="text-xl sm:text-2xl font-bold mb-4">Categorías del grupo: <span class="block sm:inline mt-1 sm:mt-0">{{ group.name }}</span></h1>
   <ul class="space-y-2 mb-4">
     {% for cat in categories %}
     <li class="flex items-center justify-between px-3 sm:px-4 py-3 bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border touch-manipulation min-h-[48px]">

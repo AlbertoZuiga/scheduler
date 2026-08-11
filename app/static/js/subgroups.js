@@ -542,7 +542,7 @@
     // Resumen general
     html += `
       <div class="alert alert-info mb-3">
-        <h6><i class="bi bi-info-circle"></i> Resumen</h6>
+        <h3><i class="bi bi-info-circle"></i> Resumen</h3>
         <p class="mb-1"><strong>Miembros asignados:</strong> ${
           data.total_members_assigned
         } de ${data.total_members_available}</p>

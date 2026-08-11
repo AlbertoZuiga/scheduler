@@ -6,11 +6,11 @@
 <div class="w-full max-w-5xl mx-auto space-y-6">
   <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
     <div>
-      <h2 class="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2">
+      <h1 class="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2">
         <svg class="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
         <span class="hidden xs:inline">{{ "Subgrupos de " ~ group.name if can_view_all else "Mi subgrupo" }}</span>
         <span class="xs:hidden">Subgrupos</span>
-      </h2>
+      </h1>
       <p class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary mt-1">
         {% if can_edit_all %}Gestiona manualmente los subgrupos: crea ajustes, mueve personas entre equipos y corrige asignaciones sin rehacer la división.
         {% elif can_view_all %}Puedes ver todos los subgrupos y editar los tuyos.
@@ -36,7 +36,7 @@
   <section class="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border p-4 sm:p-5 space-y-4">
     <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
       <div class="space-y-1">
-        <h3 class="text-lg font-semibold">Edición Manual</h3>
+        <h2 class="text-lg font-semibold">Edición Manual</h2>
         <p class="text-sm text-light-text-secondary dark:text-dark-text-secondary">Crea subgrupos manuales y usa esta pantalla para agregar miembros, moverlos entre subgrupos o quitar asignaciones puntuales.</p>
       </div>
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full lg:w-auto">
@@ -91,11 +91,11 @@
             <div class="min-w-0 flex-1">
               {% if can_edit_this %}
               <button type="button" class="rename-toggle group flex items-center gap-1.5 text-left w-full" data-subgroup-id="{{ subgroup.id }}" title="Clic para renombrar">
-                <h4 class="font-bold text-base sm:text-lg truncate">{{ subgroup.name }}</h4>
+                <h2 class="font-bold text-base sm:text-lg truncate">{{ subgroup.name }}</h2>
                 <svg class="w-3.5 h-3.5 flex-shrink-0 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
               </button>
               {% else %}
-              <h4 class="font-bold text-base sm:text-lg truncate">{{ subgroup.name }}</h4>
+              <h2 class="font-bold text-base sm:text-lg truncate">{{ subgroup.name }}</h2>
               {% endif %}
               <p class="text-xs sm:text-sm text-white/80 mt-1">{{ subgroup.members|length }} integrante(s)</p>
             </div>
@@ -217,7 +217,7 @@
   {% else %}
   <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 sm:p-8 text-center">
     <svg class="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
-    <h5 class="text-lg sm:text-xl font-bold mb-2">No hay subgrupos creados</h5>
+    <h2 class="text-lg sm:text-xl font-bold mb-2">No hay subgrupos creados</h2>
     {% if can_edit_all %}
     <p class="mb-4 text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary px-4">Puedes crear una división automática o empezar con un subgrupo manual desde la sección de edición.</p>
     <a href="{{ url_for('subgroups.new', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity touch-manipulation active:scale-95 min-h-[48px] font-medium">
