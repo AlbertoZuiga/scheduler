@@ -42,10 +42,12 @@
       <p class="text-sm text-light-text-secondary dark:text-dark-text-secondary">Filtra por categoría, busca por nombre/email y edita categorías en línea.</p>
     </div>
     <div class="flex items-center gap-2">
+      {% if can_manage %}
       {% call button(size='sm', href=url_for('groups.export_members_csv', group_id=group.id)) %}
         {{ icon('download', 'w-4 h-4') }}
         Descargar CSV
       {% endcall %}
+      {% endif %}
       {% if current_user.id == group.owner.id %}
       {% call button(variant='secondary', size='sm', href=url_for('groups.permissions', group_id=group.id)) %}
         {{ icon('lock', 'w-4 h-4') }}
