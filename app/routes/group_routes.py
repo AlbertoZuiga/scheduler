@@ -19,18 +19,10 @@ from app.models import (
     Group,
     GroupMember,
     GroupMemberCategory,
-    GroupPermissionGrant,
     RoleEnum,
     UserAvailability,
 )
-from app.models.group import generate_join_token
 from app.models.subgroup import SubGroup
-from app.models.audit_log import (
-    ACTION_PERMISSION_GRANTED,
-    ACTION_PERMISSION_REVOKED,
-    ACTION_ROLE_CHANGED,
-    record_action,
-)
 from app.ratelimit import rate_limit
 from app.authz import (
     require_group_member,
@@ -62,6 +54,18 @@ from app.services.availability_service import (
     process_posted_availability,
     remap_availability_marks,
     subgroup_peer_user_ids,
+)
+from app.services.group_service import (
+    apply_permission_level,
+    counts_by_model,
+    create_group,
+    get_member_availability_counts,
+    get_responded_user_ids,
+    join_group,
+    leave_group,
+    revoke_all_permissions,
+    rotate_join_token as svc_rotate_join_token,
+    update_member_role,
 )
 from app.soft_delete import (
     INCLUDE_DELETED,
@@ -119,17 +123,6 @@ def assign_colors_to_members(group_members):
     return {member.user.id: COLORS[i % len(COLORS)] for i, member in enumerate(group_members)}
 
 
-def _counts_by_group(model, group_ids):
-    """{group_id: filas activas de `model`} en una sola consulta agregada."""
-    if not group_ids:
-        return {}
-    return dict(
-        scheduler_db.session.query(model.group_id, func.count(model.id))
-        .filter(model.group_id.in_(group_ids))
-        .group_by(model.group_id)
-        .all()
-    )
-
 
 @group_bp.route("/", methods=["GET"])
 @login_required
@@ -149,8 +142,8 @@ def index():
     # las relaciones lazy: eso cargaba miembros y categorías completos de cada
     # grupo (dos SELECT por fila) solo para contarlos.
     group_ids = [group.id for group in groups]
-    member_counts = _counts_by_group(GroupMember, group_ids)
-    category_counts = _counts_by_group(Category, group_ids)
+    member_counts = counts_by_model(GroupMember, group_ids)
+    category_counts = counts_by_model(Category, group_ids)
 
     trash_count = (
         Group.query.execution_options(**{INCLUDE_DELETED: True})
@@ -247,17 +240,7 @@ def show(group_id):
 
     availability_data = get_availability_data(group_id, user_ids=scope_user_ids)
 
-    responded_user_ids = {
-        user_id
-        for (user_id,) in (
-            scheduler_db.session.query(UserAvailability.user_id)
-            .join(Availability, UserAvailability.availability_id == Availability.id)
-            .filter(Availability.group_id == group.id)
-            .filter(UserAvailability.user_id.in_(visible_user_ids))
-            .distinct()
-            .all()
-        )
-    }
+    responded_user_ids = get_responded_user_ids(group.id, visible_user_ids)
     users_without_availability = [
         member.user
         for member in group_members
@@ -360,22 +343,12 @@ def create():
             )
             return render_template("groups/create.html"), 400
 
-        join_token = generate_join_token()
         user_id = current_user.id
 
-        new_group = Group(
-            name=group_name,
-            join_token=join_token,
-            owner_id=user_id
-        )
         # El grupo y la membresía del owner van en la misma transacción: un fallo
         # entre medio dejaría un grupo cuyo dueño no es miembro (huérfano).
         try:
-            scheduler_db.session.add(new_group)
-            scheduler_db.session.flush()
-            scheduler_db.session.add(
-                GroupMember(group_id=new_group.id, user_id=user_id, role=RoleEnum.ADMIN)
-            )
+            new_group = create_group(group_name, user_id)
             scheduler_db.session.commit()
         except Exception:  # pylint: disable=broad-except
             scheduler_db.session.rollback()
@@ -403,7 +376,7 @@ def rotate_join_token(group_id):
     """
     group, _ = require_group_owner(group_id)
 
-    group.join_token = generate_join_token()
+    svc_rotate_join_token(group)
     try:
         scheduler_db.session.commit()
     except Exception:  # pylint: disable=broad-except
@@ -456,16 +429,9 @@ def join(token):
     # Si ya estuvo en el grupo y lo removieron, se reutiliza esa membresía (con
     # sus categorías) en vez de insertar una fila duplicada que dejaría al mismo
     # usuario contado dos veces y listado a la vez como activo y como removido.
-    removed = find_soft_deleted(GroupMember, group_id=group.id, user_id=user_id)
-    if removed:
-        restore_batch(removed)
-        # Reingresar por el enlace público no devuelve privilegios: quien fue
-        # removido siendo admin vuelve como miembro.
-        removed.role = RoleEnum.MEMBER
-    else:
-        scheduler_db.session.add(
-            GroupMember(group_id=group.id, user_id=user_id, role=RoleEnum.MEMBER)
-        )
+    # Reingresar por el enlace público no devuelve privilegios: quien fue
+    # removido siendo admin vuelve como miembro.
+    join_group(group, user_id)
     if not _commit_or_flash_conflict(
         f"ℹ️ Ya eres miembro del grupo '{group.name}'.",
         "join duplicado (group_id=%s user_id=%s)", group.id, user_id,
@@ -489,17 +455,7 @@ def members(group_id):
     )
     can_manage = (group.owner_id == current_user.id) or (membership.role == RoleEnum.ADMIN)
     categories = Category.query.filter_by(group_id=group.id).all()
-    responded_user_ids = {
-        user_id
-        for (user_id,) in (
-            scheduler_db.session.query(UserAvailability.user_id)
-            .join(Availability, UserAvailability.availability_id == Availability.id)
-            .filter(Availability.group_id == group.id)
-            .filter(UserAvailability.user_id.in_(active_member_user_ids(group.id)))
-            .distinct()
-            .all()
-        )
-    }
+    responded_user_ids = get_responded_user_ids(group.id, active_member_user_ids(group.id))
     # Quienes no han respondido primero: son los que necesitan seguimiento.
     group_members.sort(key=lambda gm: gm.user_id in responded_user_ids)
 
@@ -545,15 +501,8 @@ def export_members_csv(group_id):
 
     # Un GROUP BY para todo el grupo en vez de un COUNT por miembro dentro del
     # bucle: el export era O(miembros) consultas.
-    availability_counts = dict(
-        scheduler_db.session.query(
-            UserAvailability.user_id, func.count(UserAvailability.id)
-        )
-        .join(Availability, UserAvailability.availability_id == Availability.id)
-        .filter(Availability.group_id == group.id)
-        .filter(UserAvailability.user_id.in_([member.user_id for member in group_members]))
-        .group_by(UserAvailability.user_id)
-        .all()
+    availability_counts = get_member_availability_counts(
+        group.id, [member.user_id for member in group_members]
     )
 
     output = io.StringIO()
@@ -832,22 +781,12 @@ def restore(group_id):
 @login_required
 def leave(group_id):
     group = active_or_404(scheduler_db.session.get(Group, group_id))
-    membership = GroupMember.query.filter_by(user_id=current_user.id, group_id=group_id).first()
-    if not membership:
-        flash("⚠️ No perteneces a este grupo.", "warning")
-        return redirect(url_for(GROUP_INDEX_URL))
 
     # La disponibilidad del usuario no se toca: queda fuera de los agregados
     # por dejar de ser miembro, y vuelve tal cual si reingresa.
-    membership.soft_delete()
-
-    if group.owner_id == current_user.id:
-        remaining_members = GroupMember.query.filter_by(group_id=group_id).all()
-        if remaining_members:
-            group.owner_id = remaining_members[0].user_id
-        else:
-            # Grupo sin nadie: se oculta, no se borra.
-            group.soft_delete()
+    if leave_group(group, current_user.id) is None:
+        flash("⚠️ No perteneces a este grupo.", "warning")
+        return redirect(url_for(GROUP_INDEX_URL))
 
     scheduler_db.session.commit()
 
@@ -913,21 +852,11 @@ def update_role(group_id, user_id):
         flash("❌ Rol inválido. Selecciona un rol válido.", "danger")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
-    member = GroupMember.query.filter_by(group_id=group_id, user_id=user_id).first_or_404()
     if group.owner_id == user_id:
         flash("⚠️ No puedes cambiar el rol del propietario del grupo.", "warning")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
-    
-    rol_previo = member.role.name if member.role is not None else None
-    member.role = RoleEnum[role_str]
-    record_action(
-        group_id=group.id,
-        actor=current_user,
-        action=ACTION_ROLE_CHANGED,
-        subject_type="member",
-        subject_id=member.id,
-        detail={"from": rol_previo, "to": role_str},
-    )
+
+    update_member_role(group, user_id, role_str, current_user)
     scheduler_db.session.commit()
 
     flash("Rol actualizado con éxito.", "success")
@@ -1038,43 +967,14 @@ def set_permission_level(group_id):
         if not subject or subject.user_id == group.owner_id:
             flash("Miembro inválido.", "danger")
             return redirect(url_for("groups.permissions", group_id=group_id))
-        subject_filters = {"group_member_id": subject_id}
     else:
         subject = Category.query.filter_by(id=subject_id, group_id=group.id).first()
         if not subject:
             flash("Categoría inválida.", "danger")
             return redirect(url_for("groups.permissions", group_id=group_id))
-        subject_filters = {"category_id": subject_id}
 
     availability_checked = request.form.get("availability") == "on"
-    wanted_subgroup = LEVEL_PERMISSIONS[level]
-    wanted_availability = {PERM_VIEW_AVAILABILITY} if availability_checked else set()
-    wanted = wanted_subgroup | wanted_availability
-
-    existing = GroupPermissionGrant.query.filter_by(group_id=group.id, **subject_filters).all()
-    existing_permissions = {grant.permission for grant in existing}
-
-    for grant in existing:
-        if grant.permission not in wanted:
-            grant.soft_delete()
-
-    for permission in wanted - existing_permissions:
-        filters = {"group_id": group.id, "permission": permission, **subject_filters}
-        hidden = find_soft_deleted(GroupPermissionGrant, **filters)
-        if hidden:
-            hidden.restore()
-        else:
-            scheduler_db.session.add(GroupPermissionGrant(**filters))
-
-    action = ACTION_PERMISSION_GRANTED if wanted else ACTION_PERMISSION_REVOKED
-    record_action(
-        group_id=group.id,
-        actor=current_user,
-        action=action,
-        subject_type=subject_type,
-        subject_id=subject_id,
-        detail={"level": level, "permissions": sorted(wanted)},
-    )
+    apply_permission_level(group, subject_type, subject_id, level, availability_checked, current_user)
     scheduler_db.session.commit()
     flash("Permisos actualizados.", "success")
     return redirect(url_for("groups.permissions", group_id=group_id))
@@ -1095,27 +995,11 @@ def revoke_permission(group_id):
         flash("Parámetros inválidos.", "danger")
         return redirect(url_for("groups.permissions", group_id=group_id))
 
-    if subject_type == "member":
-        subject_filters = {"group_member_id": subject_id}
-    elif subject_type == "category":
-        subject_filters = {"category_id": subject_id}
-    else:
+    if subject_type not in ("member", "category"):
         flash("Parámetros inválidos.", "danger")
         return redirect(url_for("groups.permissions", group_id=group_id))
 
-    grants = GroupPermissionGrant.query.filter_by(group_id=group.id, **subject_filters).all()
-    for grant in grants:
-        grant.soft_delete()
-
-    if grants:
-        record_action(
-            group_id=group.id,
-            actor=current_user,
-            action=ACTION_PERMISSION_REVOKED,
-            subject_type=subject_type,
-            subject_id=subject_id,
-            detail={"permissions": sorted(grant.permission for grant in grants)},
-        )
+    revoke_all_permissions(group, subject_type, subject_id, current_user)
     scheduler_db.session.commit()
     flash("Permisos revocados.", "success")
     return redirect(url_for("groups.permissions", group_id=group_id))
