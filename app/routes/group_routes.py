@@ -386,31 +386,16 @@ def join(token):
 @login_required
 def members(group_id):
     group, membership = require_group_member(group_id)
-    group_members = (
-        GroupMember.query.filter_by(group_id=group.id)
-        .options(selectinload(GroupMember.user), selectinload(GroupMember.categories))
-        .order_by(GroupMember.id.asc())
-        .limit(MEMBERS_LIST_LIMIT)
-        .all()
-    )
+    group_members = get_group_members(group.id, MEMBERS_LIST_LIMIT)
     can_manage = (group.owner_id == current_user.id) or (membership.role == RoleEnum.ADMIN)
     can_see_emails = can_see_member_emails(group, membership)
-    categories = Category.query.filter_by(group_id=group.id).all()
+    categories = get_group_categories(group.id)
     responded_user_ids = get_responded_user_ids(group.id, active_member_user_ids(group.id))
-    # Quienes no han respondido primero: son los que necesitan seguimiento.
     group_members.sort(key=lambda gm: gm.user_id in responded_user_ids)
 
-    # Miembros removidos: no se borran, quedan disponibles para reincorporar.
     removed_members = []
     if can_manage:
-        removed_members = (
-            GroupMember.query.execution_options(**{INCLUDE_DELETED: True})
-            .options(selectinload(GroupMember.user))
-            .filter(GroupMember.group_id == group.id, GroupMember.deleted_at.isnot(None))
-            .order_by(GroupMember.deleted_at.desc(), GroupMember.id.desc())
-            .limit(MEMBERS_LIST_LIMIT)
-            .all()
-        )
+        removed_members = get_removed_members(group.id, MEMBERS_LIST_LIMIT)
 
     return render_template(
         "groups/members.html",
@@ -512,14 +497,7 @@ def availability(group_id):
         flash(f"✅ Disponibilidad actualizada exitosamente ({saved_count} bloques horarios guardados).", "success")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
-    user_availability = (
-        scheduler_db.session.query(
-            UserAvailability.user_id, Availability.weekday, Availability.start_minutes
-        )
-        .join(Availability)
-        .filter(UserAvailability.user_id == current_user.id, Availability.group_id == group_id)
-        .all()
-    )
+    user_availability = get_user_availability_data(group_id, current_user.id)
     selected = set()
     for _, weekday, hour in user_availability:
         block_index = block_index_for(group, hour)
