@@ -25,7 +25,13 @@ from app.models import (
     UserAvailability,
 )
 from app.models.user import User
-from app.permissions import PERM_VIEW_ALL, PERM_VIEW_AVAILABILITY
+from app.permissions import (
+    LEVEL_NONE,
+    PERM_VIEW_ALL,
+    PERM_VIEW_AVAILABILITY,
+    has_availability_of,
+    level_of,
+)
 
 EMBED_RE = re.compile(
     r'<script type="application/json" id="embed-data"[^>]*>(.*?)</script>', re.DOTALL
@@ -213,9 +219,10 @@ def test_owner_puede_conceder_availability_view_all_via_ruta(app, db_session):
     group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-grant-ruta")
 
     client = _client_for(app, owner.id)
+    # availability ahora es checkbox ortogonal al nivel de subgrupo
     resp = client.post(
         f"/groups/{group.id}/permissions/set",
-        data={"subject": f"member:{gm_b.id}", "level": "view_availability"},
+        data={"subject": f"member:{gm_b.id}", "level": "none", "availability": "on"},
         follow_redirects=False,
     )
     assert resp.status_code == 302
@@ -253,3 +260,86 @@ def test_owner_puede_revocar_availability_view_all_via_ruta(app, db_session):
         deleted_at=None,
     ).first()
     assert active is None
+
+
+# ---------------------------------------------------------------------------
+# Criterio 7: combinación availability.view_all + subgroups.view_all
+# ---------------------------------------------------------------------------
+
+def test_permiso_con_subgroups_view_all_ve_todo_el_grupo(app, db_session):
+    """availability.view_all + subgroups.view_all → ve la grilla agregada."""
+    group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-combo-view-all")
+
+    db_session.add_all([
+        GroupPermissionGrant(group_id=group.id, group_member_id=gm_b.id, permission=PERM_VIEW_AVAILABILITY),
+        GroupPermissionGrant(group_id=group.id, group_member_id=gm_b.id, permission=PERM_VIEW_ALL),
+    ])
+    db_session.commit()
+
+    body = _get_show(app, member_b.id, group.id)
+    payload = _embed(body)
+
+    assert payload["can_view_availability"] is True
+    assert "Miembro A" in body or "Owner" in body
+
+
+# ---------------------------------------------------------------------------
+# Unitarios: level_of / has_availability_of con la combinación
+# ---------------------------------------------------------------------------
+
+def test_level_of_combo_availability_view_all():
+    """level_of debe devolver 'view_all', no 'view_own', para la combinación."""
+    raw = {PERM_VIEW_AVAILABILITY, PERM_VIEW_ALL}
+    assert level_of(raw) == "view_all"
+
+
+def test_has_availability_of_combo():
+    raw = {PERM_VIEW_AVAILABILITY, PERM_VIEW_ALL}
+    assert has_availability_of(raw) is True
+
+
+def test_level_of_solo_availability_devuelve_none():
+    """Sin permisos de subgrupo → LEVEL_NONE."""
+    assert level_of({PERM_VIEW_AVAILABILITY}) == LEVEL_NONE
+
+
+def test_level_of_sin_permisos_devuelve_none():
+    assert level_of(set()) == LEVEL_NONE
+
+
+# ---------------------------------------------------------------------------
+# Criterio 8: set_permission_level con combo es idempotente
+# ---------------------------------------------------------------------------
+
+def test_set_permission_level_combo_idempotente(app, db_session):
+    """Guardar el nivel devuelto por level_of + has_availability_of no revoca nada."""
+    group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-idempotente")
+
+    db_session.add_all([
+        GroupPermissionGrant(group_id=group.id, group_member_id=gm_b.id, permission=PERM_VIEW_AVAILABILITY),
+        GroupPermissionGrant(group_id=group.id, group_member_id=gm_b.id, permission=PERM_VIEW_ALL),
+    ])
+    db_session.commit()
+
+    direct = {PERM_VIEW_AVAILABILITY, PERM_VIEW_ALL}
+    level = level_of(direct)           # "view_all"
+    has_av = has_availability_of(direct)  # True
+
+    client = _client_for(app, owner.id)
+    form_data = {"subject_type": "member", "subject_id": str(gm_b.id), "level": level}
+    if has_av:
+        form_data["availability"] = "on"
+    resp = client.post(f"/groups/{group.id}/permissions/set", data=form_data, follow_redirects=False)
+    assert resp.status_code == 302
+
+    active_perms = {
+        g.permission
+        for g in GroupPermissionGrant.query.filter_by(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            deleted_at=None,
+        ).all()
+    }
+    # Ambos permisos deben seguir activos
+    assert PERM_VIEW_AVAILABILITY in active_perms
+    assert PERM_VIEW_ALL in active_perms
