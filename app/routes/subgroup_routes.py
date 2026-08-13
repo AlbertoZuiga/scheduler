@@ -30,7 +30,7 @@ def _add_subgroup_member(subgroup_id, user_id):
     return membership
 
 from app.authz import require_group_permission, require_subgroup_access
-from app.permissions import PERM_EDIT_ALL, PERM_VIEW_ALL, PERM_VIEW_OWN
+from app.permissions import PERM_EDIT_ALL, PERM_EDIT_OWN, PERM_VIEW_ALL, PERM_VIEW_OWN
 from app.services.subgroup_service import SubGroupService
 
 
@@ -506,13 +506,17 @@ def index(group_id):
             if current_user.id in subgroup_member_user_ids.get(subgroup.id, set())
         ]
 
+    can_edit_own = PERM_EDIT_OWN in perms
+
     if can_edit_all:
         editable_subgroup_ids = {subgroup.id for subgroup in subgroups}
-    else:
+    elif can_edit_own:
         editable_subgroup_ids = {
             subgroup.id for subgroup in subgroups
             if current_user.id in subgroup_member_user_ids.get(subgroup.id, set())
         }
+    else:
+        editable_subgroup_ids = set()
 
     # Roster completo del grupo padre: necesario para el selector "Agregar
     # integrante" incluso con solo EDIT_OWN (el usuario puede sumar a
