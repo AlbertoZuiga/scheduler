@@ -161,22 +161,12 @@ def show(group_id):
     blocks = [label for _, label in generate_time_blocks(group)]
     active_weekdays = group.get_active_weekdays()
 
-    # Eager loading: la vista recorre `member.user` y `member.categories` de
-    # todos los miembros, que en lazy son dos SELECT por miembro.
-    group_members = (
-        GroupMember.query.filter_by(group_id=group.id)
-        .options(selectinload(GroupMember.user), selectinload(GroupMember.categories))
-        .order_by(GroupMember.id.asc())
-        .limit(MEMBERS_LIST_LIMIT)
-        .all()
-    )
+    group_members = get_group_members(group.id, MEMBERS_LIST_LIMIT)
     color_map = assign_colors_to_members(group_members)
     is_admin = membership and membership.role == RoleEnum.ADMIN
     perms = effective_permissions(group, membership)
     can_manage = (group.owner_id == current_user.id) or is_admin
     can_see_emails = can_see_member_emails(group, membership)
-    # El email ajeno solo va para owner/admin; el propio siempre. Cadena vacía en
-    # vez de None: el template lo concatena al nombre sin más chequeos.
     user_info_map = {
         member.user.id: {
             "name": display_name(member.user, with_email=can_see_emails),
@@ -188,12 +178,6 @@ def show(group_id):
         } for member in group_members
     }
     can_view_group_availability = PERM_VIEW_AVAILABILITY in perms
-    # Alcance del agregado: None = todo el grupo (owner, admin, subgroups.view_all).
-    # Quien solo ve su subgrupo ve los horarios de ese subgrupo y de nadie más;
-    # si no pertenece a ninguno, el permiso no le abre nada y la vista queda
-    # igual que la de un miembro sin permiso (alcance None, sin grilla ajena):
-    # un alcance vacío vaciaría también el roster, los chips y los contadores
-    # que ese miembro sí ve.
     scope_user_ids = None
     if can_view_group_availability and PERM_VIEW_ALL not in perms:
         peers = subgroup_peer_user_ids(group.id, current_user.id)
@@ -207,28 +191,10 @@ def show(group_id):
     )
 
     if can_view_group_availability:
-        user_availability_data = (
-            scheduler_db.session.query(
-                UserAvailability.user_id, Availability.weekday, Availability.start_minutes
-            )
-            .join(Availability, UserAvailability.availability_id == Availability.id)
-            .filter(Availability.group_id == group.id)
-            .filter(UserAvailability.user_id.in_(visible_user_ids))
-            .all()
-        )
+        user_availability_data = get_user_availability_data(group.id, visible_user_ids)
     else:
-        user_availability_data = (
-            scheduler_db.session.query(
-                UserAvailability.user_id, Availability.weekday, Availability.start_minutes
-            )
-            .join(Availability, Availability.id == UserAvailability.availability_id)
-            .filter(Availability.group_id == group.id)
-            .filter(UserAvailability.user_id == current_user.id)
-            .all()
-        )
-    # Se resuelve acá y no en la plantilla: indexar por hora dentro del Jinja
-    # daba índices negativos (y celdas pintadas en la fila equivocada) cuando la
-    # marca caía fuera del rango visible.
+        user_availability_data = get_user_availability_data(group.id, current_user.id)
+
     selected = set()
     cell_users = {}
     for user_id, weekday, hour in user_availability_data:
@@ -248,7 +214,7 @@ def show(group_id):
     ]
     members_with_availability_count = len(responded_user_ids)
 
-    group_categories = Category.query.filter_by(group_id=group.id).all()
+    group_categories = get_group_categories(group.id)
     scoped_members = [
         gm for gm in group_members
         if scope_user_ids is None or gm.user_id in scope_user_ids
@@ -258,9 +224,6 @@ def show(group_id):
         for gm in scoped_members
     }
     user_gm_map = {gm.user_id: gm.id for gm in scoped_members}
-    # El roster de cada categoría se arma acá, no en la plantilla: allá era un
-    # bucle de miembros dentro del bucle de categorías (O(categorías×miembros))
-    # que además volvía a tocar `group.members` en cada vuelta.
     category_member_names = {category.id: [] for category in group_categories}
     for gm in group_members:
         shown_name = display_name(gm.user, with_email=can_see_emails)
@@ -268,34 +231,9 @@ def show(group_id):
             if assoc.category_id in category_member_names:
                 category_member_names[assoc.category_id].append(shown_name)
 
-    subgroups = (
-        SubGroup.query.filter_by(parent_group_id=group.id)
-        .options(selectinload(SubGroup.members))
-        .order_by(SubGroup.created_at.desc(), SubGroup.id.asc())
-        .all()
+    group_subgroups, user_subgroup_map = get_subgroups_for_show(
+        group.id, scope_user_ids, current_user.id
     )
-    group_subgroups = []
-    user_subgroup_map = {}
-
-    for subgroup in subgroups:
-        # Con alcance de subgrupo propio, los chips de filtro solo muestran los
-        # subgrupos que la persona ve, y los cuentan sobre su misma gente.
-        member_ids = [
-            subgroup_member.user_id
-            for subgroup_member in subgroup.members
-            if scope_user_ids is None or subgroup_member.user_id in scope_user_ids
-        ]
-        if scope_user_ids is not None and current_user.id not in member_ids:
-            continue
-        group_subgroups.append(
-            {
-                "id": subgroup.id,
-                "name": subgroup.name,
-                "member_count": len(member_ids),
-            }
-        )
-        for user_id in member_ids:
-            user_subgroup_map.setdefault(user_id, []).append(subgroup.id)
 
     return render_template(
         "groups/show.html",
