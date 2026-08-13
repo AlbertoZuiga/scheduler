@@ -15,7 +15,7 @@ La migración agrega la columna, su índice, y pone al día los datos:
 2. se aplica la retención hacia atrás: por grupo quedan los más recientes más el
    último confirmado (el que necesita `undo`).
 """
-from datetime import datetime
+from datetime import datetime, timezone
 
 from alembic import op
 import sqlalchemy as sa
@@ -80,7 +80,7 @@ def upgrade():
             ')'
         )
     )
-    _retire_old_jobs(connection, datetime.utcnow())
+    _retire_old_jobs(connection, datetime.now(timezone.utc).replace(tzinfo=None))
 
 
 def downgrade():

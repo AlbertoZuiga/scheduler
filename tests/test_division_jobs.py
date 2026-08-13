@@ -1,6 +1,6 @@
 """DATA-003: cascada y retención de DivisionJob."""
 # pylint: disable=redefined-outer-name
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from werkzeug.exceptions import NotFound
@@ -17,7 +17,7 @@ from app.routes.subgroup_routes import (
 @pytest.fixture()
 def group_with_jobs(db_session):
     """Un grupo con más jobs de los que la retención conserva."""
-    user = User(email=f"j{datetime.utcnow().timestamp()}@x.test", name="J")
+    user = User(email=f"j{datetime.now(timezone.utc).timestamp()}@x.test", name="J")
     db_session.add(user)
     db_session.flush()
 

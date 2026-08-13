@@ -19,7 +19,7 @@ Dos fases dentro de la misma transacción, en este orden obligatorio:
    tablas con borrado lógico (un unique total chocaría con las filas ocultas que
    comparten clave con la activa) y unique total en `availability`.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 
 from alembic import op
 import sqlalchemy as sa
@@ -94,7 +94,7 @@ def upgrade():
     connection = op.get_bind()
     # Un timestamp propio y compartido por todo el dedup: es lo que identifica
     # el lote, igual que hace `SoftDeleteMixin.soft_delete`.
-    deleted_at = datetime.utcnow()
+    deleted_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
     _merge_duplicate_availability(connection)
     for _, table, key_columns in PARTIAL_UNIQUES:

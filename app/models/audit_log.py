@@ -1,8 +1,7 @@
-from datetime import datetime
-
 from sqlalchemy import func
 
 from app.extensions import scheduler_db
+from app.models.mixins import _utcnow
 
 # Acciones registradas. Son las que cambian quién puede hacer qué dentro de un
 # grupo: hasta DATA-008 no dejaban rastro de quién las ejecutó.
@@ -45,7 +44,7 @@ class AuditLog(scheduler_db.Model):  # pylint: disable=too-few-public-methods
     created_at = scheduler_db.Column(
         scheduler_db.DateTime,
         nullable=False,
-        default=datetime.utcnow,
+        default=_utcnow,
         server_default=func.now(),
     )
 

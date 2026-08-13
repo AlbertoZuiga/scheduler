@@ -794,7 +794,7 @@ def restore(group_id):
 @group_bp.route("/<int:group_id>/leave", methods=["POST"])
 @login_required
 def leave(group_id):
-    group = active_or_404(Group.query.get(group_id))
+    group = active_or_404(scheduler_db.session.get(Group, group_id))
     membership = GroupMember.query.filter_by(user_id=current_user.id, group_id=group_id).first()
     if not membership:
         flash("⚠️ No perteneces a este grupo.", "warning")

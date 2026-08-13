@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import func, text
 
@@ -11,6 +11,10 @@ from app.extensions import scheduler_db
 ACTIVE_ROWS = text("deleted_at IS NULL")
 
 
+def _utcnow():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 class TimestampMixin:
     """Cuándo se creó y cuándo se tocó por última vez cada fila.
 
@@ -21,14 +25,14 @@ class TimestampMixin:
     created_at = scheduler_db.Column(
         scheduler_db.DateTime,
         nullable=False,
-        default=datetime.utcnow,
+        default=_utcnow,
         server_default=func.now(),
     )
     updated_at = scheduler_db.Column(
         scheduler_db.DateTime,
         nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=_utcnow,
+        onupdate=_utcnow,
         server_default=func.now(),
     )
 
@@ -53,7 +57,7 @@ class SoftDeleteMixin:
         identifica el lote y permite restaurar exactamente lo que se ocultó
         junto, sin resucitar lo que ya estaba borrado de antes.
         """
-        at = at or datetime.utcnow()
+        at = at or _utcnow()
         if self.deleted_at is None:
             self.deleted_at = at
         for child in self.soft_delete_cascade():

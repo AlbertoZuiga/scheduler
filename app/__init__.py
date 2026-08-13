@@ -230,7 +230,7 @@ def create_app():
 
     @login_manager.user_loader
     def load_user(user_id):
-        return User.query.get(int(user_id))
+        return scheduler_db.session.get(User, int(user_id))
 
     for bp in blueprints:
         app.register_blueprint(bp)
