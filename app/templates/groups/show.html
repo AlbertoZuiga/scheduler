@@ -146,7 +146,9 @@
       <div class="space-y-2">
         <p class="text-[11px] font-semibold uppercase tracking-wide text-light-text-secondary dark:text-dark-text-secondary">Subgrupos</p>
         <div class="flex flex-wrap gap-2">
+          {% if availability_scope_user_ids is none %}
           <button type="button" data-schedule-filter-no-subgroup="true" class="schedule-filter-chip inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">Sin subgrupo</button>
+          {% endif %}
           {% for subgroup in group_subgroups %}
           <button type="button" data-schedule-filter-subgroup="{{ subgroup.id }}" data-filter-color-index="{{ loop.index0 + (group_categories|length) }}" class="schedule-filter-chip inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background hover:bg-light-muted/30 dark:hover:bg-dark-muted/30">{{ subgroup.name }} ({{ subgroup.member_count }})</button>
           {% endfor %}
@@ -345,7 +347,10 @@
 {% block script %}
 {{ super() }}
 {% set members_data = [] %}
-{% for m in group.members %}
+{# Con alcance de subgrupo propio el roster que consume el JS de filtros se
+   recorta al mismo conjunto: si no, los contadores comparan contra el grupo
+   entero y el payload expone los emails de gente fuera del alcance. #}
+{% for m in group.members if availability_scope_user_ids is none or m.user.id in availability_scope_user_ids %}
   {% set member_name = m.user.name if m.user.name else m.user.email %}
   {% set _ = members_data.append({
     'group_member_id': m.id,

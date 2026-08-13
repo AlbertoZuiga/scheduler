@@ -24,6 +24,7 @@ from app.models import (
     RoleEnum,
     UserAvailability,
 )
+from app.models.subgroup import SubGroup, SubGroupMember
 from app.models.user import User
 from app.permissions import PERM_VIEW_ALL, PERM_VIEW_AVAILABILITY
 
@@ -32,8 +33,13 @@ EMBED_RE = re.compile(
 )
 
 
-def _seed(db_session, token):
-    """Grupo mínimo: owner + 2 miembros, 2 slots de disponibilidad."""
+def _seed(db_session, token, subgroup=True):
+    """Grupo mínimo: owner + 2 miembros, 2 slots de disponibilidad.
+
+    Con `subgroup=True` los dos miembros comparten un subgrupo (el owner queda
+    fuera): es el alcance que ve quien tiene `availability.view_all` sin ver
+    todos los subgrupos.
+    """
     owner = User(email=f"{token}-owner@t.lo", name="Owner")
     member_a = User(email=f"{token}-a@t.lo", name="Miembro A")
     member_b = User(email=f"{token}-b@t.lo", name="Miembro B")
@@ -49,6 +55,16 @@ def _seed(db_session, token):
     gm_b = GroupMember(group_id=group.id, user_id=member_b.id, role=RoleEnum.MEMBER)
     db_session.add_all([gm_owner, gm_a, gm_b])
     db_session.flush()
+
+    if subgroup:
+        sg = SubGroup(parent_group_id=group.id, name=f"SG-{token}")
+        db_session.add(sg)
+        db_session.flush()
+        db_session.add_all([
+            SubGroupMember(subgroup_id=sg.id, user_id=member_a.id),
+            SubGroupMember(subgroup_id=sg.id, user_id=member_b.id),
+        ])
+        db_session.flush()
 
     slot1 = Availability(group_id=group.id, weekday=0, start_minutes=9 * 60)
     slot2 = Availability(group_id=group.id, weekday=1, start_minutes=10 * 60)
@@ -135,7 +151,9 @@ def test_miembro_con_permiso_ve_chips_del_grupo(app, db_session):
 
     body = _get_show(app, member_b.id, group.id)
 
-    assert "Miembro A" in body or "Owner" in body
+    # Alcance = su subgrupo: ve a Miembro A, no al owner (que está fuera).
+    assert "Miembro A" in body
+    assert "Owner" not in body
 
 
 def test_miembro_con_permiso_embed_can_view_availability_true(app, db_session):
@@ -152,6 +170,96 @@ def test_miembro_con_permiso_embed_can_view_availability_true(app, db_session):
     payload = _embed(body)
 
     assert payload["can_view_availability"] is True
+
+
+# ---------------------------------------------------------------------------
+# Criterio 2b: el alcance del permiso es el subgrupo propio
+# ---------------------------------------------------------------------------
+
+def test_alcance_solo_su_subgrupo_en_embed_y_filtros(app, db_session):
+    group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-alcance-sg")
+
+    db_session.add(GroupPermissionGrant(
+        group_id=group.id,
+        group_member_id=gm_b.id,
+        permission=PERM_VIEW_AVAILABILITY,
+    ))
+    db_session.commit()
+
+    body = _get_show(app, member_b.id, group.id)
+    payload = _embed(body)
+
+    user_ids = {m["user_id"] for m in payload["members"]}
+    assert user_ids == {member_a.id, member_b.id}
+    assert owner.id not in payload["responded_user_ids"]
+    assert str(owner.id) not in payload["user_gm_map"]
+    # El chip "Sin subgrupo" no aplica cuando el alcance es el subgrupo propio.
+    assert "data-schedule-filter-no-subgroup" not in body
+
+
+def test_permiso_sin_subgrupo_no_abre_la_grilla(app, db_session):
+    group, owner, member_a, member_b, gm_a, gm_b = _seed(
+        db_session, "av-sin-sg", subgroup=False
+    )
+
+    db_session.add(GroupPermissionGrant(
+        group_id=group.id,
+        group_member_id=gm_b.id,
+        permission=PERM_VIEW_AVAILABILITY,
+    ))
+    db_session.commit()
+
+    body = _get_show(app, member_b.id, group.id)
+    payload = _embed(body)
+
+    assert payload["can_view_availability"] is False
+    assert f'data-user-id="{member_a.id}"' not in body
+    # Cae a la vista de miembro sin permiso, no a una vista vacía: el roster y
+    # los contadores del grupo siguen ahí.
+    assert {m["user_id"] for m in payload["members"]} == {
+        owner.id, member_a.id, member_b.id
+    }
+    assert "Nadie ha marcado su disponibilidad todavía" not in body
+
+
+def test_permiso_con_subgroups_view_all_ve_todo_el_grupo(app, db_session):
+    group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-scope-all")
+
+    db_session.add_all([
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_VIEW_AVAILABILITY,
+        ),
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_VIEW_ALL,
+        ),
+    ])
+    db_session.commit()
+
+    body = _get_show(app, member_b.id, group.id)
+    payload = _embed(body)
+
+    assert payload["can_view_availability"] is True
+    assert {m["user_id"] for m in payload["members"]} == {owner.id, member_a.id, member_b.id}
+    assert f'data-user-id="{owner.id}"' in body
+
+
+def test_permiso_de_horarios_implica_ver_su_subgrupo(app, db_session):
+    group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-implica-viewown")
+
+    db_session.add(GroupPermissionGrant(
+        group_id=group.id,
+        group_member_id=gm_b.id,
+        permission=PERM_VIEW_AVAILABILITY,
+    ))
+    db_session.commit()
+
+    client = _client_for(app, member_b.id)
+    resp = client.get(f"/groups/{group.id}/subgroups")
+    assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
