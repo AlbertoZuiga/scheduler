@@ -8,21 +8,15 @@ from flask import (
 from markupsafe import Markup, escape
 from flask_login import current_user, login_required
 from flask_wtf.csrf import generate_csrf
-from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload
 
 from app.extensions import scheduler_db
 from app.models import (
-    Availability,
     Category,
     Group,
     GroupMember,
-    GroupMemberCategory,
     RoleEnum,
-    UserAvailability,
 )
-from app.models.subgroup import SubGroup
 from app.ratelimit import rate_limit
 from app.authz import (
     can_see_member_emails,
@@ -62,9 +56,16 @@ from app.services.group_service import (
     counts_by_model,
     create_group,
     get_admin_group_ids,
+    get_category,
     get_category_member_counts,
+    get_deleted_groups_for_user,
+    get_group_by_token,
     get_group_categories,
+    get_group_including_deleted,
+    get_group_member,
+    get_group_member_by_id,
     get_group_members,
+    get_group_members_for_export,
     get_group_members_with_users,
     get_groups_for_user,
     get_member_availability_counts,
@@ -80,7 +81,6 @@ from app.services.group_service import (
     update_member_role,
 )
 from app.soft_delete import (
-    INCLUDE_DELETED,
     active_or_404,
     find_soft_deleted,
     restore_batch,
@@ -338,7 +338,7 @@ def rotate_join_token(group_id):
 @group_bp.route("/join/<token>", methods=["GET", "POST"])
 @rate_limit(limit=20, window_seconds=300, scope="groups.join")
 def join(token):
-    group = Group.query.filter_by(join_token=token).first()
+    group = get_group_by_token(token)
 
     if not group:
         flash("❌ Grupo no encontrado. Verifica que el enlace de invitación sea correcto.", "danger")
@@ -346,9 +346,7 @@ def join(token):
         target = GROUP_INDEX_URL if current_user.is_authenticated else "main.index"
         return redirect(url_for(target))
 
-    if current_user.is_authenticated and GroupMember.query.filter_by(
-        group_id=group.id, user_id=current_user.id
-    ).first():
+    if current_user.is_authenticated and get_group_member(group.id, current_user.id):
         flash(f"ℹ️ Ya eres miembro del grupo '{group.name}'.", "info")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group.id))
 
@@ -421,18 +419,7 @@ def export_members_csv(group_id):
     # Exporta emails de todo el grupo: exclusivo de owner/admin, igual que el
     # resto de la administración de usuarios (antes cualquier miembro podía).
     group, _ = require_group_admin_or_owner(group_id)
-    group_members = (
-        GroupMember.query.filter_by(group_id=group.id)
-        .options(
-            selectinload(GroupMember.user),
-            selectinload(GroupMember.categories).selectinload(GroupMemberCategory.category),
-        )
-        .order_by(GroupMember.id.asc())
-        .all()
-    )
-
-    # Un GROUP BY para todo el grupo en vez de un COUNT por miembro dentro del
-    # bucle: el export era O(miembros) consultas.
+    group_members = get_group_members_for_export(group.id)
     availability_counts = get_member_availability_counts(
         group.id, [member.user_id for member in group_members]
     )
@@ -666,24 +653,14 @@ def delete(group_id):
 @login_required
 def trash():
     """Papelera: grupos que el usuario eliminó y puede restaurar."""
-    groups = (
-        Group.query.execution_options(**{INCLUDE_DELETED: True})
-        .filter(Group.deleted_at.isnot(None), Group.owner_id == current_user.id)
-        .order_by(Group.deleted_at.desc(), Group.id.desc())
-        .limit(TRASH_LIST_LIMIT)
-        .all()
-    )
+    groups = get_deleted_groups_for_user(current_user.id, TRASH_LIST_LIMIT)
     return render_template("groups/trash.html", groups=groups)
 
 
 @group_bp.route("/<int:group_id>/restore", methods=["POST"])
 @login_required
 def restore(group_id):
-    group = (
-        Group.query.execution_options(**{INCLUDE_DELETED: True})
-        .filter(Group.id == group_id)
-        .first()
-    )
+    group = get_group_including_deleted(group_id)
     if group is None or group.owner_id != current_user.id:
         abort(404)
 
@@ -806,7 +783,7 @@ def permissions(group_id):
     members_by_id = {member.id: member for member in group_members}
     sources = grant_sources(group)
 
-    category_member_counts = get_category_member_counts(group.id, set(categories_by_id))
+    category_member_counts = get_category_member_counts(set(categories_by_id))
 
     category_rows = []
     for cat_id, direct in sources["categories"].items():
@@ -875,12 +852,12 @@ def set_permission_level(group_id):
         return redirect(url_for("groups.permissions", group_id=group_id))
 
     if subject_type == "member":
-        subject = GroupMember.query.filter_by(id=subject_id, group_id=group.id).first()
+        subject = get_group_member_by_id(subject_id, group.id)
         if not subject or subject.user_id == group.owner_id:
             flash("Miembro inválido.", "danger")
             return redirect(url_for("groups.permissions", group_id=group_id))
     else:
-        subject = Category.query.filter_by(id=subject_id, group_id=group.id).first()
+        subject = get_category(subject_id, group.id)
         if not subject:
             flash("Categoría inválida.", "danger")
             return redirect(url_for("groups.permissions", group_id=group_id))

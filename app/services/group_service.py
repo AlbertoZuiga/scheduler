@@ -299,8 +299,11 @@ def get_group_categories(group_id):
     return Category.query.filter_by(group_id=group_id).all()
 
 
-def get_category_member_counts(group_id, category_ids):
-    """Conteo de miembros por categoría. Devuelve {category_id: count}."""
+def get_category_member_counts(category_ids):
+    """Conteo de miembros por categoría. Devuelve {category_id: count}.
+
+    category_ids debe ser ya filtrado por grupo: la query no verifica pertenencia.
+    """
     if not category_ids:
         return {}
     return dict(
@@ -311,6 +314,59 @@ def get_category_member_counts(group_id, category_ids):
         .group_by(GroupMemberCategory.category_id)
         .all()
     )
+
+
+def get_group_members_for_export(group_id):
+    """Miembros con user y categoría/category para el CSV export."""
+    return (
+        GroupMember.query.filter_by(group_id=group_id)
+        .options(
+            selectinload(GroupMember.user),
+            selectinload(GroupMember.categories).selectinload(GroupMemberCategory.category),
+        )
+        .order_by(GroupMember.id.asc())
+        .all()
+    )
+
+
+def get_deleted_groups_for_user(user_id, limit=200):
+    """Grupos en papelera del usuario, ordenados por fecha de borrado desc."""
+    return (
+        Group.query.execution_options(**{INCLUDE_DELETED: True})
+        .filter(Group.deleted_at.isnot(None), Group.owner_id == user_id)
+        .order_by(Group.deleted_at.desc(), Group.id.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def get_group_including_deleted(group_id):
+    """Busca un grupo incluyendo los soft-deleted."""
+    return (
+        Group.query.execution_options(**{INCLUDE_DELETED: True})
+        .filter(Group.id == group_id)
+        .first()
+    )
+
+
+def get_group_by_token(token):
+    """Busca un grupo activo por su join_token."""
+    return Group.query.filter_by(join_token=token).first()
+
+
+def get_group_member(group_id, user_id):
+    """Busca la membresía activa de un usuario en un grupo."""
+    return GroupMember.query.filter_by(group_id=group_id, user_id=user_id).first()
+
+
+def get_group_member_by_id(member_id, group_id):
+    """Busca un GroupMember activo por id y group_id."""
+    return GroupMember.query.filter_by(id=member_id, group_id=group_id).first()
+
+
+def get_category(category_id, group_id):
+    """Busca una categoría activa por id y group_id."""
+    return Category.query.filter_by(id=category_id, group_id=group_id).first()
 
 
 def get_group_members_with_users(group_id):
