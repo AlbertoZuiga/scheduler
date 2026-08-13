@@ -150,6 +150,26 @@ function initConfirmForms() {
 }
 
 /**
+ * Enlaza por delegación lo que antes vivía en atributos onclick.
+ * La CSP con nonce no cubre los handlers inline (el nonce solo aplica a
+ * elementos <script>), así que un onclick= sería código bloqueado.
+ */
+function initInlineHandlers() {
+  document.addEventListener('click', (event) => {
+    const copyBtn = event.target.closest('[data-copy-invite]');
+    if (copyBtn) {
+      copyInviteLink(copyBtn.dataset.copyInvite);
+      return;
+    }
+
+    const dismissBtn = event.target.closest('[data-dismiss-alert]');
+    if (dismissBtn) {
+      dismissBtn.closest('[role="alert"]')?.remove();
+    }
+  });
+}
+
+/**
  * Copy invite link to clipboard
  */
 function copyInviteLink(groupId) {
@@ -192,6 +212,7 @@ document.addEventListener("DOMContentLoaded", () => {
   globalThis.__MAIN_JS_INITIALIZED__ = true;
 
   initConfirmForms();
+  initInlineHandlers();
 
   // Add smooth scroll to anchors
   document.querySelectorAll('a[href^="#"]').forEach((anchor) => {

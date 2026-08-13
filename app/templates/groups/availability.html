@@ -199,7 +199,7 @@
 </div>
 
 <!-- JavaScript: contador, arrastre, atajos de fila/columna y autoguardado -->
-<script>
+<script nonce="{{ csp_nonce() }}">
   document.addEventListener('DOMContentLoaded', () => {
     const GROUP_ID = {{ group_id }};
     const checkboxes = document.querySelectorAll('.availability-checkbox');

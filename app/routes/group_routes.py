@@ -1,4 +1,3 @@
-import uuid
 import csv
 import io
 
@@ -24,6 +23,7 @@ from app.models import (
     RoleEnum,
     UserAvailability,
 )
+from app.models.group import generate_join_token
 from app.models.subgroup import SubGroup
 from app.models.audit_log import (
     ACTION_PERMISSION_GRANTED,
@@ -31,6 +31,7 @@ from app.models.audit_log import (
     ACTION_ROLE_CHANGED,
     record_action,
 )
+from app.ratelimit import rate_limit
 from app.authz import (
     require_group_member,
     require_group_admin_or_owner,
@@ -322,7 +323,7 @@ def create():
             )
             return render_template("groups/create.html"), 400
 
-        join_token = uuid.uuid4().hex[:10]
+        join_token = generate_join_token()
         user_id = current_user.id
 
         new_group = Group(
@@ -353,7 +354,38 @@ def create():
     return render_template("groups/create.html")
 
 
+@group_bp.route("/<int:group_id>/rotate_token", methods=["POST"])
+@login_required
+def rotate_join_token(group_id):
+    """Regenera el link de invitación del grupo (SEC-009).
+
+    Es la única forma de invalidar un link que se filtró, y el camino por el
+    que un grupo viejo deja atrás su token de 40 bits. Solo el dueño: un admin
+    puede invitar, pero cortarle el acceso a la invitación en circulación es
+    decisión de quien es dueño del grupo.
+    """
+    group, _ = require_group_owner(group_id)
+
+    group.join_token = generate_join_token()
+    try:
+        scheduler_db.session.commit()
+    except Exception:  # pylint: disable=broad-except
+        scheduler_db.session.rollback()
+        current_app.logger.exception("rotate join token failed (group_id=%s)", group_id)
+        flash("❌ No se pudo regenerar el link de invitación. Inténtalo de nuevo.", "danger")
+        return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
+
+    current_app.logger.info(
+        "join_token rotado (group_id=%s user_id=%s)", group_id, current_user.id
+    )
+    flash("🔄 Link de invitación regenerado. El anterior dejó de funcionar.", "success")
+    return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
+
+
+# Adivinar un token deja de ser gratis: 20 intentos cada 5 minutos por IP. Un
+# invitado real hace 2 o 3 (abrir el link, rebotar por Google, volver).
 @group_bp.route("/join/<token>", methods=["GET", "POST"])
+@rate_limit(limit=20, window_seconds=300, scope="groups.join")
 def join(token):
     group = Group.query.filter_by(join_token=token).first()
 

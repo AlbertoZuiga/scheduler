@@ -1,5 +1,18 @@
+import secrets
+
 from app.extensions import scheduler_db
 from app.models.mixins import SoftDeleteMixin, TimestampMixin
+
+
+def generate_join_token():
+    """Token de invitación con 256 bits de entropía (43 chars url-safe).
+
+    Reemplaza a `uuid4().hex[:10]`, que dejaba 40 bits: adivinable a fuerza
+    bruta si alguien tiene tiempo y no hay nada que lo frene. Los tokens ya
+    emitidos siguen sirviendo (el lookup es por valor, no por formato) hasta
+    que el dueño del grupo rote el link.
+    """
+    return secrets.token_urlsafe(32)
 
 
 class Group(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-public-methods
