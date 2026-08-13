@@ -6,7 +6,12 @@ from sqlalchemy.exc import IntegrityError
 
 from app.extensions import scheduler_db
 from app.models import Category, GroupMember, GroupMemberCategory, GroupPermissionGrant
-from app.authz import require_group_member, require_group_admin_or_owner
+from app.authz import (
+    can_see_member_emails,
+    display_name,
+    require_group_member,
+    require_group_admin_or_owner,
+)
 from app.soft_delete import active_or_404, find_soft_deleted, restore_batch
 
 
@@ -357,6 +362,13 @@ def member_categories(group_member_id):
             "groups/member_categories.html",
             group=group,
             member=gm,
+            # El email del miembro solo si el que mira es owner/admin;
+            # el propio siempre.
+            member_label=display_name(
+                gm.user,
+                with_email=can_see_member_emails(group, membership)
+                or gm.user_id == current_user.id,
+            ),
             categories=all_categories,
             assoc_ids=assoc_ids,
             can_edit=can_edit,

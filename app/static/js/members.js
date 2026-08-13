@@ -407,10 +407,14 @@ document.addEventListener('DOMContentLoaded', () => {
           const nameEl = document.createElement('p');
           nameEl.className = 'text-sm font-medium';
           nameEl.textContent = member.name;
-          const emailEl = document.createElement('p');
-          emailEl.className = 'text-xs text-light-text-secondary dark:text-dark-text-secondary';
-          emailEl.textContent = member.email;
-          info.append(nameEl, emailEl);
+          info.append(nameEl);
+          // Sin permiso para ver emails el campo llega vacío: no se pinta la línea.
+          if (member.email) {
+            const emailEl = document.createElement('p');
+            emailEl.className = 'text-xs text-light-text-secondary dark:text-dark-text-secondary';
+            emailEl.textContent = member.email;
+            info.append(emailEl);
+          }
 
           const checkbox = document.createElement('input');
           checkbox.type = 'checkbox';

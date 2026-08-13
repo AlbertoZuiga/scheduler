@@ -25,6 +25,8 @@ from app.models import (
 from app.models.subgroup import SubGroup
 from app.ratelimit import rate_limit
 from app.authz import (
+    can_see_member_emails,
+    display_name,
     require_group_member,
     require_group_admin_or_owner,
     require_group_owner,
@@ -178,15 +180,22 @@ def show(group_id):
         .all()
     )
     color_map = assign_colors_to_members(group_members)
-    user_info_map = {
-        member.user.id: {
-            "name": member.user.name,
-            "email": member.user.email
-        } for member in group_members
-    }
     is_admin = membership and membership.role == RoleEnum.ADMIN
     perms = effective_permissions(group, membership)
     can_manage = (group.owner_id == current_user.id) or is_admin
+    can_see_emails = can_see_member_emails(group, membership)
+    # El email ajeno solo va para owner/admin; el propio siempre. Cadena vacía en
+    # vez de None: el template lo concatena al nombre sin más chequeos.
+    user_info_map = {
+        member.user.id: {
+            "name": display_name(member.user, with_email=can_see_emails),
+            "email": (
+                member.user.email
+                if can_see_emails or member.user.id == current_user.id
+                else ""
+            ),
+        } for member in group_members
+    }
     can_view_group_availability = PERM_VIEW_AVAILABILITY in perms
     # Alcance del agregado: None = todo el grupo (owner, admin, subgroups.view_all).
     # Quien solo ve su subgrupo ve los horarios de ese subgrupo y de nadie más;
@@ -263,10 +272,10 @@ def show(group_id):
     # que además volvía a tocar `group.members` en cada vuelta.
     category_member_names = {category.id: [] for category in group_categories}
     for gm in group_members:
-        display_name = gm.user.name or gm.user.email
+        shown_name = display_name(gm.user, with_email=can_see_emails)
         for assoc in gm.categories:
             if assoc.category_id in category_member_names:
-                category_member_names[assoc.category_id].append(display_name)
+                category_member_names[assoc.category_id].append(shown_name)
 
     subgroups = (
         SubGroup.query.filter_by(parent_group_id=group.id)
@@ -310,6 +319,7 @@ def show(group_id):
         user_info_map=user_info_map,
         is_admin=is_admin,
         can_manage=can_manage,
+        can_see_emails=can_see_emails,
         can_view_group_availability=can_view_group_availability,
         availability_scope_user_ids=scope_user_ids,
         perms=perms,
@@ -317,6 +327,7 @@ def show(group_id):
         category_member_names=category_member_names,
         group_subgroups=group_subgroups,
         member_category_map=member_category_map,
+        scoped_members=scoped_members,
         user_subgroup_map=user_subgroup_map,
         user_gm_map=user_gm_map,
         users_without_availability=users_without_availability,
@@ -454,6 +465,7 @@ def members(group_id):
         .all()
     )
     can_manage = (group.owner_id == current_user.id) or (membership.role == RoleEnum.ADMIN)
+    can_see_emails = can_see_member_emails(group, membership)
     categories = Category.query.filter_by(group_id=group.id).all()
     responded_user_ids = get_responded_user_ids(group.id, active_member_user_ids(group.id))
     # Quienes no han respondido primero: son los que necesitan seguimiento.
@@ -478,6 +490,11 @@ def members(group_id):
         membership=membership,
         categories=categories,
         can_manage=can_manage,
+        can_see_emails=can_see_emails,
+        member_names={
+            member.user.id: display_name(member.user, with_email=can_see_emails)
+            for member in group_members
+        },
         responded_user_ids=responded_user_ids,
         removed_members=removed_members,
     )

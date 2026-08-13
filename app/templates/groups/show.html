@@ -222,7 +222,7 @@
                 data-user-id="{{ user.id }}"
                 data-gm-id="{{ gm_id if gm_id else '' }}"
                 data-category-ids="{{ gm_categories|join(',') }}"
-                data-subgroup-ids="{{ user_subgroups|join(',') }}">{{ user.name }} {{ user.email }}</li>
+                data-subgroup-ids="{{ user_subgroups|join(',') }}">{{ user_info_map[user.id].name }} {{ user_info_map[user.id].email }}</li>
           {% endfor %}
           <li id="availabilityMissingUsersFilterEmpty" class="hidden text-xs text-light-text-secondary dark:text-dark-text-secondary">No hay personas sin horario que coincidan con el filtro.</li>
         {% else %}
@@ -350,13 +350,12 @@
 {# Con alcance de subgrupo propio el roster que consume el JS de filtros se
    recorta al mismo conjunto: si no, los contadores comparan contra el grupo
    entero y el payload expone los emails de gente fuera del alcance. #}
-{% for m in group.members if availability_scope_user_ids is none or m.user.id in availability_scope_user_ids %}
-  {% set member_name = m.user.name if m.user.name else m.user.email %}
+{% for m in scoped_members %}
   {% set _ = members_data.append({
     'group_member_id': m.id,
     'user_id': m.user.id,
-    'name': member_name,
-    'email': m.user.email
+    'name': user_info_map[m.user.id].name,
+    'email': user_info_map[m.user.id].email
   }) %}
 {% endfor %}
 {% set embed_data = {

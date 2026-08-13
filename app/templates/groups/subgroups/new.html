@@ -364,7 +364,7 @@
                       <input type="checkbox" class="together-member-checkbox mt-1 accent-amber-600" value="{{ member.id }}">
                       <span class="min-w-0 flex-1">
                         <span class="block text-sm font-semibold text-light-text-primary dark:text-slate-100 truncate">{{ member.name }}</span>
-                        <span class="block text-xs text-light-text-secondary dark:text-slate-300 truncate">{{ member.email }}</span>
+                        {% if member.email %}<span class="block text-xs text-light-text-secondary dark:text-slate-300 truncate">{{ member.email }}</span>{% endif %}
                       </span>
                     </label>
                     {% endfor %}

@@ -259,7 +259,7 @@
           const member = memberByUserId.get(Number.parseInt(userId));
           const label = document.createElement('span');
           label.className = 'inline-block text-xs px-2 py-1 rounded bg-light-muted/40 dark:bg-dark-muted/40';
-          label.textContent = member ? `${member.name} ${member.email}` : `Usuario ${userId}`;
+          label.textContent = member ? `${member.name} ${member.email || ''}`.trim() : `Usuario ${userId}`;
           li.appendChild(label);
           ul.appendChild(li);
         }
