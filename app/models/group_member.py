@@ -1,7 +1,7 @@
 import enum
 
 from app.extensions import scheduler_db
-from app.models.mixins import ACTIVE_ROWS, SoftDeleteMixin
+from app.models.mixins import ACTIVE_ROWS, SoftDeleteMixin, TimestampMixin
 
 
 class RoleEnum(enum.IntEnum):
@@ -9,13 +9,17 @@ class RoleEnum(enum.IntEnum):
     ADMIN = 1
 
 
-class GroupMember(SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-public-methods
+class GroupMember(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-public-methods
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     group_id = scheduler_db.Column(
-        scheduler_db.Integer, scheduler_db.ForeignKey("group.id"), nullable=False
+        scheduler_db.Integer,
+        scheduler_db.ForeignKey("group.id", ondelete="CASCADE"),
+        nullable=False,
     )
     user_id = scheduler_db.Column(
-        scheduler_db.Integer, scheduler_db.ForeignKey("user.id"), nullable=False
+        scheduler_db.Integer,
+        scheduler_db.ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
     )
 
     role = scheduler_db.Column(scheduler_db.Enum(RoleEnum), nullable=False, default=RoleEnum.MEMBER)
@@ -24,10 +28,16 @@ class GroupMember(SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too
     user = scheduler_db.relationship("User", back_populates="memberships")
     # Categories associated to this group member
     categories = scheduler_db.relationship(
-        "GroupMemberCategory", back_populates="group_member", cascade="all, delete-orphan"
+        "GroupMemberCategory",
+        back_populates="group_member",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     permission_grants = scheduler_db.relationship(
-        "GroupPermissionGrant", back_populates="group_member", cascade="all, delete-orphan"
+        "GroupPermissionGrant",
+        back_populates="group_member",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     # El filtro global `deleted_at IS NULL` va en cada SELECT, así que los

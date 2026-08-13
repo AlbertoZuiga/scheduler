@@ -1,9 +1,10 @@
 from flask_login import UserMixin
 
 from app.extensions import scheduler_db
+from app.models.mixins import TimestampMixin
 
 
-class User(UserMixin, scheduler_db.Model):
+class User(TimestampMixin, UserMixin, scheduler_db.Model):
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     email = scheduler_db.Column(scheduler_db.String(150), unique=True, nullable=False)
     name = scheduler_db.Column(scheduler_db.String(150), nullable=False)
@@ -11,7 +12,8 @@ class User(UserMixin, scheduler_db.Model):
     memberships = scheduler_db.relationship(
         "GroupMember",
         back_populates="user",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     @classmethod

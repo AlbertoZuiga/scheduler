@@ -1,25 +1,31 @@
 from app.extensions import scheduler_db
-from app.models.mixins import SoftDeleteMixin
+from app.models.mixins import SoftDeleteMixin, TimestampMixin
 
 
-class GroupPermissionGrant(SoftDeleteMixin, scheduler_db.Model):  # pylint: disable=too-few-public-methods
+class GroupPermissionGrant(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):  # pylint: disable=too-few-public-methods
     """Concesión puntual de un permiso extra sobre subgrupos.
 
     Otorgada por el owner del grupo a un miembro específico o a una categoría
     (todos los miembros que la tengan asignada, dinámicamente). Exactamente
-    uno de `group_member_id` / `category_id` debe estar seteado; se valida en
-    la ruta que crea la concesión, no acá.
+    uno de `group_member_id` / `category_id` debe estar seteado, y desde
+    DATA-007 lo impone la BD con un CHECK, no solo la ruta que concede.
     """
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     group_id = scheduler_db.Column(
-        scheduler_db.Integer, scheduler_db.ForeignKey("group.id"), nullable=False
+        scheduler_db.Integer,
+        scheduler_db.ForeignKey("group.id", ondelete="CASCADE"),
+        nullable=False,
     )
     permission = scheduler_db.Column(scheduler_db.String(50), nullable=False)
     group_member_id = scheduler_db.Column(
-        scheduler_db.Integer, scheduler_db.ForeignKey("group_member.id"), nullable=True
+        scheduler_db.Integer,
+        scheduler_db.ForeignKey("group_member.id", ondelete="CASCADE"),
+        nullable=True,
     )
     category_id = scheduler_db.Column(
-        scheduler_db.Integer, scheduler_db.ForeignKey("category.id"), nullable=True
+        scheduler_db.Integer,
+        scheduler_db.ForeignKey("category.id", ondelete="CASCADE"),
+        nullable=True,
     )
     # Discriminador del sujeto ("m<id>" / "c<id>") para poder hacer UNIQUE. No
     # se puede usar (group_member_id, category_id) directamente: uno de los dos
@@ -42,6 +48,16 @@ class GroupPermissionGrant(SoftDeleteMixin, scheduler_db.Model):  # pylint: disa
         # revive la fila oculta en vez de insertar una nueva.
         scheduler_db.UniqueConstraint(
             "group_id", "permission", "subject_key", name="uq_perm_grant_subject"
+        ),
+        # Exactamente un sujeto (DATA-007). Sin esto una concesión con los dos
+        # NULL se guardaba con subject_key "cNone": no aplicaba a nadie pero
+        # ocupaba la clave única, bloqueando la concesión real por categoría.
+        # Se escribe con CASE y no con `!=` sobre IS NULL porque el resultado
+        # de un booleano no es portable entre Postgres y SQLite.
+        scheduler_db.CheckConstraint(
+            "(CASE WHEN group_member_id IS NULL THEN 0 ELSE 1 END"
+            " + CASE WHEN category_id IS NULL THEN 0 ELSE 1 END) = 1",
+            name="ck_perm_grant_subject_xor",
         ),
     )
 

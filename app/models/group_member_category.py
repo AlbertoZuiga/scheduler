@@ -1,14 +1,18 @@
 from app.extensions import scheduler_db
-from app.models.mixins import ACTIVE_ROWS, SoftDeleteMixin
+from app.models.mixins import ACTIVE_ROWS, SoftDeleteMixin, TimestampMixin
 
 
-class GroupMemberCategory(SoftDeleteMixin, scheduler_db.Model):  # pylint: disable=too-few-public-methods
+class GroupMemberCategory(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):  # pylint: disable=too-few-public-methods
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     group_member_id = scheduler_db.Column(
-        scheduler_db.Integer, scheduler_db.ForeignKey("group_member.id"), nullable=False
+        scheduler_db.Integer,
+        scheduler_db.ForeignKey("group_member.id", ondelete="CASCADE"),
+        nullable=False,
     )
     category_id = scheduler_db.Column(
-        scheduler_db.Integer, scheduler_db.ForeignKey("category.id"), nullable=False
+        scheduler_db.Integer,
+        scheduler_db.ForeignKey("category.id", ondelete="CASCADE"),
+        nullable=False,
     )
 
     group_member = scheduler_db.relationship("GroupMember", back_populates="categories")

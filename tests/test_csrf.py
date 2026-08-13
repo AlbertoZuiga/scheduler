@@ -37,7 +37,10 @@ def test_post_sin_token_es_rechazado(csrf_client, path):
 
 
 def test_post_sin_token_no_muta_nada(csrf_client, db_session):
-    group = Group(name="Grupo CSRF", owner_id=1, join_token="tok-csrf")
+    duenio = User(name="Dueño csrf delete", email="duenio-csrf-delete@example.com")
+    db_session.add(duenio)
+    db_session.commit()
+    group = Group(name="Grupo CSRF", owner_id=duenio.id, join_token="tok-csrf")
     db_session.add(group)
     db_session.commit()
 

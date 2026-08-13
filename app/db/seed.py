@@ -5,7 +5,6 @@ from ..models import (
     User, Group, Category, GroupMember, GroupMemberCategory, GroupPermissionGrant,
     Availability, UserAvailability,
 )
-from ..models.subgroup import DivisionJob, SubGroupMember
 
 _SEED_EMAILS = {
     "ana@example.com", "bruno@example.com", "carla@example.com",
@@ -17,55 +16,34 @@ _SEED_TOKENS = {"alphatoken", "mathstoken", "sporttoken"}
 def _clear_seed_data():
     """Borra físicamente los datos del seed anterior para poder recrearlos.
 
-    Todo corre dentro de `including_deleted()`: las cascadas del ORM cargan las
-    relaciones con lazy load, y el filtro global escondería a los hijos borrados
-    lógicamente. Sin ellos, el DELETE del padre revienta por foreign key.
+    Con el `ondelete` explícito de las FKs (DATA-006) basta borrar las raíces:
+    la BD se lleva membresías, categorías, asignaciones, concesiones, bloques,
+    marcas y jobs. Antes había que ordenar esos borrados a mano.
+
+    La consulta corre dentro de `including_deleted()` porque el filtro global
+    escondería las filas ya borradas lógicamente, que también hay que barrer.
     """
     with including_deleted():
-        seed_users = User.query.filter(User.email.in_(_SEED_EMAILS)).all()
-        seed_user_ids = [u.id for u in seed_users]
+        seed_user_ids = [
+            row[0]
+            for row in scheduler_db.session.query(User.id)
+            .filter(User.email.in_(_SEED_EMAILS))
+            .all()
+        ]
 
-        # Un grupo cuyo dueño es un usuario del seed también cae: `Group.owner`
-        # no cascadea desde User y `owner_id` es NOT NULL, así que dejarlo vivo
-        # revienta el DELETE del usuario cuando el ORM intenta anular el FK.
+        # Un grupo cuyo dueño es un usuario del seed cae con él (owner_id es
+        # CASCADE), pero los grupos del owner fijo hay que pedirlos por token.
         group_filter = Group.join_token.in_(_SEED_TOKENS)
         if seed_user_ids:
             group_filter = group_filter | Group.owner_id.in_(seed_user_ids)
-        seed_groups = Group.query.filter(group_filter).all()
-        seed_group_ids = [g.id for g in seed_groups]
-
-        if seed_group_ids:
-            avail_ids = [
-                row[0]
-                for row in scheduler_db.session.query(Availability.id)
-                .filter(Availability.group_id.in_(seed_group_ids))
-                .all()
-            ]
-            if avail_ids:
-                UserAvailability.query.filter(
-                    UserAvailability.availability_id.in_(avail_ids)
-                ).delete(synchronize_session=False)
-            scheduler_db.session.query(Availability).filter(
-                Availability.group_id.in_(seed_group_ids)
-            ).delete(synchronize_session=False)
-            # DivisionJob no cascadea desde Group: sin esto el ORM intentaría
-            # dejar parent_group_id en NULL, que es NOT NULL.
-            scheduler_db.session.query(DivisionJob).filter(
-                DivisionJob.parent_group_id.in_(seed_group_ids)
-            ).delete(synchronize_session=False)
-            for group in seed_groups:
-                scheduler_db.session.delete(group)
+        scheduler_db.session.query(Group).filter(group_filter).delete(
+            synchronize_session=False
+        )
 
         if seed_user_ids:
-            # UserAvailability y SubGroupMember tampoco cascadean desde User.
-            UserAvailability.query.filter(
-                UserAvailability.user_id.in_(seed_user_ids)
+            scheduler_db.session.query(User).filter(
+                User.id.in_(seed_user_ids)
             ).delete(synchronize_session=False)
-            scheduler_db.session.query(SubGroupMember).filter(
-                SubGroupMember.user_id.in_(seed_user_ids)
-            ).delete(synchronize_session=False)
-        for user in seed_users:
-            scheduler_db.session.delete(user)
 
         scheduler_db.session.commit()
 
@@ -181,7 +159,7 @@ def seed_database():
         block_starts = group.block_starts()
         for weekday in range(7):
             for start_minutes in random.sample(block_starts, k=min(3, len(block_starts))):
-                availability_list.append(Availability(group_id=group.id, weekday=weekday, hour=start_minutes / 60))
+                availability_list.append(Availability(group_id=group.id, weekday=weekday, start_minutes=start_minutes))
     scheduler_db.session.add_all(availability_list)
     scheduler_db.session.commit()
 

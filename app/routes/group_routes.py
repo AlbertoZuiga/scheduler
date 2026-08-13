@@ -25,6 +25,12 @@ from app.models import (
     UserAvailability,
 )
 from app.models.subgroup import SubGroup
+from app.models.audit_log import (
+    ACTION_PERMISSION_GRANTED,
+    ACTION_PERMISSION_REVOKED,
+    ACTION_ROLE_CHANGED,
+    record_action,
+)
 from app.authz import (
     require_group_member,
     require_group_admin_or_owner,
@@ -60,21 +66,11 @@ def _generate_time_blocks(group):
     ]
 
 
-def _hour_to_minutes(hour):
-    """`Availability.hour` es un float de horas; la clave real son sus minutos.
-
-    Se redondea siempre: el FLOAT de MySQL no conserva 8.25 ni 8.3333 con
-    precisión suficiente para comparar por igualdad.
-    """
-    return int(round(hour * 60))
-
-
-def _block_index_for(group, hour):
-    """Índice del bloque que arranca exactamente en `hour`, o None si no calza."""
-    minutes = _hour_to_minutes(hour)
+def _block_index_for(group, start_minutes):
+    """Índice del bloque que arranca exactamente en `start_minutes`, o None."""
     starts = group.block_starts()
     try:
-        return starts.index(minutes)
+        return starts.index(start_minutes)
     except ValueError:
         return None
 
@@ -82,7 +78,7 @@ def _block_index_for(group, hour):
 def _availability_by_minutes(group_id):
     """Filas de Availability del grupo indexadas por (weekday, minutos)."""
     return {
-        (row.weekday, _hour_to_minutes(row.hour)): row
+        (row.weekday, row.start_minutes): row
         for row in Availability.query.filter_by(group_id=group_id).all()
     }
 
@@ -92,7 +88,7 @@ def _get_or_create_availability(group_id, weekday, minutes, known):
     existing = known.get((weekday, minutes))
     if existing:
         return existing
-    row = Availability(group_id=group_id, weekday=weekday, hour=minutes / 60)
+    row = Availability(group_id=group_id, weekday=weekday, start_minutes=minutes)
     scheduler_db.session.add(row)
     scheduler_db.session.flush()
     known[(weekday, minutes)] = row
@@ -111,13 +107,15 @@ def _clear_existing_availability(group, user_id, active_weekdays):
     visible_starts = set(group.block_starts())
     visible_weekdays = set(active_weekdays)
     rows = (
-        scheduler_db.session.query(UserAvailability, Availability.weekday, Availability.hour)
+        scheduler_db.session.query(
+            UserAvailability, Availability.weekday, Availability.start_minutes
+        )
         .join(Availability, UserAvailability.availability_id == Availability.id)
         .filter(UserAvailability.user_id == user_id, Availability.group_id == group.id)
         .all()
     )
-    for ua, weekday, hour in rows:
-        if weekday in visible_weekdays and _hour_to_minutes(hour) in visible_starts:
+    for ua, weekday, start_minutes in rows:
+        if weekday in visible_weekdays and start_minutes in visible_starts:
             ua.soft_delete()
 
 def _mark_user_available(user_id, availability_id):
@@ -213,12 +211,12 @@ def parse_time_to_minutes(value):
     return hours * 60 + minutes
 
 
-def convert_float_to_time_string(hour):
-    """Convert a float representing hours to a time string in 'HH:MM' format."""
+def format_minutes(start_minutes):
+    """Minutos desde medianoche a 'HH:MM', para las plantillas."""
     try:
-        return _format_minutes(_hour_to_minutes(hour))
+        return _format_minutes(int(start_minutes))
     except (ValueError, TypeError) as exc:
-        raise ValueError("Invalid hour value. Expected a float.") from exc
+        raise ValueError("Valor de minutos inválido. Se espera un entero.") from exc
 
 
 def _counts_by_group(model, group_ids):
@@ -253,7 +251,7 @@ def _count_out_of_range_marks(group_id, start_minutes, end_minutes, weekdays):
     No se borra ninguna: solo dejan de mostrarse mientras el rango las excluya.
     """
     rows = (
-        scheduler_db.session.query(Availability.weekday, Availability.hour)
+        scheduler_db.session.query(Availability.weekday, Availability.start_minutes)
         .join(UserAvailability, UserAvailability.availability_id == Availability.id)
         .filter(Availability.group_id == group_id)
         .filter(UserAvailability.user_id.in_(_active_member_user_ids(group_id)))
@@ -261,9 +259,8 @@ def _count_out_of_range_marks(group_id, start_minutes, end_minutes, weekdays):
     )
     return sum(
         1
-        for weekday, hour in rows
-        if weekday not in weekdays
-        or not start_minutes <= _hour_to_minutes(hour) < end_minutes
+        for weekday, minutes in rows
+        if weekday not in weekdays or not start_minutes <= minutes < end_minutes
     )
 
 
@@ -311,7 +308,7 @@ def _remap_availability_marks(group, old_starts, old_block_minutes, weekdays):
 
 def _move_marks(group, row, targets, known):
     """Copia las marcas de `row` a los bloques nuevos que cubren su horario."""
-    minutes = _hour_to_minutes(row.hour)
+    minutes = row.start_minutes
     moved = 0
     if not targets:
         # El horario viejo no cae en ningún bloque nuevo (el rango se angostó o
@@ -353,13 +350,13 @@ def get_availability_data(group_id, limit=AVAILABILITY_SUMMARY_LIMIT):
         scheduler_db.session.query(
             Availability.id,
             Availability.weekday,
-            Availability.hour,
+            Availability.start_minutes,
             func.count(UserAvailability.id).label("count_users"),
         )
         .join(UserAvailability, UserAvailability.availability_id == Availability.id)
         .filter(Availability.group_id == group_id)
         .filter(UserAvailability.user_id.in_(member_ids))
-        .group_by(Availability.id, Availability.weekday, Availability.hour)
+        .group_by(Availability.id, Availability.weekday, Availability.start_minutes)
         # `Availability.id` desempata: sin orden total el LIMIT devuelve
         # bloques distintos entre requests con los mismos datos.
         .order_by(func.count(UserAvailability.id).desc(), Availability.id.asc())
@@ -372,12 +369,15 @@ def get_availability_data(group_id, limit=AVAILABILITY_SUMMARY_LIMIT):
     data = {
         availability_id: {
             "availability": Availability(
-                id=availability_id, weekday=weekday, hour=hour, group_id=group_id
+                id=availability_id,
+                weekday=weekday,
+                start_minutes=start_minutes,
+                group_id=group_id,
             ),
             "users": [],
             "count_users": count_users,
         }
-        for availability_id, weekday, hour, count_users in top_blocks
+        for availability_id, weekday, start_minutes, count_users in top_blocks
     }
 
     rows = (
@@ -460,7 +460,7 @@ def show(group_id):
     if group.owner_id == current_user.id or is_admin:
         user_availability_data = (
             scheduler_db.session.query(
-                UserAvailability.user_id, Availability.weekday, Availability.hour
+                UserAvailability.user_id, Availability.weekday, Availability.start_minutes
             )
             .join(Availability, UserAvailability.availability_id == Availability.id)
             .filter(Availability.group_id == group.id)
@@ -470,7 +470,7 @@ def show(group_id):
     else:
         user_availability_data = (
             scheduler_db.session.query(
-                UserAvailability.user_id, Availability.weekday, Availability.hour
+                UserAvailability.user_id, Availability.weekday, Availability.start_minutes
             )
             .join(Availability, Availability.id == UserAvailability.availability_id)
             .filter(Availability.group_id == group.id)
@@ -482,8 +482,8 @@ def show(group_id):
     # marca caía fuera del rango visible.
     selected = set()
     cell_users = {}
-    for user_id, weekday, hour in user_availability_data:
-        block_index = _block_index_for(group, hour)
+    for user_id, weekday, start_minutes in user_availability_data:
+        block_index = _block_index_for(group, start_minutes)
         if block_index is None:
             continue
         selected.add((weekday, blocks[block_index]))
@@ -554,7 +554,7 @@ def show(group_id):
         selected=selected,
         cell_users=cell_users,
         blocks=blocks,
-        convert_float_to_time_string=convert_float_to_time_string,
+        format_minutes=format_minutes,
         availability_data=availability_data,
         color_map=color_map,
         user_info_map=user_info_map,
@@ -808,15 +808,15 @@ def availability(group_id):
 
     user_availability = (
         scheduler_db.session.query(
-            UserAvailability.user_id, Availability.weekday, Availability.hour
+            UserAvailability.user_id, Availability.weekday, Availability.start_minutes
         )
         .join(Availability)
         .filter(UserAvailability.user_id == current_user.id, Availability.group_id == group_id)
         .all()
     )
     selected = set()
-    for _, weekday, hour in user_availability:
-        block_index = _block_index_for(group, hour)
+    for _, weekday, start_minutes in user_availability:
+        block_index = _block_index_for(group, start_minutes)
         if block_index is not None:
             selected.add((weekday, block_index))
     return render_template(
@@ -1107,7 +1107,16 @@ def update_role(group_id, user_id):
         flash("⚠️ No puedes cambiar el rol del propietario del grupo.", "warning")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
     
+    rol_previo = member.role.name if member.role is not None else None
     member.role = RoleEnum[role_str]
+    record_action(
+        group_id=group.id,
+        actor=current_user,
+        action=ACTION_ROLE_CHANGED,
+        subject_type="member",
+        subject_id=member.id,
+        detail={"from": rol_previo, "to": role_str},
+    )
     scheduler_db.session.commit()
 
     flash("Rol actualizado con éxito.", "success")
@@ -1237,6 +1246,15 @@ def set_permission_level(group_id):
         else:
             scheduler_db.session.add(GroupPermissionGrant(**filters))
 
+    action = ACTION_PERMISSION_GRANTED if wanted else ACTION_PERMISSION_REVOKED
+    record_action(
+        group_id=group.id,
+        actor=current_user,
+        action=action,
+        subject_type=subject_type,
+        subject_id=subject_id,
+        detail={"level": level, "permissions": sorted(wanted)},
+    )
     scheduler_db.session.commit()
     flash("Permisos actualizados.", "success")
     return redirect(url_for("groups.permissions", group_id=group_id))
@@ -1269,6 +1287,15 @@ def revoke_permission(group_id):
     for grant in grants:
         grant.soft_delete()
 
+    if grants:
+        record_action(
+            group_id=group.id,
+            actor=current_user,
+            action=ACTION_PERMISSION_REVOKED,
+            subject_type=subject_type,
+            subject_id=subject_id,
+            detail={"permissions": sorted(grant.permission for grant in grants)},
+        )
     scheduler_db.session.commit()
     flash("Permisos revocados.", "success")
     return redirect(url_for("groups.permissions", group_id=group_id))

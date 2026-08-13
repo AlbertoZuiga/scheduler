@@ -110,7 +110,7 @@ class SubGroupService:
         user_avails = defaultdict(set)
         for avail in availabilities:
             # Crear identificador único para el slot (día + hora)
-            slot_id = f"{avail.availability.weekday}_{avail.availability.hour}"
+            slot_id = f"{avail.availability.weekday}_{avail.availability.start_minutes}"
             user_avails[avail.user_id].add(slot_id)
 
         # Calcular compatibilidad entre cada par

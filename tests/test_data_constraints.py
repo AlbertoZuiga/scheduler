@@ -26,10 +26,17 @@ from app.models.subgroup import SubGroup, SubGroupMember
 
 
 def _flush_expecting_conflict(session, row):
+    """El conflicto se revierte con un SAVEPOINT, no con la transacción entera.
+
+    Un `rollback()` completo se llevaría también las filas del fixture, y la
+    segunda mitad de cada test —reinsertar la clave tras el borrado lógico—
+    pasaría por vacuidad, sobre una tabla vacía.
+    """
+    savepoint = session.begin_nested()
     session.add(row)
     with pytest.raises(IntegrityError):
         session.flush()
-    session.rollback()
+    savepoint.rollback()
 
 
 @pytest.fixture()
@@ -120,7 +127,7 @@ def test_subgroup_member_rechaza_duplicado(db_session, fixture_group):
 
 def test_user_availability_rechaza_duplicado(db_session, fixture_group):
     group, user = fixture_group["group"], fixture_group["user"]
-    slot = Availability(group_id=group.id, weekday=0, hour=8.5)
+    slot = Availability(group_id=group.id, weekday=0, start_minutes=510)
     db_session.add(slot)
     db_session.flush()
 
@@ -141,9 +148,9 @@ def test_user_availability_rechaza_duplicado(db_session, fixture_group):
 def test_availability_rechaza_bloque_duplicado(db_session, fixture_group):
     """`availability` no tiene borrado lógico: acá el unique es total."""
     group = fixture_group["group"]
-    db_session.add(Availability(group_id=group.id, weekday=0, hour=8.5))
+    db_session.add(Availability(group_id=group.id, weekday=0, start_minutes=510))
     db_session.flush()
 
     _flush_expecting_conflict(
-        db_session, Availability(group_id=group.id, weekday=0, hour=8.5)
+        db_session, Availability(group_id=group.id, weekday=0, start_minutes=510)
     )
