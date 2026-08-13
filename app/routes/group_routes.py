@@ -65,6 +65,7 @@ from app.services.group_service import (
     get_category_member_counts,
     get_group_categories,
     get_group_members,
+    get_group_members_with_users,
     get_groups_for_user,
     get_member_availability_counts,
     get_removed_members,
@@ -799,26 +800,13 @@ def permissions(group_id):
     """
     group, _ = require_group_owner(group_id)
 
-    categories = Category.query.filter_by(group_id=group.id).all()
+    categories = get_group_categories(group.id)
     categories_by_id = {cat.id: cat for cat in categories}
-    group_members = (
-        GroupMember.query.filter_by(group_id=group.id)
-        .options(selectinload(GroupMember.user))
-        .all()
-    )
+    group_members = get_group_members_with_users(group.id)
     members_by_id = {member.id: member for member in group_members}
     sources = grant_sources(group)
 
-    # Miembros por categoría en un solo GROUP BY: antes era un COUNT por fila
-    # de la tabla de permisos.
-    category_member_counts = dict(
-        scheduler_db.session.query(
-            GroupMemberCategory.category_id, func.count(GroupMemberCategory.id)
-        )
-        .filter(GroupMemberCategory.category_id.in_(list(categories_by_id)))
-        .group_by(GroupMemberCategory.category_id)
-        .all()
-    ) if categories_by_id else {}
+    category_member_counts = get_category_member_counts(group.id, set(categories_by_id))
 
     category_rows = []
     for cat_id, direct in sources["categories"].items():

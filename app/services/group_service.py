@@ -313,6 +313,15 @@ def get_category_member_counts(group_id, category_ids):
     )
 
 
+def get_group_members_with_users(group_id):
+    """Todos los miembros activos del grupo con su user cargado (sin límite)."""
+    return (
+        GroupMember.query.filter_by(group_id=group_id)
+        .options(selectinload(GroupMember.user))
+        .all()
+    )
+
+
 def get_subgroups_for_show(group_id, scope_user_ids, current_user_id):
     """Subgrupos y mapas para la vista show del grupo.
 
