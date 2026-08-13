@@ -14,19 +14,23 @@ PERM_VIEW_OWN = "subgroups.view_own"
 PERM_VIEW_ALL = "subgroups.view_all"
 PERM_EDIT_OWN = "subgroups.edit_own"
 PERM_EDIT_ALL = "subgroups.edit_all"
+PERM_VIEW_AVAILABILITY = "availability.view_all"
 
-ALL_PERMISSIONS = {PERM_VIEW_OWN, PERM_VIEW_ALL, PERM_EDIT_OWN, PERM_EDIT_ALL}
+ALL_PERMISSIONS = {PERM_VIEW_OWN, PERM_VIEW_ALL, PERM_EDIT_OWN, PERM_EDIT_ALL, PERM_VIEW_AVAILABILITY}
 
 # Qué otros permisos trae implícitos cada uno, para que la UI y el resolver
 # no tengan que evaluar combinaciones sueltas.
+# PERM_VIEW_AVAILABILITY es independiente del retículo de subgrupos: tener
+# subgroups.view_all / subgroups.edit_all NO lo implica.
 IMPLIES = {
     PERM_VIEW_OWN: {PERM_VIEW_OWN},
     PERM_VIEW_ALL: {PERM_VIEW_ALL, PERM_VIEW_OWN},
     PERM_EDIT_OWN: {PERM_EDIT_OWN, PERM_VIEW_OWN},
     PERM_EDIT_ALL: {PERM_EDIT_ALL, PERM_VIEW_ALL, PERM_EDIT_OWN, PERM_VIEW_OWN},
+    PERM_VIEW_AVAILABILITY: {PERM_VIEW_AVAILABILITY},
 }
 
-# Un nivel es un conjunto canónico de permisos otorgables. Son los únicos 5
+# Un nivel es un conjunto canónico de permisos otorgables. Son los únicos 6
 # conjuntos distintos que produce el retículo IMPLIES; el resto son
 # combinaciones redundantes que la UI no necesita ofrecer.
 LEVELS = [
@@ -35,6 +39,7 @@ LEVELS = [
     ("view_all", "Ver todos los subgrupos", {PERM_VIEW_ALL}),
     ("view_all_edit_own", "Ver todos, modificar el suyo", {PERM_VIEW_ALL, PERM_EDIT_OWN}),
     ("edit_all", "Ver y modificar todos", {PERM_EDIT_ALL}),
+    ("view_availability", "Ver los horarios del grupo", {PERM_VIEW_AVAILABILITY}),
 ]
 
 LEVEL_PERMISSIONS = {key: perms for key, _, perms in LEVELS}
