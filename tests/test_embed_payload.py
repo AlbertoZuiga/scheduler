@@ -1,4 +1,4 @@
-"""PERF-003: el JSON inline de groups.show solo lleva lo que el JS lee.
+"""El JSON inline de groups.show solo lleva lo que el JS lee.
 
 El payload crece O(miembros × slots), así que cada clave de más se paga en
 cada page view. Este test congela el contrato: si alguien agrega una clave al
@@ -12,7 +12,7 @@ import re
 
 import flask
 
-from test_query_counts import _seed_group  # noqa: F401  (mismo seed de PERF-001)
+from test_query_counts import _seed_group  # noqa: F401
 
 EMBED_RE = re.compile(
     r'<script type="application/json" id="embed-data"[^>]*>(.*?)</script>', re.DOTALL
@@ -21,6 +21,7 @@ EMBED_RE = re.compile(
 CLAVES_ESPERADAS = {
     "group_id",
     "can_manage",
+    "can_view_availability",
     "members",
     "member_category_map",
     "user_subgroup_map",

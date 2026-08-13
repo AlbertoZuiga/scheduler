@@ -42,6 +42,7 @@ from app.permissions import (
     LEVEL_LABELS,
     LEVEL_ORDER,
     LEVEL_PERMISSIONS,
+    PERM_VIEW_AVAILABILITY,
     effective_permissions,
     grant_sources,
     level_of,
@@ -188,8 +189,10 @@ def show(group_id):
     }
     is_admin = membership and membership.role == RoleEnum.ADMIN
     perms = effective_permissions(group, membership)
+    can_manage = (group.owner_id == current_user.id) or is_admin
+    can_view_group_availability = PERM_VIEW_AVAILABILITY in perms
 
-    if group.owner_id == current_user.id or is_admin:
+    if can_view_group_availability:
         user_availability_data = (
             scheduler_db.session.query(
                 UserAvailability.user_id, Availability.weekday, Availability.start_minutes
@@ -241,8 +244,6 @@ def show(group_id):
     ]
     members_with_availability_count = len(responded_user_ids)
 
-    can_manage = (group.owner_id == current_user.id) or is_admin
-
     group_categories = Category.query.filter_by(group_id=group.id).all()
     member_category_map = {
         gm.id: [assoc.category_id for assoc in gm.categories]
@@ -292,6 +293,7 @@ def show(group_id):
         user_info_map=user_info_map,
         is_admin=is_admin,
         can_manage=can_manage,
+        can_view_group_availability=can_view_group_availability,
         perms=perms,
         group_categories=group_categories,
         category_member_names=category_member_names,
