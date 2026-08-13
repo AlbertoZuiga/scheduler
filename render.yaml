@@ -9,7 +9,11 @@ services:
     name: scheduler-app
     env: python
     buildCommand: "./render-build.sh"
-    startCommand: "gunicorn --workers 1 --threads 4 --access-logfile - run:scheduler_app"
+    # --forwarded-allow-ips="*": la IP del proxy de Render no es fija y el default
+    # (127.0.0.1) hace que gunicorn descarte los X-Forwarded-*. Sin ellos ProxyFix
+    # no ve el esquema real, request.is_secure queda en False y la cookie con
+    # SESSION_COOKIE_SECURE no se emite: el login no persiste. Ver DEPLOY-002.
+    startCommand: "gunicorn --workers 1 --threads 4 --forwarded-allow-ips=* --access-logfile - run:scheduler_app"
     plan: free
     envVars:
         - key: PYTHON_VERSION

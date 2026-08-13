@@ -144,4 +144,30 @@ def create_app():
     return app
 
 
-scheduler_app = create_app()
+_scheduler_app = None
+
+
+def get_app():
+    """La app, construida a lo más una vez por proceso.
+
+    `create_app()` no es idempotente: registra blueprints, así que llamarlo dos
+    veces sobre el mismo proceso los duplicaría. Por eso el resultado se memoriza acá.
+    """
+    global _scheduler_app  # pylint: disable=global-statement
+    if _scheduler_app is None:
+        _scheduler_app = create_app()
+    return _scheduler_app
+
+
+def __getattr__(name):
+    """PEP 562: `from app import scheduler_app` recién acá construye la app.
+
+    Antes el factory corría en el cuerpo del módulo (ARCH-002), así que importar
+    cualquier submódulo (`app.models.user`, un test, `alembic/env.py`) levantaba
+    la app entera con sus blueprints como efecto de import. Ahora ese costo lo
+    paga solo quien pide `scheduler_app`, y el esquema es responsabilidad
+    exclusiva de `python -m app.db.migrate`.
+    """
+    if name == "scheduler_app":
+        return get_app()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

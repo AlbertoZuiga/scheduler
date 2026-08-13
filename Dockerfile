@@ -29,4 +29,10 @@ EXPOSE 5000
 
 # Las migraciones van antes de servir: `run.py` ya no hace create_all(), así que
 # sin esto el contenedor arranca contra una base sin esquema.
-CMD ["sh", "-c", "python -m app.db.migrate && exec gunicorn --workers 1 --threads 4 --access-logfile - run:scheduler_app"]
+#
+# --forwarded-allow-ips="*": la IP del proxy de Render no es fija, así que el
+# default (127.0.0.1) hace que gunicorn descarte los X-Forwarded-*. Sin ellos
+# request.is_secure es False detrás del TLS del proxy y la cookie de sesión, que
+# va con SESSION_COOKIE_SECURE, nunca se llega a enviar. El contenedor solo es
+# alcanzable a través del proxy, así que confiar en esos headers es seguro acá.
+CMD ["sh", "-c", "python -m app.db.migrate && exec gunicorn --workers 1 --threads 4 --forwarded-allow-ips=* --access-logfile - run:scheduler_app"]

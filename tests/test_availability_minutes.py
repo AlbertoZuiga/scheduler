@@ -11,7 +11,7 @@ import re
 import pytest
 
 from app.models import Availability, Group, GroupMember, User, UserAvailability
-from app.routes.group_routes import _block_index_for, format_minutes
+from app.services.availability_service import _block_index_for, format_minutes
 
 
 @pytest.fixture()
