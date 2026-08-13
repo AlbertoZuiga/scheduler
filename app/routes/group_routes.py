@@ -61,8 +61,17 @@ from app.services.group_service import (
     apply_permission_level,
     counts_by_model,
     create_group,
+    get_admin_group_ids,
+    get_category_member_counts,
+    get_group_categories,
+    get_group_members,
+    get_groups_for_user,
     get_member_availability_counts,
+    get_removed_members,
     get_responded_user_ids,
+    get_subgroups_for_show,
+    get_trash_count,
+    get_user_availability_data,
     join_group,
     leave_group,
     revoke_all_permissions,
@@ -129,30 +138,12 @@ def assign_colors_to_members(group_members):
 @group_bp.route("/", methods=["GET"])
 @login_required
 def index():
-    groups = (
-        Group.query.join(GroupMember)
-        .filter(GroupMember.user_id == current_user.id)
-        .order_by(Group.name.asc(), Group.id.asc())
-        .all()
-    )
-    memberships = GroupMember.query.filter_by(user_id=current_user.id).all()
-    admin_group_ids = {
-        m.group_id for m in memberships if m.role == RoleEnum.ADMIN
-    }
-
-    # Los contadores de la tarjeta salen de dos GROUP BY, no de `|length` sobre
-    # las relaciones lazy: eso cargaba miembros y categorías completos de cada
-    # grupo (dos SELECT por fila) solo para contarlos.
+    groups = get_groups_for_user(current_user.id)
+    admin_group_ids = get_admin_group_ids(current_user.id)
     group_ids = [group.id for group in groups]
     member_counts = counts_by_model(GroupMember, group_ids)
     category_counts = counts_by_model(Category, group_ids)
-
-    trash_count = (
-        Group.query.execution_options(**{INCLUDE_DELETED: True})
-        .filter(Group.deleted_at.isnot(None), Group.owner_id == current_user.id)
-        .count()
-    )
-
+    trash_count = get_trash_count(current_user.id)
     return render_template(
         "groups/index.html",
         groups=groups,
