@@ -39,7 +39,6 @@ IMPLIES = {
 # checkbox independiente (ver has_availability_of / set_permission_level).
 LEVELS = [
     ("view_own", "Ver su subgrupo", {PERM_VIEW_OWN}),
-    ("view_availability", "Ver los horarios de su subgrupo", {PERM_VIEW_AVAILABILITY}),
     ("edit_own", "Ver y modificar su subgrupo", {PERM_EDIT_OWN}),
     ("view_all", "Ver todos los subgrupos", {PERM_VIEW_ALL}),
     ("view_all_edit_own", "Ver todos, modificar el suyo", {PERM_VIEW_ALL, PERM_EDIT_OWN}),
