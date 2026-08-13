@@ -1,12 +1,10 @@
 """Motor de disponibilidad: la grilla horaria del grupo y las marcas sobre ella.
 
-Extraído de `group_routes.py` (BE-005) sin cambios de comportamiento. Acá vive
-todo lo que traduce entre las tres representaciones que conviven en el dominio:
+Extraído de `group_routes.py` (BE-005). Acá vive todo lo que traduce entre las
+dos representaciones que conviven en el dominio:
 
 - **minutos desde medianoche**: la unidad canónica (`Group.start_minutes`,
-  `Group.block_minutes`).
-- **`Availability.hour`**: un FLOAT de horas, herencia del esquema viejo. Se
-  convierte siempre con `hour_to_minutes()`, que redondea (ver DATA-005).
+  `Group.block_minutes`, `Availability.start_minutes`).
 - **índice de bloque**: la posición dentro de `Group.block_starts()`, que es lo
   que la plantilla y el formulario usan como coordenada (`day_N_hour_M`).
 
@@ -28,7 +26,9 @@ AVAILABILITY_SUMMARY_LIMIT = 200
 
 def format_minutes(total_minutes):
     """Minutos desde medianoche a 'HH:MM'."""
-    return f"{total_minutes // 60:02}:{total_minutes % 60:02}"
+    if not isinstance(total_minutes, (int, float)):
+        raise ValueError(f"Se esperaba un número, no {type(total_minutes).__name__!r}.")
+    return f"{int(total_minutes) // 60:02}:{int(total_minutes) % 60:02}"
 
 
 def generate_time_blocks(group):
@@ -38,21 +38,15 @@ def generate_time_blocks(group):
     ]
 
 
-def hour_to_minutes(hour):
-    """`Availability.hour` es un float de horas; la clave real son sus minutos.
-
-    Se redondea siempre: el FLOAT de MySQL no conserva 8.25 ni 8.3333 con
-    precisión suficiente para comparar por igualdad.
-    """
-    return int(round(hour * 60))
+def block_index_for(group, start_minutes):
+    """Índice del bloque que arranca en `start_minutes`, o None si no calza."""
+    return _block_index_for(group, start_minutes)
 
 
-def block_index_for(group, hour):
-    """Índice del bloque que arranca exactamente en `hour`, o None si no calza."""
-    minutes = hour_to_minutes(hour)
-    starts = group.block_starts()
+def _block_index_for(group, start_minutes):
+    """Índice del bloque que arranca en `start_minutes` (entero), o None."""
     try:
-        return starts.index(minutes)
+        return group.block_starts().index(start_minutes)
     except ValueError:
         return None
 
@@ -69,18 +63,10 @@ def parse_time_to_minutes(value):
     return hours * 60 + minutes
 
 
-def convert_float_to_time_string(hour):
-    """Convert a float representing hours to a time string in 'HH:MM' format."""
-    try:
-        return format_minutes(hour_to_minutes(hour))
-    except (ValueError, TypeError) as exc:
-        raise ValueError("Invalid hour value. Expected a float.") from exc
-
-
 def _availability_by_minutes(group_id):
-    """Filas de Availability del grupo indexadas por (weekday, minutos)."""
+    """Filas de Availability del grupo indexadas por (weekday, start_minutes)."""
     return {
-        (row.weekday, hour_to_minutes(row.hour)): row
+        (row.weekday, row.start_minutes): row
         for row in Availability.query.filter_by(group_id=group_id).all()
     }
 
@@ -90,7 +76,7 @@ def _get_or_create_availability(group_id, weekday, minutes, known):
     existing = known.get((weekday, minutes))
     if existing:
         return existing
-    row = Availability(group_id=group_id, weekday=weekday, hour=minutes / 60)
+    row = Availability(group_id=group_id, weekday=weekday, start_minutes=minutes)
     scheduler_db.session.add(row)
     scheduler_db.session.flush()
     known[(weekday, minutes)] = row
@@ -110,13 +96,13 @@ def clear_existing_availability(group, user_id, active_weekdays):
     visible_starts = set(group.block_starts())
     visible_weekdays = set(active_weekdays)
     rows = (
-        scheduler_db.session.query(UserAvailability, Availability.weekday, Availability.hour)
+        scheduler_db.session.query(UserAvailability, Availability.weekday, Availability.start_minutes)
         .join(Availability, UserAvailability.availability_id == Availability.id)
         .filter(UserAvailability.user_id == user_id, Availability.group_id == group.id)
         .all()
     )
-    for ua, weekday, hour in rows:
-        if weekday in visible_weekdays and hour_to_minutes(hour) in visible_starts:
+    for ua, weekday, start_minutes in rows:
+        if weekday in visible_weekdays and start_minutes in visible_starts:
             ua.soft_delete()
 
 
@@ -179,7 +165,7 @@ def count_out_of_range_marks(group_id, start_minutes, end_minutes, weekdays):
     No se borra ninguna: solo dejan de mostrarse mientras el rango las excluya.
     """
     rows = (
-        scheduler_db.session.query(Availability.weekday, Availability.hour)
+        scheduler_db.session.query(Availability.weekday, Availability.start_minutes)
         .join(UserAvailability, UserAvailability.availability_id == Availability.id)
         .filter(Availability.group_id == group_id)
         .filter(UserAvailability.user_id.in_(active_member_user_ids(group_id)))
@@ -187,9 +173,9 @@ def count_out_of_range_marks(group_id, start_minutes, end_minutes, weekdays):
     )
     return sum(
         1
-        for weekday, hour in rows
+        for weekday, avail_start in rows
         if weekday not in weekdays
-        or not start_minutes <= hour_to_minutes(hour) < end_minutes
+        or not start_minutes <= avail_start < end_minutes
     )
 
 
@@ -237,7 +223,7 @@ def remap_availability_marks(group, old_starts, old_block_minutes, weekdays):
 
 def _move_marks(group, row, targets, known):
     """Copia las marcas de `row` a los bloques nuevos que cubren su horario."""
-    minutes = hour_to_minutes(row.hour)
+    minutes = row.start_minutes
     moved = 0
     if not targets:
         # El horario viejo no cae en ningún bloque nuevo (el rango se angostó o
@@ -284,13 +270,13 @@ def get_availability_data(group_id, limit=AVAILABILITY_SUMMARY_LIMIT):
         scheduler_db.session.query(
             Availability.id,
             Availability.weekday,
-            Availability.hour,
+            Availability.start_minutes,
             func.count(UserAvailability.id).label("count_users"),
         )
         .join(UserAvailability, UserAvailability.availability_id == Availability.id)
         .filter(Availability.group_id == group_id)
         .filter(UserAvailability.user_id.in_(member_ids))
-        .group_by(Availability.id, Availability.weekday, Availability.hour)
+        .group_by(Availability.id, Availability.weekday, Availability.start_minutes)
         # `Availability.id` desempata: sin orden total el LIMIT devuelve
         # bloques distintos entre requests con los mismos datos.
         .order_by(func.count(UserAvailability.id).desc(), Availability.id.asc())
@@ -303,12 +289,12 @@ def get_availability_data(group_id, limit=AVAILABILITY_SUMMARY_LIMIT):
     data = {
         availability_id: {
             "availability": SimpleNamespace(
-                id=availability_id, weekday=weekday, hour=hour, group_id=group_id
+                id=availability_id, weekday=weekday, start_minutes=start_minutes, group_id=group_id
             ),
             "users": [],
             "count_users": count_users,
         }
-        for availability_id, weekday, hour, count_users in top_blocks
+        for availability_id, weekday, start_minutes, count_users in top_blocks
     }
 
     rows = (

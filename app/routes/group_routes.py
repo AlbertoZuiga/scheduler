@@ -49,7 +49,6 @@ from app.services.availability_service import (
     active_member_user_ids,
     block_index_for,
     clear_existing_availability,
-    convert_float_to_time_string,
     count_out_of_range_marks,
     format_minutes,
     generate_time_blocks,

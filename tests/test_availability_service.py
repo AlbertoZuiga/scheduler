@@ -1,10 +1,4 @@
-"""BE-005: el motor de disponibilidad, ejercitado sin pasar por las rutas.
-
-Antes vivía dentro de `group_routes.py` y solo se podía tocar levantando una
-request completa. Estos tests fijan su comportamiento actual: el refactor no
-cambió nada, así que sirven de red para lo que venga después (DATA-005 va a
-mover `Availability.hour` de Float a Integer).
-"""
+"""BE-005: el motor de disponibilidad, ejercitado sin pasar por las rutas."""
 
 # pylint: disable=redefined-outer-name
 import pytest
@@ -47,7 +41,7 @@ def _add_member(db_session, group, email):
 
 
 def _mark(db_session, group, user, weekday, minutes):
-    row = Availability(group_id=group.id, weekday=weekday, hour=minutes / 60)
+    row = Availability(group_id=group.id, weekday=weekday, start_minutes=minutes)
     db_session.add(row)
     db_session.flush()
     db_session.add(UserAvailability(user_id=user.id, availability_id=row.id))
@@ -80,17 +74,6 @@ def test_parse_time_to_minutes_rechaza_basura(texto):
         svc.parse_time_to_minutes(texto)
 
 
-def test_hour_to_minutes_redondea_el_float():
-    # El FLOAT no conserva 8.25 ni 8.3333 con precisión de igualdad exacta.
-    assert svc.hour_to_minutes(8.25) == 495
-    assert svc.hour_to_minutes(8.333333333) == 500
-    assert svc.hour_to_minutes(8.5) == 510
-
-
-def test_convert_float_to_time_string():
-    assert svc.convert_float_to_time_string(8.5) == "08:30"
-
-
 def test_generate_time_blocks(group):
     assert svc.generate_time_blocks(group) == [
         (0, "08:00 - 09:00"),
@@ -99,10 +82,10 @@ def test_generate_time_blocks(group):
 
 
 def test_block_index_for(group):
-    assert svc.block_index_for(group, 8.0) == 0
-    assert svc.block_index_for(group, 9.0) == 1
+    assert svc.block_index_for(group, 480) == 0
+    assert svc.block_index_for(group, 540) == 1
     # 08:30 no arranca ningún bloque de esta grilla.
-    assert svc.block_index_for(group, 8.5) is None
+    assert svc.block_index_for(group, 510) is None
 
 
 # --- guardado ---------------------------------------------------------------
@@ -122,7 +105,7 @@ def test_process_posted_availability_crea_bloques_y_marcas(db_session, group):
 
     assert guardados == 2
     marcas = {
-        (a.weekday, svc.hour_to_minutes(a.hour))
+        (a.weekday, a.start_minutes)
         for a in Availability.query.filter_by(group_id=group.id).all()
     }
     assert marcas == {(0, 480), (1, 540)}
@@ -228,7 +211,7 @@ def test_remap_reparte_un_bloque_viejo_en_los_nuevos_que_solapa(db_session, grou
 
     assert remapeadas == 1
     minutos = {
-        svc.hour_to_minutes(a.hour)
+        a.start_minutes
         for a in Availability.query.filter_by(group_id=group.id, weekday=0).all()
         if UserAvailability.query.filter_by(availability_id=a.id, user_id=user.id).first()
     }
