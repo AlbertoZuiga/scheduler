@@ -291,7 +291,7 @@
   function memberLabel(memberId) {
     const member = membersById.get(Number.parseInt(memberId));
     if (!member) return `Usuario ${memberId}`;
-    return `${member.name} (${member.email})`;
+    return member.email ? `${member.name} (${member.email})` : `${member.name}`;
   }
 
   function renderTogetherGroups() {

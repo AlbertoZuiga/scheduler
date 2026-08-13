@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 from werkzeug.exceptions import HTTPException
 
 from app.extensions import scheduler_db
-from app.models import GroupMember, Category, RoleEnum
+from app.models import GroupMember, Category
 from app.models.subgroup import SubGroup, SubGroupMember, DivisionJob
 from app.soft_delete import find_soft_deleted
 
@@ -29,7 +29,12 @@ def _add_subgroup_member(subgroup_id, user_id):
     scheduler_db.session.add(membership)
     return membership
 
-from app.authz import require_group_permission, require_subgroup_access
+from app.authz import (
+    can_see_member_emails,
+    display_name,
+    require_group_permission,
+    require_subgroup_access,
+)
 from app.permissions import PERM_EDIT_ALL, PERM_EDIT_OWN, PERM_VIEW_ALL, PERM_VIEW_OWN
 from app.services.subgroup_service import SubGroupService
 
@@ -113,10 +118,21 @@ def _get_group_members_sorted(group_id):
     )
 
 
-def _member_display_name(user):
-    if not user:
-        return "Usuario desconocido"
-    return (user.name or "").strip() or user.email
+def _without_emails(preview):
+    """Copia del preview con el email de cada integrante vaciado."""
+    return {
+        **preview,
+        'groups': [
+            {
+                **group_data,
+                'members': [
+                    {**member, 'email': ''}
+                    for member in group_data.get('members', [])
+                ],
+            }
+            for group_data in preview.get('groups', [])
+        ],
+    }
 
 @subgroup_bp.route('/groups/<int:group_id>/subgroups/new', methods=['GET'])
 @login_required
@@ -126,7 +142,8 @@ def new(group_id):
     Requiere poder editar todos los subgrupos.
     """
     # Verificar permisos
-    group, _, _ = require_group_permission(group_id, PERM_EDIT_ALL)
+    group, membership, _ = require_group_permission(group_id, PERM_EDIT_ALL)
+    can_see_emails = can_see_member_emails(group, membership)
     
     # Obtener categorías disponibles en el grupo
     categories = Category.query.filter_by(group_id=group_id).all()
@@ -145,8 +162,13 @@ def new(group_id):
     members_list = [
         {
             'id': member.user.id,
-            'name': member.user.name,
-            'email': member.user.email,
+            'name': display_name(member.user, with_email=can_see_emails),
+            # El email es dato de administración: EDIT_ALL no lo abre.
+            'email': (
+                member.user.email
+                if can_see_emails or member.user.id == current_user.id
+                else ''
+            ),
             'member_id': member.id,
         }
         for member in group_members
@@ -170,8 +192,9 @@ def generate(group_id):
     Devuelve un preview JSON sin persistir en BD.
     """
     # Verificar permisos
-    require_group_permission(group_id, PERM_EDIT_ALL)
-    
+    group, membership, _ = require_group_permission(group_id, PERM_EDIT_ALL)
+    can_see_emails = can_see_member_emails(group, membership)
+
     try:
         config = request.get_json()
         
@@ -218,7 +241,12 @@ def generate(group_id):
         
         # Añadir job_id al preview
         preview['job_id'] = job.id
-        
+
+        # El preview persistido conserva el email (el export lo usa si el que
+        # descarga es owner/admin); el que se manda al navegador, no.
+        if not can_see_emails:
+            preview = _without_emails(preview)
+
         return jsonify(preview), 200
 
     except HTTPException:
@@ -380,8 +408,12 @@ def export(group_id):
     Si no se proporciona, exporta los subgrupos confirmados actuales.
     """
     # Verificar permisos
-    require_group_permission(group_id, PERM_VIEW_ALL)
-    
+    group, membership, _ = require_group_permission(group_id, PERM_VIEW_ALL)
+    # La columna de email solo va para owner/admin, igual que en la vista de
+    # subgrupos y en groups.export_members_csv.
+    can_see_emails = can_see_member_emails(group, membership)
+    email_header = ['Usuario Email'] if can_see_emails else []
+
     job_id = request.args.get('job_id', type=int)
     
     try:
@@ -403,7 +435,7 @@ def export(group_id):
                 'Subgrupo Nombre',
                 'Usuario ID',
                 'Usuario Nombre',
-                'Usuario Email',
+                *email_header,
                 'Categorías',
                 'Compatibilidad Promedio'
             ])
@@ -419,7 +451,7 @@ def export(group_id):
                         subgroup_name,
                         member['id'],
                         member['name'],
-                        member.get('email', ''),
+                        *([member.get('email', '')] if can_see_emails else []),
                         ', '.join(member.get('categories', [])),
                         compatibility_avg
                     ])
@@ -440,7 +472,7 @@ def export(group_id):
                 'Subgrupo Nombre',
                 'Usuario ID',
                 'Usuario Nombre',
-                'Usuario Email',
+                *email_header,
                 'Fecha Agregado'
             ])
             
@@ -450,8 +482,8 @@ def export(group_id):
                         subgroup.id,
                         subgroup.name,
                         member.user_id,
-                        member.user.name if member.user else '',
-                        member.user.email if member.user else '',
+                        display_name(member.user, with_email=can_see_emails),
+                        *([member.user.email if member.user else ''] if can_see_emails else []),
                         member.added_at.isoformat() if member.added_at else ''
                     ])
         
@@ -485,7 +517,7 @@ def index(group_id):
     # Los emails del roster son dato de administración: el permiso extra de
     # subgrupos no los abre (la exportación de emails también quedó restringida
     # a owner/admin en groups.export_members_csv).
-    can_see_emails = group.owner_id == current_user.id or membership.role == RoleEnum.ADMIN
+    can_see_emails = can_see_member_emails(group, membership)
 
     all_subgroups = (
         SubGroup.query.filter_by(parent_group_id=group_id)
@@ -674,7 +706,7 @@ def add_member(group_id, subgroup_id):
         _add_subgroup_member(subgroup.id, user_id)
         scheduler_db.session.commit()
         flash(
-            f'{_member_display_name(group_member.user)} fue agregado a "{subgroup.name}".',
+            f'{display_name(group_member.user, with_email=False)} fue agregado a "{subgroup.name}".',
             'success',
         )
     except HTTPException:
@@ -711,7 +743,7 @@ def remove_member(group_id, subgroup_id, user_id):
         membership.soft_delete()
         scheduler_db.session.commit()
         flash(
-            f'{_member_display_name(user)} fue quitado de "{subgroup.name}".',
+            f'{display_name(user, with_email=False)} fue quitado de "{subgroup.name}".',
             'success',
         )
     except HTTPException:
@@ -770,7 +802,7 @@ def move_member(group_id, subgroup_id, user_id):
         source_membership.soft_delete()
         scheduler_db.session.commit()
         flash(
-            f'{_member_display_name(user)} fue movido de "{source_subgroup.name}" a "{target_subgroup.name}".',
+            f'{display_name(user, with_email=False)} fue movido de "{source_subgroup.name}" a "{target_subgroup.name}".',
             'success',
         )
     except HTTPException:

@@ -104,6 +104,32 @@ def require_group_owner(group_id: int) -> Tuple[Group, GroupMember]:
     return group, membership
 
 
+def can_see_member_emails(group: Group, membership) -> bool:
+    """El email de los demás es dato de administración: solo owner/admin.
+
+    Mismo criterio que `groups.export_members_csv` y la vista de subgrupos: los
+    permisos de subgrupos, incluso los de edición, no abren los emails. El email
+    propio no pasa por acá (cada quien ve el suyo).
+    """
+    if membership is None:
+        return False
+    return group.owner_id == membership.user_id or membership.role == RoleEnum.ADMIN
+
+
+def display_name(user, *, with_email: bool) -> str:
+    """Nombre a mostrar de un usuario sin nombre propio.
+
+    Sin permiso para ver emails, el fallback no puede ser el email: filtraría
+    justo lo que se está ocultando.
+    """
+    if user is None:
+        return "Usuario desconocido"
+    name = (user.name or "").strip()
+    if name:
+        return name
+    return user.email if with_email else f"Usuario #{user.id}"
+
+
 def safe_remove_member(group_id: int, user_id: int):
     """Elimina un miembro del grupo respetando reglas:
     - Solo owner o admin (admin no puede eliminar owner)

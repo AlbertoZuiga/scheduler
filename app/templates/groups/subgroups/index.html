@@ -72,7 +72,7 @@
     <p class="text-sm font-semibold text-amber-800 dark:text-amber-200">Personas sin subgrupo asignado</p>
     <div class="mt-2 flex flex-wrap gap-2">
       {% for member in members_without_subgroup %}
-        {% set member_name = member.user.name if member.user and member.user.name else (member.user.email if member.user else 'Usuario desconocido') %}
+        {% set member_name = member.user.name if member.user and member.user.name else ((member.user.email if can_see_emails else 'Usuario #' ~ member.user.id) if member.user else 'Usuario desconocido') %}
         <span class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs bg-white/80 dark:bg-dark-card border border-amber-200 dark:border-amber-700 text-amber-900 dark:text-amber-100">
           {{ member_name }}
         </span>
@@ -125,7 +125,7 @@
                 <option value="">Selecciona una persona</option>
                 {% for member in group_members %}
                   {% if member.user_id not in member_ids %}
-                    {% set member_name = member.user.name if member.user and member.user.name else (member.user.email if member.user else 'Usuario desconocido') %}
+                    {% set member_name = member.user.name if member.user and member.user.name else ((member.user.email if can_see_emails else 'Usuario #' ~ member.user.id) if member.user else 'Usuario desconocido') %}
                     <option value="{{ member.user_id }}">{{ member_name }}{% if can_see_emails and member.user and member.user.email and member.user.name %} · {{ member.user.email }}{% endif %}</option>
                   {% endif %}
                 {% endfor %}
@@ -147,7 +147,7 @@
             {% if subgroup.members %}
             <div class="border border-light-border dark:border-dark-border rounded-lg divide-y divide-light-border dark:divide-dark-border overflow-hidden">
               {% for member in subgroup.members %}
-                {% set member_name = member.user.name if member.user and member.user.name else (member.user.email if member.user else 'Usuario desconocido') %}
+                {% set member_name = member.user.name if member.user and member.user.name else ((member.user.email if can_see_emails else 'Usuario #' ~ member.user.id) if member.user else 'Usuario desconocido') %}
                 <div class="p-3 space-y-3 bg-light-background dark:bg-dark-background">
                   <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div class="min-w-0">
