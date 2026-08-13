@@ -40,27 +40,5 @@
 {% endblock %}
 
 {% block script %}
-<script nonce="{{ csp_nonce() }}">
-  // Estado de carga: el salto a Google puede tardar en redes lentas y sin esto
-  // el botón parece no haber respondido.
-  const loginLink = document.getElementById('google-login');
-
-  function setLoading(loading) {
-    if (!loginLink) return;
-    loginLink.setAttribute('aria-busy', loading ? 'true' : 'false');
-    loginLink.classList.toggle('pointer-events-none', loading);
-    loginLink.classList.toggle('opacity-70', loading);
-    loginLink.querySelector('[data-state="idle"]').classList.toggle('hidden', loading);
-    loginLink.querySelector('[data-state="loading"]').classList.toggle('hidden', !loading);
-  }
-
-  loginLink?.addEventListener('click', () => setLoading(true));
-
-  // Volver atrás desde Google restaura la página desde el bfcache con el DOM
-  // tal cual quedó: sin esto el botón se queda en "Conectando…" y con los
-  // clicks desactivados, así que el usuario no puede reintentar.
-  window.addEventListener('pageshow', (event) => {
-    if (event.persisted) setLoading(false);
-  });
-</script>
+<script defer src="{{ static_url('js/login.js') }}" nonce="{{ csp_nonce() }}"></script>
 {% endblock %}
