@@ -10,8 +10,8 @@ from app.models.subgroup import DivisionJob
 from app.routes.subgroup_routes import (
     RETAINED_JOBS_PER_GROUP,
     _get_active_job_or_404,
-    _prune_division_jobs,
 )
+from app.services.subgroup_service import prune_division_jobs as _prune_division_jobs
 
 
 @pytest.fixture()

@@ -10,24 +10,9 @@ from sqlalchemy.orm import selectinload
 from werkzeug.exceptions import HTTPException
 
 from app.extensions import scheduler_db
-from app.models import GroupMember, Category
+from app.models import GroupMember
 from app.models.subgroup import SubGroup, SubGroupMember, DivisionJob
-from app.soft_delete import find_soft_deleted
-
-
-def _add_subgroup_member(subgroup_id, user_id):
-    """Agrega a alguien a un subgrupo reutilizando su membresía oculta si la hay.
-
-    Evita duplicar (subgroup_id, user_id) cuando la persona ya había sido
-    quitada de ese subgrupo antes.
-    """
-    hidden = find_soft_deleted(SubGroupMember, subgroup_id=subgroup_id, user_id=user_id)
-    if hidden:
-        hidden.restore()
-        return hidden
-    membership = SubGroupMember(subgroup_id=subgroup_id, user_id=user_id)
-    scheduler_db.session.add(membership)
-    return membership
+from app.services.group_service import get_group_categories
 
 from app.authz import (
     can_see_member_emails,
@@ -36,7 +21,19 @@ from app.authz import (
     require_subgroup_access,
 )
 from app.permissions import PERM_EDIT_ALL, PERM_EDIT_OWN, PERM_VIEW_ALL, PERM_VIEW_OWN
-from app.services.subgroup_service import SubGroupService
+from app.services.subgroup_service import (
+    SubGroupService,
+    add_subgroup_member,
+    confirm_division,
+    create_manual_subgroup,
+    get_group_member_count,
+    get_group_members_sorted,
+    get_subgroup_member,
+    move_subgroup_member,
+    remove_subgroup_member,
+    save_division_job,
+    undo_last_division,
+)
 
 
 subgroup_bp = Blueprint("subgroups", __name__)
@@ -46,10 +43,6 @@ GROUP_SHOW_ENDPOINT = 'groups.show'
 # aloque listas y cicle miembros × grupos en el servicio (DoS).
 MAX_NUM_GROUPS = 200
 SUBGROUP_INDEX_ENDPOINT = 'subgroups.index'
-# Cada click en "Generar" escribe un DivisionJob con el preview completo (una
-# fila JSON gorda con nombres y correos). Se conservan los más recientes; el
-# resto se oculta. Ver DATA-003.
-RETAINED_JOBS_PER_GROUP = 10
 # Largo de la columna `SubGroup.name` (String(200)): pasado ese punto el INSERT
 # falla en la BD con DataError y el usuario ve un 500 crudo.
 SUBGROUP_NAME_MAX_LENGTH = 200
@@ -68,26 +61,6 @@ def _get_active_job_or_404(group_id, job_id):
     return DivisionJob.query.filter_by(id=job_id, parent_group_id=group_id).first_or_404()
 
 
-def _prune_division_jobs(group_id):
-    """Oculta los jobs viejos del grupo, conservando el último confirmado.
-
-    El confirmado más reciente se preserva siempre: es el que `undo` necesita
-    para revertir la división vigente.
-    """
-    jobs = (
-        DivisionJob.query.filter_by(parent_group_id=group_id)
-        .order_by(DivisionJob.timestamp.desc(), DivisionJob.id.desc())
-        .all()
-    )
-    keep = {job.id for job in jobs[:RETAINED_JOBS_PER_GROUP]}
-    last_confirmed = next((job for job in jobs if job.status == 'confirmed'), None)
-    if last_confirmed is not None:
-        keep.add(last_confirmed.id)
-
-    for job in jobs:
-        if job.id not in keep:
-            job.soft_delete()
-
 
 def _subgroups_index_redirect(group_id):
     return redirect(url_for(SUBGROUP_INDEX_ENDPOINT, group_id=group_id))
@@ -99,23 +72,6 @@ def _get_subgroup_or_404(group_id, subgroup_id):
         parent_group_id=group_id,
     ).first_or_404()
 
-
-def _get_group_members_sorted(group_id):
-    # El orden es por nombre y email del usuario: sin el eager loading el sort
-    # dispara un SELECT de User por miembro.
-    members = (
-        GroupMember.query.options(selectinload(GroupMember.user))
-        .filter_by(group_id=group_id)
-        .all()
-    )
-    return sorted(
-        members,
-        key=lambda member: (
-            (member.user.name or "").strip().lower(),
-            member.user.email.lower(),
-            member.user.id,
-        ),
-    )
 
 
 def _without_emails(preview):
@@ -145,19 +101,9 @@ def new(group_id):
     group, membership, _ = require_group_permission(group_id, PERM_EDIT_ALL)
     can_see_emails = can_see_member_emails(group, membership)
     
-    # Obtener categorías disponibles en el grupo
-    categories = Category.query.filter_by(group_id=group_id).all()
-    
-    # Convertir categorías a formato serializable
+    categories = get_group_categories(group_id)
     categories_list = [{'id': cat.id, 'name': cat.name} for cat in categories]
-    
-    # Contar miembros del grupo (con su usuario: el roster serializado de abajo
-    # lo recorre entero, y en lazy era un SELECT por miembro).
-    group_members = (
-        GroupMember.query.options(selectinload(GroupMember.user))
-        .filter_by(group_id=group_id)
-        .all()
-    )
+    group_members = get_group_members_sorted(group_id)
     member_count = len(group_members)
     members_list = [
         {
@@ -207,7 +153,7 @@ def generate(group_id):
         except (TypeError, ValueError):
             return jsonify({'error': 'Número de grupos inválido'}), 400
 
-        member_count = GroupMember.query.filter_by(group_id=group_id).count()
+        member_count = get_group_member_count(group_id)
         max_allowed = min(MAX_NUM_GROUPS, member_count) or 1
         if num_groups < 1 or num_groups > max_allowed:
             return jsonify({
@@ -226,20 +172,8 @@ def generate(group_id):
         service = SubGroupService(group_id)
         preview = service.generate_subgroups(config)
         
-        # Guardar job en BD con estado 'pending'
-        job = DivisionJob(
-            parent_group_id=group_id,
-            created_by=current_user.id,
-            config_json=config,
-            result_json=preview,
-            status='pending'
-        )
-        scheduler_db.session.add(job)
-        scheduler_db.session.flush()
-        _prune_division_jobs(group_id)
+        job = save_division_job(group_id, current_user.id, config, preview)
         scheduler_db.session.commit()
-        
-        # Añadir job_id al preview
         preview['job_id'] = job.id
 
         # El preview persistido conserva el email (el export lo usa si el que
@@ -285,45 +219,13 @@ def confirm(group_id):
         if job.status == 'confirmed':
             return jsonify({'error': 'Este job ya fue confirmado'}), 400
         
-        # Obtener preview del job
         preview = job.result_json
         if not preview or 'groups' not in preview:
             return jsonify({'error': 'Preview inválido'}), 400
-        
-        # Persistir subgrupos
-        created_subgroups = []
-        
-        for group_data in preview['groups']:
-            # Crear SubGroup
-            subgroup = SubGroup(
-                parent_group_id=group_id,
-                name=group_data['name'],
-                auto_generated=True,
-                meta={
-                    'compatibility_avg': group_data['compatibility_avg'],
-                    'rules_status': group_data['rules_status']
-                }
-            )
-            scheduler_db.session.add(subgroup)
-            scheduler_db.session.flush()  # Para obtener el ID
-            
-            # Añadir miembros. Vía el helper: insertar directo duplicaba
-            # (subgroup_id, user_id) cuando la persona ya había estado en ese
-            # subgrupo, y ahora además violaría uq_subgroup_member_active.
-            for member_data in group_data['members']:
-                _add_subgroup_member(subgroup.id, member_data['id'])
-            
-            created_subgroups.append(subgroup.to_dict())
 
-        # Actualizar estado del job y registrar qué subgrupos creó,
-        # para que 'undo' pueda revertir solo esta división y no otras.
-        job.status = 'confirmed'
-        job.result_json = {
-            **preview,
-            'created_subgroup_ids': [sg['id'] for sg in created_subgroups],
-        }
+        created_subgroups = confirm_division(job)
         scheduler_db.session.commit()
-        
+
         flash(f'Se crearon {len(created_subgroups)} subgrupos exitosamente.', 'success')
         return jsonify({
             'success': True,
@@ -351,39 +253,13 @@ def undo(group_id):
     require_group_permission(group_id, PERM_EDIT_ALL)
     
     try:
-        # Buscar el último job confirmado
-        last_job = DivisionJob.query.filter_by(
-            parent_group_id=group_id,
-            status='confirmed'
-        ).order_by(DivisionJob.timestamp.desc()).first()
-        
+        last_job, subgroups = undo_last_division(group_id)
+
         if not last_job:
             return jsonify({'error': 'No hay divisiones confirmadas para deshacer'}), 400
 
-        # Eliminar únicamente los subgrupos creados por ESTE job, no todos los
-        # subgrupos automáticos del grupo (podrían existir divisiones previas).
-        result_json = last_job.result_json or {}
-        if 'created_subgroup_ids' in result_json:
-            created_ids = result_json.get('created_subgroup_ids') or []
-            subgroups = SubGroup.query.filter(
-                SubGroup.parent_group_id == group_id,
-                SubGroup.id.in_(created_ids),
-            ).all()
-        else:
-            # Jobs confirmados antes de este cambio no registraron sus ids;
-            # se conserva el comportamiento anterior como fallback.
-            subgroups = SubGroup.query.filter_by(
-                parent_group_id=group_id,
-                auto_generated=True
-            ).all()
-
-        for subgroup in subgroups:
-            subgroup.soft_delete()
-        
-        # Marcar job como undone
-        last_job.status = 'undone'
         scheduler_db.session.commit()
-        
+
         flash('División revertida exitosamente.', 'success')
         return jsonify({
             'success': True,
@@ -555,7 +431,7 @@ def index(group_id):
     # cualquier persona del grupo a SU subgrupo). El panel "sin subgrupo" y
     # las tarjetas de otros subgrupos siguen ocultas sin VIEW_ALL.
     group_members = (
-        _get_group_members_sorted(group_id)
+        get_group_members_sorted(group_id)
         if can_view_all or editable_subgroup_ids else []
     )
     assigned_user_ids = {
@@ -602,13 +478,7 @@ def create_manual(group_id):
         return _subgroups_index_redirect(group_id)
 
     try:
-        subgroup = SubGroup(
-            parent_group_id=group_id,
-            name=name,
-            auto_generated=False,
-            meta={},
-        )
-        scheduler_db.session.add(subgroup)
+        create_manual_subgroup(group_id, name)
         scheduler_db.session.commit()
         flash(f'Subgrupo "{name}" creado correctamente.', 'success')
     except HTTPException:
@@ -694,16 +564,12 @@ def add_member(group_id, subgroup_id):
         flash('La persona seleccionada no pertenece a este grupo.', 'danger')
         return _subgroups_index_redirect(group_id)
 
-    existing_membership = SubGroupMember.query.filter_by(
-        subgroup_id=subgroup.id,
-        user_id=user_id,
-    ).first()
-    if existing_membership:
+    if get_subgroup_member(subgroup.id, user_id):
         flash('Esa persona ya pertenece a este subgrupo.', 'info')
         return _subgroups_index_redirect(group_id)
 
     try:
-        _add_subgroup_member(subgroup.id, user_id)
+        add_subgroup_member(subgroup.id, user_id)
         scheduler_db.session.commit()
         flash(
             f'{display_name(group_member.user, with_email=False)} fue agregado a "{subgroup.name}".',
@@ -728,10 +594,7 @@ def remove_member(group_id, subgroup_id, user_id):
     Quita una persona de un subgrupo específico.
     """
     _, _, subgroup, _ = require_subgroup_access(group_id, subgroup_id, edit=True)
-    membership = SubGroupMember.query.filter_by(
-        subgroup_id=subgroup.id,
-        user_id=user_id,
-    ).first()
+    membership = get_subgroup_member(subgroup.id, user_id)
 
     if not membership:
         flash('La persona ya no está en este subgrupo.', 'warning')
@@ -740,7 +603,7 @@ def remove_member(group_id, subgroup_id, user_id):
     user = membership.user
 
     try:
-        membership.soft_delete()
+        remove_subgroup_member(subgroup, user_id)
         scheduler_db.session.commit()
         flash(
             f'{display_name(user, with_email=False)} fue quitado de "{subgroup.name}".',
@@ -781,25 +644,16 @@ def move_member(group_id, subgroup_id, user_id):
         return _subgroups_index_redirect(group_id)
 
     _, _, target_subgroup, _ = require_subgroup_access(group_id, target_subgroup_id, edit=True)
-    source_membership = SubGroupMember.query.filter_by(
-        subgroup_id=source_subgroup.id,
-        user_id=user_id,
-    ).first()
+    source_membership = get_subgroup_member(source_subgroup.id, user_id)
 
     if not source_membership:
         flash('La persona ya no pertenece al subgrupo de origen.', 'warning')
         return _subgroups_index_redirect(group_id)
 
-    target_membership = SubGroupMember.query.filter_by(
-        subgroup_id=target_subgroup.id,
-        user_id=user_id,
-    ).first()
     user = source_membership.user
 
     try:
-        if not target_membership:
-            _add_subgroup_member(target_subgroup.id, user_id)
-        source_membership.soft_delete()
+        move_subgroup_member(source_subgroup, target_subgroup, user_id)
         scheduler_db.session.commit()
         flash(
             f'{display_name(user, with_email=False)} fue movido de "{source_subgroup.name}" a "{target_subgroup.name}".',
