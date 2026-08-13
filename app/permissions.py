@@ -34,6 +34,9 @@ IMPLIES = {
 # Un nivel es un conjunto canónico de permisos otorgables. Son los únicos 6
 # conjuntos distintos que produce el retículo IMPLIES; el resto son
 # combinaciones redundantes que la UI no necesita ofrecer.
+# Niveles de acceso a subgrupos: el select excluyente de la UI.
+# PERM_VIEW_AVAILABILITY es ortogonal a estos niveles; se gestiona como
+# checkbox independiente (ver has_availability_of / set_permission_level).
 LEVELS = [
     ("view_own", "Ver su subgrupo", {PERM_VIEW_OWN}),
     ("view_availability", "Ver los horarios de su subgrupo", {PERM_VIEW_AVAILABILITY}),
@@ -43,21 +46,30 @@ LEVELS = [
     ("edit_all", "Ver y modificar todos", {PERM_EDIT_ALL}),
 ]
 
+# Nivel especial: ningún permiso de subgrupo (solo posible con availability checkbox).
+LEVEL_NONE = "none"
+
 LEVEL_PERMISSIONS = {key: perms for key, _, perms in LEVELS}
+LEVEL_PERMISSIONS[LEVEL_NONE] = set()
+
 LEVEL_LABELS = {key: label for key, label, _ in LEVELS}
-LEVEL_ORDER = [key for key, _, _ in LEVELS]
+LEVEL_LABELS[LEVEL_NONE] = "— Sin acceso a subgrupos —"
+
+LEVEL_ORDER = [LEVEL_NONE] + [key for key, _, _ in LEVELS]
 
 
-def level_of(raw_permissions) -> str | None:
-    """Nivel al que corresponde un conjunto de permisos directos, o None.
+def level_of(raw_permissions) -> str:
+    """Nivel de subgrupo correspondiente al conjunto de permisos directos.
 
-    Compara por permisos efectivos. Si el conjunto no calza exacto con ningún
-    nivel (combinación escrita a mano o heredada), devuelve el nivel de mayor
-    cobertura contenido en él.
+    Ignora PERM_VIEW_AVAILABILITY (dimensión ortogonal; ver has_availability_of).
+    Devuelve LEVEL_NONE si el conjunto no incluye ningún permiso de subgrupo.
+    Si el conjunto no calza exacto con ningún nivel, devuelve el nivel de mayor
+    cobertura contenido en él (sin riesgo de degradar: la dimensión availability
+    está excluida del matching).
     """
-    raw = set(raw_permissions)
+    raw = set(raw_permissions) - {PERM_VIEW_AVAILABILITY}
     if not raw:
-        return None
+        return LEVEL_NONE
     effective = expand(raw)
     for key, _, perms in LEVELS:
         if expand(perms) == effective:
@@ -66,7 +78,12 @@ def level_of(raw_permissions) -> str | None:
     for key, _, perms in LEVELS:
         if expand(perms) <= effective and len(perms) > best_size:
             best_key, best_size = key, len(perms)
-    return best_key
+    return best_key or LEVEL_NONE
+
+
+def has_availability_of(raw_permissions) -> bool:
+    """True si el conjunto de permisos directos incluye availability.view_all."""
+    return PERM_VIEW_AVAILABILITY in set(raw_permissions)
 
 
 def expand(raw_permissions) -> set[str]:

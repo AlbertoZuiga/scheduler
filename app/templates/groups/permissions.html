@@ -49,6 +49,10 @@
         <option value="{{ key }}">{{ level_labels[key] }}</option>
         {% endfor %}
       </select>
+      <label class="flex items-center gap-1 text-sm whitespace-nowrap cursor-pointer">
+        <input type="checkbox" name="availability" value="on" class="rounded">
+        Horarios
+      </label>
       {{ button('Agregar', size='sm') }}
     </div>
   </form>
@@ -66,7 +70,7 @@
           <p class="text-xs text-light-text-secondary dark:text-dark-text-secondary">{{ row.member_count }} persona(s)</p>
         </div>
         <div class="flex gap-2">
-          <form method="POST" action="{{ url_for('groups.set_permission_level', group_id=group.id) }}" class="flex gap-2">
+          <form method="POST" action="{{ url_for('groups.set_permission_level', group_id=group.id) }}" class="flex gap-2 items-center flex-wrap">
             {{ csrf() }}
             <input type="hidden" name="subject_type" value="category">
             <input type="hidden" name="subject_id" value="{{ row.category.id }}">
@@ -75,6 +79,10 @@
               <option value="{{ key }}" {% if key == row.level %}selected{% endif %}>{{ level_labels[key] }}</option>
               {% endfor %}
             </select>
+            <label class="flex items-center gap-1 text-sm whitespace-nowrap cursor-pointer">
+              <input type="checkbox" name="availability" value="on" {% if row.has_availability %}checked{% endif %} class="rounded">
+              Horarios
+            </label>
             {{ button('Guardar', variant='secondary', size='sm') }}
           </form>
           <form method="POST" action="{{ url_for('groups.revoke_permission', group_id=group.id) }}">
@@ -99,7 +107,7 @@
           <p class="text-xs text-light-text-secondary dark:text-dark-text-secondary break-all">{{ row.member.user.email }}</p>
         </div>
         <div class="flex gap-2">
-          <form method="POST" action="{{ url_for('groups.set_permission_level', group_id=group.id) }}" class="flex gap-2">
+          <form method="POST" action="{{ url_for('groups.set_permission_level', group_id=group.id) }}" class="flex gap-2 items-center flex-wrap">
             {{ csrf() }}
             <input type="hidden" name="subject_type" value="member">
             <input type="hidden" name="subject_id" value="{{ row.member.id }}">
@@ -108,6 +116,10 @@
               <option value="{{ key }}" {% if key == row.level %}selected{% endif %}>{{ level_labels[key] }}</option>
               {% endfor %}
             </select>
+            <label class="flex items-center gap-1 text-sm whitespace-nowrap cursor-pointer">
+              <input type="checkbox" name="availability" value="on" {% if row.has_availability %}checked{% endif %} class="rounded">
+              Horarios
+            </label>
             {{ button('Guardar', variant='secondary', size='sm') }}
           </form>
           <form method="POST" action="{{ url_for('groups.revoke_permission', group_id=group.id) }}">

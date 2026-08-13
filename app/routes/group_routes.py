@@ -40,12 +40,14 @@ from app.authz import (
 )
 from app.permissions import (
     LEVEL_LABELS,
+    LEVEL_NONE,
     LEVEL_ORDER,
     LEVEL_PERMISSIONS,
     PERM_VIEW_ALL,
     PERM_VIEW_AVAILABILITY,
     effective_permissions,
     grant_sources,
+    has_availability_of,
     level_of,
 )
 from app.services.availability_service import (
@@ -973,6 +975,7 @@ def permissions(group_id):
         category_rows.append({
             "category": cat,
             "level": level_of(direct),
+            "has_availability": has_availability_of(direct),
             "member_count": category_member_counts.get(cat_id, 0),
         })
     category_rows.sort(key=lambda row: row["category"].name)
@@ -982,7 +985,11 @@ def permissions(group_id):
         member = members_by_id.get(member_id)
         if member is None or member.user_id == group.owner_id:
             continue
-        member_rows.append({"member": member, "level": level_of(direct)})
+        member_rows.append({
+            "member": member,
+            "level": level_of(direct),
+            "has_availability": has_availability_of(direct),
+        })
     member_rows.sort(key=lambda row: row["member"].user.name or row["member"].user.email)
 
     granted_category_ids = set(sources["categories"].keys())
@@ -1039,7 +1046,11 @@ def set_permission_level(group_id):
             return redirect(url_for("groups.permissions", group_id=group_id))
         subject_filters = {"category_id": subject_id}
 
-    wanted = LEVEL_PERMISSIONS[level]
+    availability_checked = request.form.get("availability") == "on"
+    wanted_subgroup = LEVEL_PERMISSIONS[level]
+    wanted_availability = {PERM_VIEW_AVAILABILITY} if availability_checked else set()
+    wanted = wanted_subgroup | wanted_availability
+
     existing = GroupPermissionGrant.query.filter_by(group_id=group.id, **subject_filters).all()
     existing_permissions = {grant.permission for grant in existing}
 
