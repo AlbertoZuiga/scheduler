@@ -8,7 +8,7 @@ Cada caso verifica las dos mitades de la garantía:
    grupo, recrear una categoría, volver a marcar un bloque).
 """
 # pylint: disable=redefined-outer-name
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy.exc import IntegrityError
@@ -42,7 +42,7 @@ def _flush_expecting_conflict(session, row):
 @pytest.fixture()
 def fixture_group(db_session):
     """Un grupo con un miembro, una categoría y un subgrupo, ya persistidos."""
-    user = User(email=f"u{datetime.utcnow().timestamp()}@x.test", name="U")
+    user = User(email=f"u{datetime.now(timezone.utc).timestamp()}@x.test", name="U")
     db_session.add(user)
     db_session.flush()
 

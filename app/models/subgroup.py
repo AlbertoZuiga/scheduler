@@ -1,9 +1,8 @@
 """
 Modelos para subgrupos optimizados y división automática de grupos.
 """
-from datetime import datetime
 from app.extensions import scheduler_db
-from app.models.mixins import ACTIVE_ROWS, SoftDeleteMixin
+from app.models.mixins import ACTIVE_ROWS, SoftDeleteMixin, _utcnow
 
 
 class SubGroup(SoftDeleteMixin, scheduler_db.Model):
@@ -17,7 +16,7 @@ class SubGroup(SoftDeleteMixin, scheduler_db.Model):
     name = scheduler_db.Column(scheduler_db.String(200), nullable=False)
     auto_generated = scheduler_db.Column(scheduler_db.Boolean, default=True, nullable=False)
     meta = scheduler_db.Column(scheduler_db.JSON, default=dict)  # Almacena compatibilidad promedio, reglas cumplidas, etc.
-    created_at = scheduler_db.Column(scheduler_db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = scheduler_db.Column(scheduler_db.DateTime, default=_utcnow, nullable=False)
 
     # Relaciones
     parent_group = scheduler_db.relationship('Group', backref=scheduler_db.backref('subgroups', lazy='dynamic', cascade='all, delete-orphan', passive_deletes=True))
@@ -56,7 +55,7 @@ class SubGroupMember(SoftDeleteMixin, scheduler_db.Model):
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     subgroup_id = scheduler_db.Column(scheduler_db.Integer, scheduler_db.ForeignKey('subgroups.id', ondelete='CASCADE'), nullable=False)
     user_id = scheduler_db.Column(scheduler_db.Integer, scheduler_db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
-    added_at = scheduler_db.Column(scheduler_db.DateTime, default=datetime.utcnow, nullable=False)
+    added_at = scheduler_db.Column(scheduler_db.DateTime, default=_utcnow, nullable=False)
 
     # Relaciones
     subgroup = scheduler_db.relationship('SubGroup', back_populates='members')
@@ -106,7 +105,7 @@ class DivisionJob(SoftDeleteMixin, scheduler_db.Model):
     config_json = scheduler_db.Column(scheduler_db.JSON, nullable=False)  # Configuración de entrada (num_groups, rules, etc.)
     result_json = scheduler_db.Column(scheduler_db.JSON, nullable=True)   # Resultado completo (preview)
     status = scheduler_db.Column(scheduler_db.String(50), default='pending', nullable=False)  # pending, confirmed, undone
-    timestamp = scheduler_db.Column(scheduler_db.DateTime, default=datetime.utcnow, nullable=False)
+    timestamp = scheduler_db.Column(scheduler_db.DateTime, default=_utcnow, nullable=False)
 
     # Relaciones
     parent_group = scheduler_db.relationship('Group', backref=scheduler_db.backref('division_jobs', lazy='dynamic', cascade='all, delete-orphan', passive_deletes=True))

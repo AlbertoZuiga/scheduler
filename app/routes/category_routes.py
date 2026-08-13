@@ -333,7 +333,7 @@ def _bulk_do_unassign(mids, cids):
 @category_bp.route("/group_member/<int:group_member_id>", methods=["GET", "POST", "DELETE"])
 @login_required
 def member_categories(group_member_id):
-    gm = active_or_404(GroupMember.query.get(group_member_id))
+    gm = active_or_404(scheduler_db.session.get(GroupMember, group_member_id))
     group_id = gm.group_id
 
     # Must be member to view/modify associations
