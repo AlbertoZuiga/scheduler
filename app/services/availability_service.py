@@ -16,7 +16,7 @@ from types import SimpleNamespace
 from sqlalchemy import func
 
 from app.extensions import scheduler_db
-from app.models import Availability, GroupMember, UserAvailability
+from app.models import Availability, GroupMember, SubGroup, SubGroupMember, UserAvailability
 from app.soft_delete import find_soft_deleted
 
 # Cota del resumen "horarios en que pueden todos". No es paginación: es el techo
@@ -159,6 +159,33 @@ def active_member_user_ids(group_id):
     }
 
 
+def subgroup_peer_user_ids(group_id, user_id):
+    """Ids de miembros activos que comparten algún subgrupo con `user_id`.
+
+    Es el alcance de quien tiene `availability.view_all` sin ver todos los
+    subgrupos: solo la gente de su(s) subgrupo(s), él incluido. Si no pertenece
+    a ninguno el conjunto es vacío y la vista cae al modo "solo mi horario".
+    """
+    own_subgroup_ids = [
+        subgroup_id
+        for (subgroup_id,) in scheduler_db.session.query(SubGroupMember.subgroup_id)
+        .join(SubGroup, SubGroup.id == SubGroupMember.subgroup_id)
+        .filter(SubGroup.parent_group_id == group_id)
+        .filter(SubGroupMember.user_id == user_id)
+        .all()
+    ]
+    if not own_subgroup_ids:
+        return set()
+
+    peers = {
+        peer_id
+        for (peer_id,) in scheduler_db.session.query(SubGroupMember.user_id)
+        .filter(SubGroupMember.subgroup_id.in_(own_subgroup_ids))
+        .all()
+    }
+    return peers & active_member_user_ids(group_id)
+
+
 def count_out_of_range_marks(group_id, start_minutes, end_minutes, weekdays):
     """Cuenta marcas de disponibilidad que el nuevo rango dejaría fuera de la grilla.
 
@@ -250,8 +277,11 @@ def _move_marks(group, row, targets, known):
     return moved
 
 
-def get_availability_data(group_id, limit=AVAILABILITY_SUMMARY_LIMIT):
+def get_availability_data(group_id, limit=AVAILABILITY_SUMMARY_LIMIT, user_ids=None):
     """Bloques del grupo con sus asistentes, del más concurrido al menos.
+
+    `user_ids` acota el agregado a un subconjunto de miembros (el alcance de
+    subgrupo de quien mira). Si es None se agregan todos los miembros activos.
 
     Se resuelve en dos pasos para no traer todas las marcas del grupo en cada
     page view: primero un GROUP BY que ordena los bloques por concurrencia y se
@@ -262,7 +292,7 @@ def get_availability_data(group_id, limit=AVAILABILITY_SUMMARY_LIMIT):
     if not group_id:
         return {}
 
-    member_ids = active_member_user_ids(group_id)
+    member_ids = active_member_user_ids(group_id) if user_ids is None else set(user_ids)
     if not member_ids:
         return {}
 
