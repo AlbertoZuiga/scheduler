@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'macros/ui.html' import CARD_BASE, button, csrf, icon, input_class, select_class %}
 
 {% block title %}Subgrupos - {{ group.name }}{% endblock %}
 
@@ -6,11 +7,11 @@
 <div class="w-full max-w-5xl mx-auto space-y-6">
   <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
     <div>
-      <h1 class="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2">
-        <svg class="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+      <h2 class="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2">
+        {{ icon('user-group', 'w-6 h-6 sm:w-8 sm:h-8') }}
         <span class="hidden xs:inline">{{ "Subgrupos de " ~ group.name if can_view_all else "Mi subgrupo" }}</span>
         <span class="xs:hidden">Subgrupos</span>
-      </h1>
+      </h2>
       <p class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary mt-1">
         {% if can_edit_all %}Gestiona manualmente los subgrupos: crea ajustes, mueve personas entre equipos y corrige asignaciones sin rehacer la división.
         {% elif can_view_all %}Puedes ver todos los subgrupos y editar los tuyos.
@@ -19,21 +20,21 @@
     </div>
     <div class="flex flex-col xs:flex-row gap-2 w-full xs:w-auto">
       {% if can_edit_all %}
-      <a href="{{ url_for('subgroups.new', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity touch-manipulation active:scale-95 min-h-[48px] font-medium">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+      {% call button(size='lg', href=url_for('subgroups.new', group_id=group.id)) %}
+        {{ icon('plus') }}
         <span class="hidden sm:inline">Nueva División</span>
         <span class="sm:hidden">Nueva</span>
-      </a>
+      {% endcall %}
       {% endif %}
-      <a href="{{ url_for('groups.show', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-4 py-3 border-2 border-light-border dark:border-dark-border rounded-lg hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition-colors touch-manipulation active:scale-95 min-h-[48px]">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+      {% call button(variant='secondary', size='lg', href=url_for('groups.show', group_id=group.id)) %}
+        {{ icon('arrow-left') }}
         Volver
-      </a>
+      {% endcall %}
     </div>
   </div>
 
   {% if can_edit_all %}
-  <section class="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border p-4 sm:p-5 space-y-4">
+  <section class="{{ CARD_BASE }} p-4 sm:p-5 space-y-4">
     <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
       <div class="space-y-1">
         <h2 class="text-lg font-semibold">Edición Manual</h2>
@@ -56,12 +57,12 @@
     </div>
 
     <form method="POST" action="{{ url_for('subgroups.create_manual', group_id=group.id) }}" class="flex flex-col md:flex-row gap-3">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="text" name="name" class="flex-1 min-w-0 px-3 py-2.5 rounded-lg border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background" placeholder="Nombre del nuevo subgrupo manual" required>
-      <button type="submit" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition min-h-[44px] font-medium">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+      {{ csrf() }}
+      <input type="text" name="name" class="{{ input_class('flex-1 min-w-0') }}" placeholder="Nombre del nuevo subgrupo manual" required>
+      {% call button(variant='success') %}
+        {{ icon('plus', 'w-4 h-4') }}
         Crear subgrupo manual
-      </button>
+      {% endcall %}
     </form>
   </section>
   {% endif %}
@@ -85,7 +86,7 @@
     {% for subgroup in subgroups %}
       {% set member_ids = subgroup_member_user_ids.get(subgroup.id, []) %}
       {% set can_edit_this = subgroup.id in editable_subgroup_ids %}
-      <div class="bg-light-card dark:bg-dark-card rounded-xl shadow-sm border border-light-border dark:border-dark-border flex flex-col h-full overflow-hidden">
+      <div class="{{ CARD_BASE }} shadow-sm flex flex-col h-full overflow-hidden">
         <div class="{% if subgroup.auto_generated %}bg-blue-500{% else %}bg-emerald-600{% endif %} text-white px-4 py-3">
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0 flex-1">
@@ -108,11 +109,9 @@
         <div class="p-4 sm:p-5 flex-1 space-y-4">
           {% if can_edit_this %}
           <form method="POST" action="{{ url_for('subgroups.rename', group_id=group.id, subgroup_id=subgroup.id) }}" class="rename-form hidden flex-col sm:flex-row gap-2" data-subgroup-id="{{ subgroup.id }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="text" name="name" value="{{ subgroup.name }}" class="flex-1 min-w-0 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background" required>
-            <button type="submit" class="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 min-h-[40px] text-sm font-medium">
-              Guardar nombre
-            </button>
+            {{ csrf() }}
+            <input type="text" name="name" value="{{ subgroup.name }}" class="{{ input_class('flex-1 min-w-0') }}" required>
+            {{ button('Guardar nombre', variant='secondary', size='sm') }}
           </form>
 
           <div class="rounded-lg border border-light-border dark:border-dark-border p-3 space-y-2">
@@ -121,8 +120,8 @@
               <p class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Puedes agregar aquí a cualquier miembro del grupo que todavía no esté en este subgrupo.</p>
             </div>
             <form method="POST" action="{{ url_for('subgroups.add_member', group_id=group.id, subgroup_id=subgroup.id) }}" class="flex flex-col sm:flex-row gap-2">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <select name="user_id" class="flex-1 min-w-0 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background" {% if member_ids|length == group_members|length %}disabled{% endif %} required>
+              {{ csrf() }}
+              <select name="user_id" class="{{ select_class('flex-1 min-w-0') }}" {% if member_ids|length == group_members|length %}disabled{% endif %} required>
                 <option value="">Selecciona una persona</option>
                 {% for member in group_members %}
                   {% if member.user_id not in member_ids %}
@@ -131,9 +130,7 @@
                   {% endif %}
                 {% endfor %}
               </select>
-              <button type="submit" class="inline-flex items-center justify-center px-3 py-2 rounded-lg bg-primary text-white hover:opacity-90 min-h-[40px] text-sm font-medium" {% if member_ids|length == group_members|length %}disabled{% endif %}>
-                Agregar
-              </button>
+              {% call button(size='sm', attrs={'disabled': 'disabled'} if member_ids|length == group_members|length else {}) %}Agregar{% endcall %}
             </form>
             {% if member_ids|length == group_members|length %}
               <p class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Este subgrupo ya contiene a todas las personas del grupo.</p>
@@ -161,10 +158,8 @@
                     </div>
                     {% if can_edit_this %}
                     <form method="POST" action="{{ url_for('subgroups.remove_member', group_id=group.id, subgroup_id=subgroup.id, user_id=member.user_id) }}" data-confirm="¿Quitar a esta persona del subgrupo {{ subgroup.name }}?" class="shrink-0">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <button type="submit" class="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 min-h-[40px] text-sm font-medium w-full sm:w-auto">
-                        Quitar
-                      </button>
+                      {{ csrf() }}
+                      {{ button('Quitar', variant='danger-outline', size='sm', class='w-full sm:w-auto') }}
                     </form>
                     {% endif %}
                   </div>
@@ -172,8 +167,8 @@
                   {% if can_edit_this %}
                     {% if move_targets|length > 1 %}
                     <form method="POST" action="{{ url_for('subgroups.move_member', group_id=group.id, subgroup_id=subgroup.id, user_id=member.user_id) }}" class="flex flex-col sm:flex-row gap-2">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <select name="target_subgroup_id" class="flex-1 min-w-0 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-white dark:bg-dark-card" required>
+                      {{ csrf() }}
+                      <select name="target_subgroup_id" class="{{ select_class('flex-1 min-w-0') }}" required>
                         <option value="">Mover a otro subgrupo</option>
                         {% for target_subgroup in move_targets %}
                           {% if target_subgroup.id != subgroup.id %}
@@ -181,9 +176,7 @@
                           {% endif %}
                         {% endfor %}
                       </select>
-                      <button type="submit" class="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-blue-300 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 min-h-[40px] text-sm font-medium">
-                        Mover
-                      </button>
+                      {{ button('Mover', variant='secondary', size='sm') }}
                     </form>
                     {% elif can_edit_all %}
                     <p class="text-xs text-light-text-secondary dark:text-dark-text-secondary">Crea otro subgrupo si quieres mover personas desde este.</p>
@@ -204,10 +197,8 @@
         <div class="px-4 py-3 bg-light-muted/20 dark:bg-dark-muted/20 border-t border-light-border dark:border-dark-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <small class="text-light-text-muted dark:text-dark-text-muted">Puedes eliminar este subgrupo si ya no lo necesitas.</small>
           <form method="POST" action="{{ url_for('subgroups.delete', group_id=group.id, subgroup_id=subgroup.id) }}" data-confirm="¿Eliminar el subgrupo {{ subgroup.name }}? También se quitarán sus asignaciones actuales." >
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 min-h-[40px] text-sm font-medium w-full sm:w-auto">
-              Eliminar subgrupo
-            </button>
+            {{ csrf() }}
+            {{ button('Eliminar subgrupo', variant='danger-outline', size='sm', class='w-full sm:w-auto') }}
           </form>
         </div>
         {% endif %}
@@ -220,10 +211,10 @@
     <h2 class="text-lg sm:text-xl font-bold mb-2">No hay subgrupos creados</h2>
     {% if can_edit_all %}
     <p class="mb-4 text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary px-4">Puedes crear una división automática o empezar con un subgrupo manual desde la sección de edición.</p>
-    <a href="{{ url_for('subgroups.new', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity touch-manipulation active:scale-95 min-h-[48px] font-medium">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+    {% call button(size='lg', href=url_for('subgroups.new', group_id=group.id)) %}
+      {{ icon('plus') }}
       Crear Primera División
-    </a>
+    {% endcall %}
     {% else %}
     <p class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary px-4">Todavía no hay subgrupos, o no perteneces a ninguno.</p>
     {% endif %}

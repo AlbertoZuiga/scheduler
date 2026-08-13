@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'macros/ui.html' import button, icon %}
 
 {% block title %}Dividir Grupo - {{ group.name }}{% endblock %}
 
@@ -198,14 +199,14 @@
       <p class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary mt-1">Genera subgrupos optimizados basados en compatibilidad horaria y categorías</p>
     </div>
     <div class="flex flex-col xs:flex-row gap-2 w-full xs:w-auto">
-      <button type="button" id="undo-btn" class="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 text-white font-semibold transition-colors touch-manipulation active:scale-95 min-h-[48px] text-sm w-full xs:w-auto">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1z"></path></svg>
+      {% call button(variant='warning', size='lg', type='button', class='w-full xs:w-auto', attrs={'id': 'undo-btn'}) %}
+        {{ icon('refresh') }}
         Deshacer última división
-      </button>
-      <a href="{{ url_for('subgroups.index', group_id=group.id) }}" class="inline-flex items-center justify-center gap-2 px-4 py-3 border-2 border-light-border dark:border-dark-border rounded-lg hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 transition-colors text-light-text-primary dark:text-dark-text-primary touch-manipulation active:scale-95 min-h-[48px] text-sm w-full xs:w-auto">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+      {% endcall %}
+      {% call button(variant='outline', size='lg', href=url_for('subgroups.index', group_id=group.id), class='w-full xs:w-auto') %}
+        {{ icon('arrow-left') }}
         Volver a Subgrupos
-      </a>
+      {% endcall %}
     </div>
   </div>
 
@@ -340,10 +341,10 @@
                 </h3>
                 <p class="text-xs sm:text-sm text-light-text-secondary dark:text-dark-text-secondary mt-1">Selecciona dos o más miembros y agrúpalos. El motor los tratará como una sola unidad durante la división automática.</p>
               </div>
-              <button type="button" id="add-together-group-btn" class="px-3 py-2 text-xs sm:text-sm rounded-lg bg-amber-600 dark:bg-amber-500 hover:bg-amber-700 dark:hover:bg-amber-600 text-white font-semibold transition-all shadow hover:shadow-md touch-manipulation active:scale-95 min-h-[44px] w-full xs:w-auto justify-center flex items-center gap-1">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path></svg>
+              {% call button(variant='warning', size='sm', type='button', class='w-full xs:w-auto', attrs={'id': 'add-together-group-btn'}) %}
+                {{ icon('plus', 'w-4 h-4') }}
                 Crear grupo
-              </button>
+              {% endcall %}
             </div>
             <div class="mb-3">
               <label for="together-member-search" class="sr-only">Buscar usuarios</label>
@@ -384,14 +385,14 @@
           <hr class="my-4 border-light-border dark:border-dark-border">
           <div class="mb-3">
             <div class="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-2 mb-2">
-              <h3 class="font-bold text-sm sm:text-base text-light-text-primary dark:text-dark-text-primary flex items-center gap-1">
+              <h6 class="font-bold text-sm sm:text-base text-light-text-primary dark:text-dark-text-primary flex items-center gap-1">
                 <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"></path></svg>
                 <span>Requisitos de Categorías</span>
-              </h3>
-              <button type="button" class="px-3 py-2 text-xs sm:text-sm rounded-lg bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 text-white font-semibold transition-all shadow hover:shadow-md flex items-center gap-1 touch-manipulation active:scale-95 min-h-[44px] w-full xs:w-auto justify-center" id="add-rule-btn">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path></svg>
+              </h6>
+              {% call button(variant='success', size='sm', type='button', class='w-full xs:w-auto', attrs={'id': 'add-rule-btn'}) %}
+                {{ icon('plus', 'w-4 h-4') }}
                 <span>Agregar Requisito</span>
-              </button>
+              {% endcall %}
             </div>
             
             <!-- Explicación simplificada -->
@@ -424,10 +425,10 @@
           </details>
 
           <div class="grid gap-2 mt-4">
-            <button type="submit" class="w-full px-6 py-3 text-lg rounded bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 text-white transition-all flex items-center justify-center gap-2 text-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105" id="generate-btn">
+            {% call button(size='lg', block=true, attrs={'id': 'generate-btn'}) %}
               <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
               <span>Generar Subgrupos Óptimos</span>
-            </button>
+            {% endcall %}
           </div>
         </form>
       </div>
@@ -447,18 +448,18 @@
       </div>
       <div class="px-4 py-3 bg-light-surface dark:bg-dark-surface rounded-b-lg border-t border-light-border dark:border-dark-border">
         <div class="flex gap-2 flex-wrap">
-          <button type="button" class="px-4 py-2 rounded bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 text-white font-semibold transition-all shadow hover:shadow-md flex items-center gap-2" id="confirm-btn">
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+          {% call button(variant='success', size='sm', type='button', attrs={'id': 'confirm-btn'}) %}
+            {{ icon('check') }}
             Confirmar División
-          </button>
-          <button type="button" class="px-4 py-2 rounded bg-light-muted dark:bg-dark-muted hover:bg-light-muted/70 dark:hover:bg-dark-muted/70 text-light-text-primary dark:text-dark-text-primary font-semibold transition-all shadow hover:shadow-md flex items-center gap-2" id="redo-btn">
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path></svg>
+          {% endcall %}
+          {% call button(variant='secondary', size='sm', type='button', attrs={'id': 'redo-btn'}) %}
+            {{ icon('refresh') }}
             Rehacer
-          </button>
-          <button type="button" class="px-4 py-2 rounded bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white font-semibold transition-all shadow hover:shadow-md flex items-center gap-2" id="export-btn">
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+          {% endcall %}
+          {% call button(size='sm', type='button', attrs={'id': 'export-btn'}) %}
+            {{ icon('download') }}
             Exportar CSV
-          </button>
+          {% endcall %}
         </div>
       </div>
     </div>
@@ -466,9 +467,9 @@
     <!-- Información de Ayuda -->
     <div class="mt-3 rounded-lg border-2 border-teal-300 dark:border-teal-400 bg-teal-50 dark:bg-teal-900/50 shadow-md overflow-hidden">
   <div class="bg-teal-600 dark:bg-teal-600 text-white px-4 py-3">
-        <h2 class="mb-0 font-semibold flex items-center gap-2">
-          <i class="bi bi-info-circle text-xl"></i> Ayuda
-        </h2>
+        <h6 class="mb-0 font-semibold flex items-center gap-2">
+          Ayuda
+        </h6>
       </div>
       <div class="px-4 py-4 bg-light-card dark:bg-dark-card">
         <h3 class="font-bold text-light-text-primary dark:text-dark-text-primary mb-3 text-base">¿Cómo funciona?</h3>

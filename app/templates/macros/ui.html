@@ -1,0 +1,166 @@
+{#
+  Design system mínimo de la app.
+
+  Antes cada template escribía su propia combinación de utilidades de Tailwind
+  (79 combinaciones distintas sólo para botones, tres radios distintos para
+  tarjetas), así que un cambio de estilo había que replicarlo a mano en cada
+  vista. Aquí viven una sola vez: botones, tarjetas, campos de formulario,
+  iconos, el input de CSRF y el modal accesible.
+
+  Uso:
+    {% from 'macros/ui.html' import button, card, field, icon, csrf, modal %}
+
+  Reglas:
+  - Los botones siempre salen de button(); si necesitas algo puntual, pasa
+    class="..." en vez de reescribir la base.
+  - Las tarjetas usan rounded-xl. No inventes otro radio.
+  - icon() sólo cubre los iconos de trazo (viewBox 24, currentColor). Los
+    iconos sólidos o de marca siguen inline en su template.
+#}
+
+{#- Botones ------------------------------------------------------------- -#}
+
+{% set BUTTON_BASE = 'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-all touch-manipulation active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-light-background dark:focus-visible:ring-offset-dark-background disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none' %}
+
+{% set BUTTON_VARIANTS = {
+  'primary': 'bg-primary text-white shadow hover:bg-primary-dark hover:shadow-lg focus-visible:ring-primary',
+  'secondary': 'border border-light-border dark:border-dark-border hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 focus-visible:ring-primary',
+  'outline': 'border-2 border-primary text-primary hover:bg-primary hover:text-white focus-visible:ring-primary',
+  'success': 'bg-success text-white shadow hover:bg-success-dark hover:shadow-lg focus-visible:ring-success',
+  'success-outline': 'border-2 border-success text-success hover:bg-success hover:text-white focus-visible:ring-success',
+  'danger': 'bg-error text-white shadow hover:bg-error-dark hover:shadow-lg focus-visible:ring-error',
+  'danger-outline': 'border border-error text-error hover:bg-error hover:text-white focus-visible:ring-error',
+  'warning': 'bg-warning-dark text-white shadow hover:bg-warning hover:shadow-lg focus-visible:ring-warning',
+  'ghost': 'hover:bg-primary/10 dark:hover:bg-accent/10 focus-visible:ring-primary',
+} %}
+
+{% set BUTTON_SIZES = {
+  'sm': 'px-3 py-2 text-sm min-h-[40px]',
+  'md': 'px-4 py-2.5 text-sm sm:text-base min-h-[44px]',
+  'lg': 'px-6 py-3 text-base sm:text-lg min-h-[48px]',
+} %}
+
+{% macro button_class(variant='primary', size='md', block=false, class='') -%}
+{{ BUTTON_BASE }} {{ BUTTON_VARIANTS[variant] }} {{ BUTTON_SIZES[size] }}{% if block %} w-full{% endif %}{% if class %} {{ class }}{% endif %}
+{%- endmacro %}
+
+{#
+  button(): renderiza <a> si recibe href, <button> en caso contrario.
+  El contenido puede venir como `label` o como bloque:
+    {% call button(variant='primary') %}{{ icon('plus') }} Crear{% endcall %}
+  `attrs` es un dict de atributos extra (id, onclick, data-*, title, ...).
+#}
+{% macro button(label='', variant='primary', size='md', href=none, type='submit', block=false, class='', attrs={}) -%}
+{%- set tag = 'a' if href else 'button' -%}
+<{{ tag }}{% if href %} href="{{ href }}"{% else %} type="{{ type }}"{% endif %} class="{{ button_class(variant, size, block, class) }}"{% for name, value in attrs.items() %} {{ name }}="{{ value }}"{% endfor %}>{% if caller %}{{ caller() }}{% else %}{{ label }}{% endif %}</{{ tag }}>
+{%- endmacro %}
+
+{#- Tarjetas ------------------------------------------------------------ -#}
+
+{% set CARD_BASE = 'bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border' %}
+
+{% macro card(class='', shadow=true) -%}
+<div class="{{ CARD_BASE }}{% if shadow %} shadow{% endif %}{% if class %} {{ class }}{% endif %}">{{ caller() }}</div>
+{%- endmacro %}
+
+{# Cabecera y pie de tarjeta, para no repetir los divisores. #}
+{% macro card_header(class='') -%}
+<div class="px-4 sm:px-5 py-3 sm:py-4 border-b border-light-border dark:border-dark-border{% if class %} {{ class }}{% endif %}">{{ caller() }}</div>
+{%- endmacro %}
+
+{% macro card_footer(class='') -%}
+<div class="px-4 sm:px-5 py-3 border-t border-light-border dark:border-dark-border bg-light-muted/20 dark:bg-dark-muted/20 rounded-b-xl{% if class %} {{ class }}{% endif %}">{{ caller() }}</div>
+{%- endmacro %}
+
+{#- Campos de formulario ------------------------------------------------- -#}
+
+{% set INPUT_BASE = 'w-full px-3 sm:px-4 py-3 rounded-lg text-base border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background text-light-text-primary dark:text-dark-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary touch-manipulation' %}
+
+{% macro input_class(class='') -%}
+{{ INPUT_BASE }}{% if class %} {{ class }}{% endif %}
+{%- endmacro %}
+
+{% set SELECT_BASE = 'rounded-lg border border-light-border dark:border-dark-border bg-light-background dark:bg-dark-background text-light-text-primary dark:text-dark-text-primary px-3 py-2 text-sm min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary' %}
+
+{% macro select_class(class='') -%}
+{{ SELECT_BASE }}{% if class %} {{ class }}{% endif %}
+{%- endmacro %}
+
+{#
+  field(): label + input + texto de ayuda. Para inputs sueltos (sin label)
+  usa input_class() directamente.
+#}
+{% macro field(name, label='', type='text', value='', placeholder='', required=false, help='', id=none, class='', attrs={}) -%}
+{%- set field_id = id or name -%}
+<div>
+  {%- if label %}
+  <label for="{{ field_id }}" class="block text-sm font-medium mb-2">{{ label }}{% if required %} <span class="text-error">*</span>{% endif %}</label>
+  {%- endif %}
+  <input type="{{ type }}" id="{{ field_id }}" name="{{ name }}" value="{{ value }}"{% if placeholder %} placeholder="{{ placeholder }}"{% endif %}{% if required %} required{% endif %} class="{{ input_class(class) }}"{% for attr, attr_value in attrs.items() %} {{ attr }}="{{ attr_value }}"{% endfor %}>
+  {%- if help %}
+  <p class="text-xs text-light-text-muted dark:text-dark-text-muted mt-1">{{ help }}</p>
+  {%- endif %}
+</div>
+{%- endmacro %}
+
+{% macro csrf() -%}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{%- endmacro %}
+
+{#- Iconos --------------------------------------------------------------- -#}
+
+{% set ICON_PATHS = {
+  'arrow-left': 'M10 19l-7-7m0 0l7-7m-7 7h18',
+  'arrow-right': 'M14 5l7 7m0 0l-7 7m7-7H3',
+  'calendar': 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+  'check': 'M5 13l4 4L19 7',
+  'chevron-down': 'M19 9l-7 7-7-7',
+  'clipboard': 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
+  'clock': 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+  'download': 'M12 4v12m0 0l-4-4m4 4l4-4M4 20h16',
+  'lock': 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
+  'inbox': 'M20 13V7a2 2 0 00-2-2H6a2 2 0 00-2 2v6m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4',
+  'link': 'M13.828 14.828a4 4 0 01-5.656-5.656m6.364 6.364A9 9 0 1112 3v1',
+  'list': 'M8 16h8M8 12h8m-8-4h8',
+  'menu': 'M4 6h16M4 12h16M4 18h16',
+  'minus-circle': 'M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z',
+  'plus': 'M12 4v16m8-8H4',
+  'refresh': 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
+  'trash': 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
+  'users': 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-5a4 4 0 11-8 0 4 4 0 018 0zm6 4v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5a2 2 0 012-2h12a2 2 0 012 2z',
+  'user-group': 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
+  'x': 'M6 18L18 6M6 6l12 12',
+} %}
+
+{% macro icon(name, class='w-5 h-5') -%}
+<svg class="{{ class }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ ICON_PATHS.get(name, '') }}" /></svg>
+{%- endmacro %}
+
+{#- Modal ---------------------------------------------------------------- -#}
+
+{#
+  modal(): el patrón accesible que ya usaba members.html (role="dialog",
+  aria-modal, título enlazado por aria-labelledby y overlay que cierra).
+  `close_attr` es el atributo que el JS de cada vista escucha para cerrar.
+  El cuerpo y el pie los aporta el bloque {% call %}.
+#}
+{% macro modal(id, title, close_attr='data-close', close_value='true', panel_class='max-w-2xl') -%}
+<div id="{{ id }}" class="fixed inset-0 z-50 hidden" role="dialog" aria-modal="true" aria-labelledby="{{ id }}Title">
+  <div class="absolute inset-0 bg-black/40" {{ close_attr }}="{{ close_value }}"></div>
+  <div class="relative mx-auto my-10 w-[95%] {{ panel_class }} {{ CARD_BASE }} shadow-lg">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-light-border dark:border-dark-border">
+      <h4 id="{{ id }}Title" class="font-bold">{{ title }}</h4>
+      <button type="button" aria-label="Cerrar" class="p-2 rounded-lg hover:bg-light-muted/30 dark:hover:bg-dark-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" {{ close_attr }}="{{ close_value }}">{{ icon('x', 'w-4 h-4') }}</button>
+    </div>
+    {{ caller() }}
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro modal_body(class='') -%}
+<div class="p-4 space-y-3 max-h-[60vh] overflow-auto{% if class %} {{ class }}{% endif %}">{{ caller() }}</div>
+{%- endmacro %}
+
+{% macro modal_footer(class='') -%}
+<div class="flex justify-end gap-2 px-4 py-3 border-t border-light-border dark:border-dark-border{% if class %} {{ class }}{% endif %}">{{ caller() }}</div>
+{%- endmacro %}
