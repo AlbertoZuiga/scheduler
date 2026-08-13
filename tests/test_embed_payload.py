@@ -15,7 +15,7 @@ import flask
 from test_query_counts import _seed_group  # noqa: F401  (mismo seed de PERF-001)
 
 EMBED_RE = re.compile(
-    r'<script type="application/json" id="embed-data">(.*?)</script>', re.DOTALL
+    r'<script type="application/json" id="embed-data"[^>]*>(.*?)</script>', re.DOTALL
 )
 
 CLAVES_ESPERADAS = {

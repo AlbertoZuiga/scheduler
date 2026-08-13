@@ -23,7 +23,7 @@ from app import scheduler_app  # noqa: E402
 from app.extensions import scheduler_db  # noqa: E402
 
 EMBED_RE = re.compile(
-    r'<script type="application/json" id="embed-data">(.*?)</script>', re.DOTALL
+    r'<script type="application/json" id="embed-data"[^>]*>(.*?)</script>', re.DOTALL
 )
 
 
