@@ -59,6 +59,7 @@ from app.services.group_service import (
     get_category,
     get_category_member_counts,
     get_deleted_groups_for_user,
+    get_group_by_id,
     get_group_by_token,
     get_group_categories,
     get_group_including_deleted,
@@ -168,6 +169,8 @@ def show(group_id):
     perms = effective_permissions(group, membership)
     can_manage = (group.owner_id == current_user.id) or is_admin
     can_see_emails = can_see_member_emails(group, membership)
+    # El email ajeno solo va para owner/admin; el propio siempre. Cadena vacía en
+    # vez de None: el template lo concatena al nombre sin más chequeos.
     user_info_map = {
         member.user.id: {
             "name": display_name(member.user, with_email=can_see_emails),
@@ -179,6 +182,12 @@ def show(group_id):
         } for member in group_members
     }
     can_view_group_availability = PERM_VIEW_AVAILABILITY in perms
+    # Alcance del agregado: None = todo el grupo (owner, admin, subgroups.view_all).
+    # Quien solo ve su subgrupo ve los horarios de ese subgrupo y de nadie más;
+    # si no pertenece a ninguno, el permiso no le abre nada y la vista queda
+    # igual que la de un miembro sin permiso (alcance None, sin grilla ajena):
+    # un alcance vacío vaciaría también el roster, los chips y los contadores
+    # que ese miembro sí ve.
     scope_user_ids = None
     if can_view_group_availability and PERM_VIEW_ALL not in perms:
         peers = subgroup_peer_user_ids(group.id, current_user.id)
@@ -196,6 +205,9 @@ def show(group_id):
     else:
         user_availability_data = get_user_availability_data(group.id, current_user.id)
 
+    # Se resuelve acá y no en la plantilla: indexar por hora dentro del Jinja
+    # daba índices negativos (y celdas pintadas en la fila equivocada) cuando la
+    # marca caía fuera del rango visible.
     selected = set()
     cell_users = {}
     for user_id, weekday, hour in user_availability_data:
@@ -225,6 +237,9 @@ def show(group_id):
         for gm in scoped_members
     }
     user_gm_map = {gm.user_id: gm.id for gm in scoped_members}
+    # El roster de cada categoría se arma acá, no en la plantilla: allá era un
+    # bucle de miembros dentro del bucle de categorías (O(categorías×miembros))
+    # que además volvía a tocar `group.members` en cada vuelta.
     category_member_names = {category.id: [] for category in group_categories}
     for gm in group_members:
         shown_name = display_name(gm.user, with_email=can_see_emails)
@@ -682,7 +697,7 @@ def restore(group_id):
 @group_bp.route("/<int:group_id>/leave", methods=["POST"])
 @login_required
 def leave(group_id):
-    group = active_or_404(scheduler_db.session.get(Group, group_id))
+    group = active_or_404(get_group_by_id(group_id))
 
     # La disponibilidad del usuario no se toca: queda fuera de los agregados
     # por dejar de ser miembro, y vuelve tal cual si reingresa.

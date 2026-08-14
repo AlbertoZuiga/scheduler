@@ -189,7 +189,12 @@ def revoke_all_permissions(group, subject_type, subject_id, actor):
 
 
 def counts_by_model(model, group_ids):
-    """{group_id: filas activas de `model`} en una sola consulta agregada."""
+    """{group_id: filas activas de `model`} en una sola consulta agregada.
+
+    Un GROUP BY en vez de |length sobre las relaciones lazy: |length cargaba
+    miembros y categorías completos de cada grupo (dos SELECT por fila) solo
+    para contarlos.
+    """
     if not group_ids:
         return {}
     return dict(
@@ -216,7 +221,11 @@ def get_responded_user_ids(group_id, visible_user_ids):
 
 
 def get_member_availability_counts(group_id, user_ids):
-    """Conteo de bloques disponibles por usuario. Usado en el CSV export."""
+    """Conteo de bloques disponibles por usuario. Usado en el CSV export.
+
+    Un GROUP BY para todo el grupo en vez de un COUNT por miembro: antes el
+    export era O(miembros) consultas.
+    """
     return dict(
         scheduler_db.session.query(
             UserAvailability.user_id, func.count(UserAvailability.id)
@@ -255,7 +264,11 @@ def get_trash_count(user_id):
 
 
 def get_group_members(group_id, limit=500):
-    """Miembros activos con user y categories cargados, ordenados por id."""
+    """Miembros activos con user y categories cargados, ordenados por id.
+
+    El selectinload previene dos SELECT por miembro: la vista recorre
+    `member.user` y `member.categories` de todos los miembros.
+    """
     return (
         GroupMember.query.filter_by(group_id=group_id)
         .options(selectinload(GroupMember.user), selectinload(GroupMember.categories))
@@ -347,6 +360,11 @@ def get_group_including_deleted(group_id):
         .filter(Group.id == group_id)
         .first()
     )
+
+
+def get_group_by_id(group_id):
+    """Busca un grupo por id usando session.get (sin filtros de soft-delete)."""
+    return scheduler_db.session.get(Group, group_id)
 
 
 def get_group_by_token(token):

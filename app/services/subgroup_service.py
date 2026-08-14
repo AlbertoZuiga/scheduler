@@ -823,6 +823,9 @@ def add_subgroup_member(subgroup_id, user_id):
     return membership
 
 
+# Cada click en "Generar" escribe un DivisionJob con el preview completo (una
+# fila JSON gorda con nombres y correos). Se conservan los más recientes; el
+# resto se oculta.
 RETAINED_JOBS_PER_GROUP = 10
 
 
@@ -980,6 +983,34 @@ def move_subgroup_member(source_subgroup, target_subgroup, user_id):
 def get_group_member_count(group_id):
     """Cantidad de miembros activos del grupo."""
     return GroupMember.query.filter_by(group_id=group_id).count()
+
+
+def get_division_job(group_id, job_id):
+    """DivisionJob activo del grupo, o None."""
+    return DivisionJob.query.filter_by(id=job_id, parent_group_id=group_id).first()
+
+
+def get_subgroup(group_id, subgroup_id):
+    """SubGroup activo del grupo, o None."""
+    return SubGroup.query.filter_by(id=subgroup_id, parent_group_id=group_id).first()
+
+
+def get_subgroups_with_members(group_id):
+    """SubGroups del grupo con miembros y usuarios cargados, ordenados por fecha de creación.
+
+    El selectinload doble previene N+1 al iterar miembros y sus usuarios.
+    """
+    return (
+        SubGroup.query.filter_by(parent_group_id=group_id)
+        .options(selectinload(SubGroup.members).selectinload(SubGroupMember.user))
+        .order_by(SubGroup.created_at.asc(), SubGroup.id.asc())
+        .all()
+    )
+
+
+def get_confirmed_subgroups(group_id):
+    """SubGroups activos del grupo. Sin eager loading: usado en el export CSV."""
+    return SubGroup.query.filter_by(parent_group_id=group_id).all()
 
 
 def get_group_members_sorted(group_id):
