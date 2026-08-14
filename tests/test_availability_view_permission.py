@@ -229,6 +229,7 @@ def test_permiso_sin_subgrupo_no_abre_la_grilla(app, db_session):
 
 
 def test_permiso_con_subgroups_view_all_ve_todo_el_grupo(app, db_session):
+    """availability.view_all + subgroups.view_all → ve la grilla agregada."""
     group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-scope-all")
 
     db_session.add_all([
@@ -368,27 +369,6 @@ def test_owner_puede_revocar_availability_view_all_via_ruta(app, db_session):
         deleted_at=None,
     ).first()
     assert active is None
-
-
-# ---------------------------------------------------------------------------
-# Criterio 7: combinación availability.view_all + subgroups.view_all
-# ---------------------------------------------------------------------------
-
-def test_permiso_con_subgroups_view_all_ve_todo_el_grupo(app, db_session):
-    """availability.view_all + subgroups.view_all → ve la grilla agregada."""
-    group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-combo-view-all")
-
-    db_session.add_all([
-        GroupPermissionGrant(group_id=group.id, group_member_id=gm_b.id, permission=PERM_VIEW_AVAILABILITY),
-        GroupPermissionGrant(group_id=group.id, group_member_id=gm_b.id, permission=PERM_VIEW_ALL),
-    ])
-    db_session.commit()
-
-    body = _get_show(app, member_b.id, group.id)
-    payload = _embed(body)
-
-    assert payload["can_view_availability"] is True
-    assert "Miembro A" in body or "Owner" in body
 
 
 # ---------------------------------------------------------------------------
