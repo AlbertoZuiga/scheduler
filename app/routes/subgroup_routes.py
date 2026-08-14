@@ -19,7 +19,6 @@ from flask import (
 )
 from flask_login import current_user, login_required
 from sqlalchemy.exc import SQLAlchemyError
-from werkzeug.exceptions import HTTPException
 
 from app.authz import (
     can_see_member_emails,
@@ -189,9 +188,6 @@ def generate(group_id):
 
         return jsonify(preview), 200
 
-    except HTTPException:
-        raise
-
     except ValueError as e:
         # Mensaje de validación del servicio, pensado para el usuario.
         scheduler_db.session.rollback()
@@ -241,9 +237,6 @@ def confirm(group_id):
             }
         ), 200
 
-    except HTTPException:
-        raise
-
     except SQLAlchemyError:
         scheduler_db.session.rollback()
         current_app.logger.exception("Error de BD al confirmar subgrupos del grupo %s", group_id)
@@ -272,9 +265,6 @@ def undo(group_id):
         return jsonify(
             {"success": True, "message": f"Se eliminaron {len(subgroups)} subgrupos."}
         ), 200
-
-    except HTTPException:
-        raise
 
     except SQLAlchemyError:
         scheduler_db.session.rollback()
@@ -386,9 +376,6 @@ def export(group_id):
 
         return response
 
-    except HTTPException:
-        raise
-
     except SQLAlchemyError:
         current_app.logger.exception("Error de BD al exportar subgrupos del grupo %s", group_id)
         flash("No se pudo exportar los subgrupos.", "danger")
@@ -490,8 +477,6 @@ def create_manual(group_id):
         create_manual_subgroup(group_id, name)
         scheduler_db.session.commit()
         flash(f'Subgrupo "{name}" creado correctamente.', "success")
-    except HTTPException:
-        raise
     except SQLAlchemyError:
         scheduler_db.session.rollback()
         current_app.logger.exception(
@@ -523,8 +508,6 @@ def rename(group_id, subgroup_id):
     try:
         scheduler_db.session.commit()
         flash(f'Subgrupo renombrado a "{new_name}".', "success")
-    except HTTPException:
-        raise
     except SQLAlchemyError:
         scheduler_db.session.rollback()
         current_app.logger.exception("Error de BD al renombrar el subgrupo %s", subgroup_id)
@@ -547,8 +530,6 @@ def delete(group_id, subgroup_id):
         subgroup.soft_delete()
         scheduler_db.session.commit()
         flash(f'Se eliminó el subgrupo "{subgroup_name}".', "success")
-    except HTTPException:
-        raise
     except SQLAlchemyError:
         scheduler_db.session.rollback()
         current_app.logger.exception("Error de BD al eliminar el subgrupo %s", subgroup_id)
@@ -589,8 +570,6 @@ def add_member(group_id, subgroup_id):
             f'fue agregado a "{subgroup.name}".',
             "success",
         )
-    except HTTPException:
-        raise
     except SQLAlchemyError:
         scheduler_db.session.rollback()
         current_app.logger.exception(
@@ -626,8 +605,6 @@ def remove_member(group_id, subgroup_id, user_id):
             f'{display_name(user, with_email=False)} fue quitado de "{subgroup.name}".',
             "success",
         )
-    except HTTPException:
-        raise
     except SQLAlchemyError:
         scheduler_db.session.rollback()
         current_app.logger.exception(
@@ -680,8 +657,6 @@ def move_member(group_id, subgroup_id, user_id):
             f'"{source_subgroup.name}" a "{target_subgroup.name}".',
             "success",
         )
-    except HTTPException:
-        raise
     except SQLAlchemyError:
         scheduler_db.session.rollback()
         current_app.logger.exception(
