@@ -107,7 +107,7 @@ TRASH_LIST_LIMIT = 200
 def _commit_or_flash_conflict(message, log_message, *log_args):
     """Commitea; si un unique de BD rechaza el duplicado, avisa en limpio.
 
-    Los unique parciales de DATA-001 son lo que atrapa la carrera entre dos
+    Los unique parciales de membresías activas son lo que atrapa la carrera entre dos
     requests que pasan a la vez el chequeo previo en Python. Sin este manejo el
     segundo vería un 500 crudo en vez de un mensaje.
     """
@@ -288,7 +288,7 @@ def create():
     if request.method == "POST":
         group_name = request.form["group_name"].strip()
         # `Group.name` es String(150): sin este chequeo Postgres tira DataError y
-        # el usuario ve un 500 crudo. El maxlength del template no basta (UX-004).
+        # el usuario ve un 500 crudo. El maxlength del template no basta.
         if not group_name:
             flash("❌ El nombre del grupo es obligatorio.", "warning")
             return render_template("groups/create.html"), 400
@@ -323,7 +323,7 @@ def create():
 @group_bp.route("/<int:group_id>/rotate_token", methods=["POST"])
 @login_required
 def rotate_join_token(group_id):
-    """Regenera el link de invitación del grupo (SEC-009).
+    """Regenera el link de invitación del grupo.
 
     Es la única forma de invalidar un link que se filtró, y el camino por el
     que un grupo viejo deja atrás su token de 40 bits. Solo el dueño: un admin
@@ -405,6 +405,7 @@ def members(group_id):
     can_see_emails = can_see_member_emails(group, membership)
     categories = get_group_categories(group.id)
     responded_user_ids = get_responded_user_ids(group.id, active_member_user_ids(group.id))
+    # Quienes no han respondido primero: son los que necesitan seguimiento.
     group_members.sort(key=lambda gm: gm.user_id in responded_user_ids)
 
     removed_members = []
