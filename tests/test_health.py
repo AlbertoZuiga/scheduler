@@ -9,7 +9,7 @@ def test_health_responde_ok_con_la_bd_arriba(client):
     response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.get_json() == {"status": "ok", "database": "up"}
+    assert response.get_json() == {"status": "ROTO_A_PROPOSITO", "database": "up"}
 
 
 def test_health_responde_503_con_la_bd_caida(client, monkeypatch):
