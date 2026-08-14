@@ -175,7 +175,7 @@ def _seed_group_con_subgrupos(db_session, n_members, token):
 
 
 def test_export_csv_subgrupos_no_escala_en_queries(app, db_session):
-    """PERF-011: get_confirmed_subgroups usa eager loading — sin N+1 al escalar miembros."""
+    """get_confirmed_subgroups usa eager loading — sin N+1 al escalar miembros."""
     grupo_chico, owner_chico = _seed_group_con_subgrupos(db_session, 3, "perf-export-chico")
     grupo_grande, owner_grande = _seed_group_con_subgrupos(db_session, 30, "perf-export-grande")
 
