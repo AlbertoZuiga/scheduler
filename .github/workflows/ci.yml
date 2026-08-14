@@ -25,12 +25,24 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
-      - name: pytest
-        run: pytest -q
+      - name: ruff format
+        run: ruff format --check .
 
+      - name: ruff check
+        run: ruff check .
+
+      # El piso de cobertura sube, nunca baja. Si un PR lo rompe, la respuesta
+      # es agregar tests, no editar el numero.
+      - name: pytest
+        run: pytest -q --cov=app --cov-report=term-missing --cov-fail-under=54
+
+      # No bloqueante a proposito: pylint aca solo aporta olores de diseno
+      # (too-many-*, duplicate-code), que son juicios, no defectos. Lo que si
+      # bloquea es ruff. Se acotan las categorias C y R0801 para que el reporte
+      # no se llene de ruido que ruff ya cubre.
       - name: pylint (no bloqueante)
         continue-on-error: true
-        run: pylint --rcfile=.pylintrc app config.py run.py tests
+        run: pylint --rcfile=.pylintrc --disable=C,R0801 app config.py run.py tests
 
   lint-js:
     runs-on: ubuntu-latest
@@ -47,3 +59,26 @@ jobs:
 
       - name: ESLint
         run: npm run lint:js
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # gitleaks necesita el historial completo para escanear los commits
+          # del PR, no solo el arbol final.
+          fetch-depth: 0
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # No bloqueante en su primera vuelta: las dependencias estan pinneadas y
+      # todavia no sabemos el volumen de CVEs. Se endurece cuando el reporte
+      # este limpio.
+      - name: pip-audit (no bloqueante)
+        continue-on-error: true
+        uses: pypa/gh-action-pip-audit@v1.1.0
+        with:
+          inputs: requirements.txt
