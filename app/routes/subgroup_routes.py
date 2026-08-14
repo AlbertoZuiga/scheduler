@@ -6,13 +6,10 @@ import io
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for, abort, jsonify, make_response
 from flask_login import current_user, login_required
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import selectinload
 from werkzeug.exceptions import HTTPException
 
 from app.extensions import scheduler_db
-from app.models import GroupMember
-from app.models.subgroup import SubGroup, SubGroupMember, DivisionJob
-from app.services.group_service import get_group_categories
+from app.services.group_service import get_group_categories, get_group_member
 
 from app.authz import (
     can_see_member_emails,
@@ -26,9 +23,13 @@ from app.services.subgroup_service import (
     add_subgroup_member,
     confirm_division,
     create_manual_subgroup,
+    get_confirmed_subgroups,
+    get_division_job,
     get_group_member_count,
     get_group_members_sorted,
+    get_subgroup,
     get_subgroup_member,
+    get_subgroups_with_members,
     move_subgroup_member,
     remove_subgroup_member,
     save_division_job,
@@ -58,7 +59,7 @@ def _get_active_job_or_404(group_id, job_id):
     lógico: con él, un job de un grupo borrado (o jubilado por la retención)
     seguía siendo exportable.
     """
-    return DivisionJob.query.filter_by(id=job_id, parent_group_id=group_id).first_or_404()
+    return get_division_job(group_id, job_id) or abort(404)
 
 
 
@@ -67,10 +68,7 @@ def _subgroups_index_redirect(group_id):
 
 
 def _get_subgroup_or_404(group_id, subgroup_id):
-    return SubGroup.query.filter_by(
-        id=subgroup_id,
-        parent_group_id=group_id,
-    ).first_or_404()
+    return get_subgroup(group_id, subgroup_id) or abort(404)
 
 
 
@@ -333,9 +331,7 @@ def export(group_id):
                     ])
         else:
             # Exportar subgrupos confirmados actuales
-            subgroups = SubGroup.query.filter_by(
-                parent_group_id=group_id
-            ).all()
+            subgroups = get_confirmed_subgroups(group_id)
             
             if not subgroups:
                 flash('No hay subgrupos para exportar.', 'warning')
@@ -395,12 +391,7 @@ def index(group_id):
     # a owner/admin en groups.export_members_csv).
     can_see_emails = can_see_member_emails(group, membership)
 
-    all_subgroups = (
-        SubGroup.query.filter_by(parent_group_id=group_id)
-        .options(selectinload(SubGroup.members).selectinload(SubGroupMember.user))
-        .order_by(SubGroup.created_at.asc(), SubGroup.id.asc())
-        .all()
-    )
+    all_subgroups = get_subgroups_with_members(group_id)
     subgroup_member_user_ids = {
         subgroup.id: {member.user_id for member in subgroup.members}
         for subgroup in all_subgroups
@@ -559,7 +550,7 @@ def add_member(group_id, subgroup_id):
         flash('Selecciona una persona para agregar al subgrupo.', 'warning')
         return _subgroups_index_redirect(group_id)
 
-    group_member = GroupMember.query.filter_by(group_id=group_id, user_id=user_id).first()
+    group_member = get_group_member(group_id, user_id)
     if not group_member:
         flash('La persona seleccionada no pertenece a este grupo.', 'danger')
         return _subgroups_index_redirect(group_id)

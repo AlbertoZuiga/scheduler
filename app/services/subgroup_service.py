@@ -985,6 +985,34 @@ def get_group_member_count(group_id):
     return GroupMember.query.filter_by(group_id=group_id).count()
 
 
+def get_division_job(group_id, job_id):
+    """DivisionJob activo del grupo, o None."""
+    return DivisionJob.query.filter_by(id=job_id, parent_group_id=group_id).first()
+
+
+def get_subgroup(group_id, subgroup_id):
+    """SubGroup activo del grupo, o None."""
+    return SubGroup.query.filter_by(id=subgroup_id, parent_group_id=group_id).first()
+
+
+def get_subgroups_with_members(group_id):
+    """SubGroups del grupo con miembros y usuarios cargados, ordenados por fecha de creación.
+
+    El selectinload doble previene N+1 al iterar miembros y sus usuarios.
+    """
+    return (
+        SubGroup.query.filter_by(parent_group_id=group_id)
+        .options(selectinload(SubGroup.members).selectinload(SubGroupMember.user))
+        .order_by(SubGroup.created_at.asc(), SubGroup.id.asc())
+        .all()
+    )
+
+
+def get_confirmed_subgroups(group_id):
+    """SubGroups activos del grupo. Sin eager loading: usado en el export CSV."""
+    return SubGroup.query.filter_by(parent_group_id=group_id).all()
+
+
 def get_group_members_sorted(group_id):
     """Miembros del grupo ordenados por nombre, email, id."""
     members = (
