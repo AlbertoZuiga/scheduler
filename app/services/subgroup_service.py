@@ -823,7 +823,10 @@ def add_subgroup_member(subgroup_id, user_id):
     return membership
 
 
-def prune_division_jobs(group_id, retained=10):
+RETAINED_JOBS_PER_GROUP = 10
+
+
+def prune_division_jobs(group_id, retained=RETAINED_JOBS_PER_GROUP):
     """Oculta los jobs viejos del grupo, conservando el último confirmado.
 
     El confirmado más reciente se preserva siempre: es el que `undo` necesita
