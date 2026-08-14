@@ -8,21 +8,15 @@ from flask import (
 from markupsafe import Markup, escape
 from flask_login import current_user, login_required
 from flask_wtf.csrf import generate_csrf
-from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload
 
 from app.extensions import scheduler_db
 from app.models import (
-    Availability,
     Category,
     Group,
     GroupMember,
-    GroupMemberCategory,
     RoleEnum,
-    UserAvailability,
 )
-from app.models.subgroup import SubGroup
 from app.ratelimit import rate_limit
 from app.authz import (
     can_see_member_emails,
@@ -61,8 +55,25 @@ from app.services.group_service import (
     apply_permission_level,
     counts_by_model,
     create_group,
+    get_admin_group_ids,
+    get_category,
+    get_category_member_counts,
+    get_deleted_groups_for_user,
+    get_group_by_token,
+    get_group_categories,
+    get_group_including_deleted,
+    get_group_member,
+    get_group_member_by_id,
+    get_group_members,
+    get_group_members_for_export,
+    get_group_members_with_users,
+    get_groups_for_user,
     get_member_availability_counts,
+    get_removed_members,
     get_responded_user_ids,
+    get_subgroups_for_show,
+    get_trash_count,
+    get_user_availability_data,
     join_group,
     leave_group,
     revoke_all_permissions,
@@ -70,7 +81,6 @@ from app.services.group_service import (
     update_member_role,
 )
 from app.soft_delete import (
-    INCLUDE_DELETED,
     active_or_404,
     find_soft_deleted,
     restore_batch,
@@ -129,30 +139,12 @@ def assign_colors_to_members(group_members):
 @group_bp.route("/", methods=["GET"])
 @login_required
 def index():
-    groups = (
-        Group.query.join(GroupMember)
-        .filter(GroupMember.user_id == current_user.id)
-        .order_by(Group.name.asc(), Group.id.asc())
-        .all()
-    )
-    memberships = GroupMember.query.filter_by(user_id=current_user.id).all()
-    admin_group_ids = {
-        m.group_id for m in memberships if m.role == RoleEnum.ADMIN
-    }
-
-    # Los contadores de la tarjeta salen de dos GROUP BY, no de `|length` sobre
-    # las relaciones lazy: eso cargaba miembros y categorías completos de cada
-    # grupo (dos SELECT por fila) solo para contarlos.
+    groups = get_groups_for_user(current_user.id)
+    admin_group_ids = get_admin_group_ids(current_user.id)
     group_ids = [group.id for group in groups]
     member_counts = counts_by_model(GroupMember, group_ids)
     category_counts = counts_by_model(Category, group_ids)
-
-    trash_count = (
-        Group.query.execution_options(**{INCLUDE_DELETED: True})
-        .filter(Group.deleted_at.isnot(None), Group.owner_id == current_user.id)
-        .count()
-    )
-
+    trash_count = get_trash_count(current_user.id)
     return render_template(
         "groups/index.html",
         groups=groups,
@@ -170,22 +162,12 @@ def show(group_id):
     blocks = [label for _, label in generate_time_blocks(group)]
     active_weekdays = group.get_active_weekdays()
 
-    # Eager loading: la vista recorre `member.user` y `member.categories` de
-    # todos los miembros, que en lazy son dos SELECT por miembro.
-    group_members = (
-        GroupMember.query.filter_by(group_id=group.id)
-        .options(selectinload(GroupMember.user), selectinload(GroupMember.categories))
-        .order_by(GroupMember.id.asc())
-        .limit(MEMBERS_LIST_LIMIT)
-        .all()
-    )
+    group_members = get_group_members(group.id, MEMBERS_LIST_LIMIT)
     color_map = assign_colors_to_members(group_members)
     is_admin = membership and membership.role == RoleEnum.ADMIN
     perms = effective_permissions(group, membership)
     can_manage = (group.owner_id == current_user.id) or is_admin
     can_see_emails = can_see_member_emails(group, membership)
-    # El email ajeno solo va para owner/admin; el propio siempre. Cadena vacía en
-    # vez de None: el template lo concatena al nombre sin más chequeos.
     user_info_map = {
         member.user.id: {
             "name": display_name(member.user, with_email=can_see_emails),
@@ -197,12 +179,6 @@ def show(group_id):
         } for member in group_members
     }
     can_view_group_availability = PERM_VIEW_AVAILABILITY in perms
-    # Alcance del agregado: None = todo el grupo (owner, admin, subgroups.view_all).
-    # Quien solo ve su subgrupo ve los horarios de ese subgrupo y de nadie más;
-    # si no pertenece a ninguno, el permiso no le abre nada y la vista queda
-    # igual que la de un miembro sin permiso (alcance None, sin grilla ajena):
-    # un alcance vacío vaciaría también el roster, los chips y los contadores
-    # que ese miembro sí ve.
     scope_user_ids = None
     if can_view_group_availability and PERM_VIEW_ALL not in perms:
         peers = subgroup_peer_user_ids(group.id, current_user.id)
@@ -216,28 +192,10 @@ def show(group_id):
     )
 
     if can_view_group_availability:
-        user_availability_data = (
-            scheduler_db.session.query(
-                UserAvailability.user_id, Availability.weekday, Availability.start_minutes
-            )
-            .join(Availability, UserAvailability.availability_id == Availability.id)
-            .filter(Availability.group_id == group.id)
-            .filter(UserAvailability.user_id.in_(visible_user_ids))
-            .all()
-        )
+        user_availability_data = get_user_availability_data(group.id, visible_user_ids)
     else:
-        user_availability_data = (
-            scheduler_db.session.query(
-                UserAvailability.user_id, Availability.weekday, Availability.start_minutes
-            )
-            .join(Availability, Availability.id == UserAvailability.availability_id)
-            .filter(Availability.group_id == group.id)
-            .filter(UserAvailability.user_id == current_user.id)
-            .all()
-        )
-    # Se resuelve acá y no en la plantilla: indexar por hora dentro del Jinja
-    # daba índices negativos (y celdas pintadas en la fila equivocada) cuando la
-    # marca caía fuera del rango visible.
+        user_availability_data = get_user_availability_data(group.id, current_user.id)
+
     selected = set()
     cell_users = {}
     for user_id, weekday, hour in user_availability_data:
@@ -257,7 +215,7 @@ def show(group_id):
     ]
     members_with_availability_count = len(responded_user_ids)
 
-    group_categories = Category.query.filter_by(group_id=group.id).all()
+    group_categories = get_group_categories(group.id)
     scoped_members = [
         gm for gm in group_members
         if scope_user_ids is None or gm.user_id in scope_user_ids
@@ -267,9 +225,6 @@ def show(group_id):
         for gm in scoped_members
     }
     user_gm_map = {gm.user_id: gm.id for gm in scoped_members}
-    # El roster de cada categoría se arma acá, no en la plantilla: allá era un
-    # bucle de miembros dentro del bucle de categorías (O(categorías×miembros))
-    # que además volvía a tocar `group.members` en cada vuelta.
     category_member_names = {category.id: [] for category in group_categories}
     for gm in group_members:
         shown_name = display_name(gm.user, with_email=can_see_emails)
@@ -277,34 +232,9 @@ def show(group_id):
             if assoc.category_id in category_member_names:
                 category_member_names[assoc.category_id].append(shown_name)
 
-    subgroups = (
-        SubGroup.query.filter_by(parent_group_id=group.id)
-        .options(selectinload(SubGroup.members))
-        .order_by(SubGroup.created_at.desc(), SubGroup.id.asc())
-        .all()
+    group_subgroups, user_subgroup_map = get_subgroups_for_show(
+        group.id, scope_user_ids, current_user.id
     )
-    group_subgroups = []
-    user_subgroup_map = {}
-
-    for subgroup in subgroups:
-        # Con alcance de subgrupo propio, los chips de filtro solo muestran los
-        # subgrupos que la persona ve, y los cuentan sobre su misma gente.
-        member_ids = [
-            subgroup_member.user_id
-            for subgroup_member in subgroup.members
-            if scope_user_ids is None or subgroup_member.user_id in scope_user_ids
-        ]
-        if scope_user_ids is not None and current_user.id not in member_ids:
-            continue
-        group_subgroups.append(
-            {
-                "id": subgroup.id,
-                "name": subgroup.name,
-                "member_count": len(member_ids),
-            }
-        )
-        for user_id in member_ids:
-            user_subgroup_map.setdefault(user_id, []).append(subgroup.id)
 
     return render_template(
         "groups/show.html",
@@ -408,7 +338,7 @@ def rotate_join_token(group_id):
 @group_bp.route("/join/<token>", methods=["GET", "POST"])
 @rate_limit(limit=20, window_seconds=300, scope="groups.join")
 def join(token):
-    group = Group.query.filter_by(join_token=token).first()
+    group = get_group_by_token(token)
 
     if not group:
         flash("❌ Grupo no encontrado. Verifica que el enlace de invitación sea correcto.", "danger")
@@ -416,9 +346,7 @@ def join(token):
         target = GROUP_INDEX_URL if current_user.is_authenticated else "main.index"
         return redirect(url_for(target))
 
-    if current_user.is_authenticated and GroupMember.query.filter_by(
-        group_id=group.id, user_id=current_user.id
-    ).first():
+    if current_user.is_authenticated and get_group_member(group.id, current_user.id):
         flash(f"ℹ️ Ya eres miembro del grupo '{group.name}'.", "info")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group.id))
 
@@ -457,31 +385,16 @@ def join(token):
 @login_required
 def members(group_id):
     group, membership = require_group_member(group_id)
-    group_members = (
-        GroupMember.query.filter_by(group_id=group.id)
-        .options(selectinload(GroupMember.user), selectinload(GroupMember.categories))
-        .order_by(GroupMember.id.asc())
-        .limit(MEMBERS_LIST_LIMIT)
-        .all()
-    )
+    group_members = get_group_members(group.id, MEMBERS_LIST_LIMIT)
     can_manage = (group.owner_id == current_user.id) or (membership.role == RoleEnum.ADMIN)
     can_see_emails = can_see_member_emails(group, membership)
-    categories = Category.query.filter_by(group_id=group.id).all()
+    categories = get_group_categories(group.id)
     responded_user_ids = get_responded_user_ids(group.id, active_member_user_ids(group.id))
-    # Quienes no han respondido primero: son los que necesitan seguimiento.
     group_members.sort(key=lambda gm: gm.user_id in responded_user_ids)
 
-    # Miembros removidos: no se borran, quedan disponibles para reincorporar.
     removed_members = []
     if can_manage:
-        removed_members = (
-            GroupMember.query.execution_options(**{INCLUDE_DELETED: True})
-            .options(selectinload(GroupMember.user))
-            .filter(GroupMember.group_id == group.id, GroupMember.deleted_at.isnot(None))
-            .order_by(GroupMember.deleted_at.desc(), GroupMember.id.desc())
-            .limit(MEMBERS_LIST_LIMIT)
-            .all()
-        )
+        removed_members = get_removed_members(group.id, MEMBERS_LIST_LIMIT)
 
     return render_template(
         "groups/members.html",
@@ -506,18 +419,7 @@ def export_members_csv(group_id):
     # Exporta emails de todo el grupo: exclusivo de owner/admin, igual que el
     # resto de la administración de usuarios (antes cualquier miembro podía).
     group, _ = require_group_admin_or_owner(group_id)
-    group_members = (
-        GroupMember.query.filter_by(group_id=group.id)
-        .options(
-            selectinload(GroupMember.user),
-            selectinload(GroupMember.categories).selectinload(GroupMemberCategory.category),
-        )
-        .order_by(GroupMember.id.asc())
-        .all()
-    )
-
-    # Un GROUP BY para todo el grupo en vez de un COUNT por miembro dentro del
-    # bucle: el export era O(miembros) consultas.
+    group_members = get_group_members_for_export(group.id)
     availability_counts = get_member_availability_counts(
         group.id, [member.user_id for member in group_members]
     )
@@ -583,14 +485,7 @@ def availability(group_id):
         flash(f"✅ Disponibilidad actualizada exitosamente ({saved_count} bloques horarios guardados).", "success")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
-    user_availability = (
-        scheduler_db.session.query(
-            UserAvailability.user_id, Availability.weekday, Availability.start_minutes
-        )
-        .join(Availability)
-        .filter(UserAvailability.user_id == current_user.id, Availability.group_id == group_id)
-        .all()
-    )
+    user_availability = get_user_availability_data(group_id, current_user.id)
     selected = set()
     for _, weekday, hour in user_availability:
         block_index = block_index_for(group, hour)
@@ -758,24 +653,14 @@ def delete(group_id):
 @login_required
 def trash():
     """Papelera: grupos que el usuario eliminó y puede restaurar."""
-    groups = (
-        Group.query.execution_options(**{INCLUDE_DELETED: True})
-        .filter(Group.deleted_at.isnot(None), Group.owner_id == current_user.id)
-        .order_by(Group.deleted_at.desc(), Group.id.desc())
-        .limit(TRASH_LIST_LIMIT)
-        .all()
-    )
+    groups = get_deleted_groups_for_user(current_user.id, TRASH_LIST_LIMIT)
     return render_template("groups/trash.html", groups=groups)
 
 
 @group_bp.route("/<int:group_id>/restore", methods=["POST"])
 @login_required
 def restore(group_id):
-    group = (
-        Group.query.execution_options(**{INCLUDE_DELETED: True})
-        .filter(Group.id == group_id)
-        .first()
-    )
+    group = get_group_including_deleted(group_id)
     if group is None or group.owner_id != current_user.id:
         abort(404)
 
@@ -892,26 +777,13 @@ def permissions(group_id):
     """
     group, _ = require_group_owner(group_id)
 
-    categories = Category.query.filter_by(group_id=group.id).all()
+    categories = get_group_categories(group.id)
     categories_by_id = {cat.id: cat for cat in categories}
-    group_members = (
-        GroupMember.query.filter_by(group_id=group.id)
-        .options(selectinload(GroupMember.user))
-        .all()
-    )
+    group_members = get_group_members_with_users(group.id)
     members_by_id = {member.id: member for member in group_members}
     sources = grant_sources(group)
 
-    # Miembros por categoría en un solo GROUP BY: antes era un COUNT por fila
-    # de la tabla de permisos.
-    category_member_counts = dict(
-        scheduler_db.session.query(
-            GroupMemberCategory.category_id, func.count(GroupMemberCategory.id)
-        )
-        .filter(GroupMemberCategory.category_id.in_(list(categories_by_id)))
-        .group_by(GroupMemberCategory.category_id)
-        .all()
-    ) if categories_by_id else {}
+    category_member_counts = get_category_member_counts(set(categories_by_id))
 
     category_rows = []
     for cat_id, direct in sources["categories"].items():
@@ -980,12 +852,12 @@ def set_permission_level(group_id):
         return redirect(url_for("groups.permissions", group_id=group_id))
 
     if subject_type == "member":
-        subject = GroupMember.query.filter_by(id=subject_id, group_id=group.id).first()
+        subject = get_group_member_by_id(subject_id, group.id)
         if not subject or subject.user_id == group.owner_id:
             flash("Miembro inválido.", "danger")
             return redirect(url_for("groups.permissions", group_id=group_id))
     else:
-        subject = Category.query.filter_by(id=subject_id, group_id=group.id).first()
+        subject = get_category(subject_id, group.id)
         if not subject:
             flash("Categoría inválida.", "danger")
             return redirect(url_for("groups.permissions", group_id=group_id))

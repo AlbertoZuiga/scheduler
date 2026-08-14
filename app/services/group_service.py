@@ -5,6 +5,7 @@ la transacción la maneja la ruta que llama.
 """
 
 from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 
 from app.extensions import scheduler_db
 from app.models import (
@@ -12,11 +13,13 @@ from app.models import (
     Category,
     Group,
     GroupMember,
+    GroupMemberCategory,
     GroupPermissionGrant,
     RoleEnum,
     UserAvailability,
 )
 from app.models.group import generate_join_token
+from app.models.subgroup import SubGroup
 from app.models.audit_log import (
     ACTION_PERMISSION_GRANTED,
     ACTION_PERMISSION_REVOKED,
@@ -27,7 +30,7 @@ from app.permissions import (
     LEVEL_PERMISSIONS,
     PERM_VIEW_AVAILABILITY,
 )
-from app.soft_delete import find_soft_deleted, restore_batch
+from app.soft_delete import INCLUDE_DELETED, find_soft_deleted, restore_batch
 
 
 # ---------------------------------------------------------------------------
@@ -224,3 +227,183 @@ def get_member_availability_counts(group_id, user_ids):
         .group_by(UserAvailability.user_id)
         .all()
     )
+
+
+def get_groups_for_user(user_id):
+    """Grupos de los que el usuario es miembro, ordenados por nombre."""
+    return (
+        Group.query.join(GroupMember)
+        .filter(GroupMember.user_id == user_id)
+        .order_by(Group.name.asc(), Group.id.asc())
+        .all()
+    )
+
+
+def get_admin_group_ids(user_id):
+    """IDs de grupos donde el usuario tiene rol ADMIN."""
+    memberships = GroupMember.query.filter_by(user_id=user_id, role=RoleEnum.ADMIN).all()
+    return {m.group_id for m in memberships}
+
+
+def get_trash_count(user_id):
+    """Cantidad de grupos en papelera del usuario (soft-deleted)."""
+    return (
+        Group.query.execution_options(**{INCLUDE_DELETED: True})
+        .filter(Group.deleted_at.isnot(None), Group.owner_id == user_id)
+        .count()
+    )
+
+
+def get_group_members(group_id, limit=500):
+    """Miembros activos con user y categories cargados, ordenados por id."""
+    return (
+        GroupMember.query.filter_by(group_id=group_id)
+        .options(selectinload(GroupMember.user), selectinload(GroupMember.categories))
+        .order_by(GroupMember.id.asc())
+        .limit(limit)
+        .all()
+    )
+
+
+def get_removed_members(group_id, limit=500):
+    """Miembros soft-deleted del grupo, ordenados por fecha de borrado desc."""
+    return (
+        GroupMember.query.execution_options(**{INCLUDE_DELETED: True})
+        .options(selectinload(GroupMember.user))
+        .filter(GroupMember.group_id == group_id, GroupMember.deleted_at.isnot(None))
+        .order_by(GroupMember.deleted_at.desc(), GroupMember.id.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def get_user_availability_data(group_id, user_ids):
+    """(user_id, weekday, start_minutes) para los usuarios dados.
+
+    user_ids puede ser un int (un solo usuario) o un iterable de ints.
+    """
+    q = (
+        scheduler_db.session.query(
+            UserAvailability.user_id, Availability.weekday, Availability.start_minutes
+        )
+        .join(Availability, UserAvailability.availability_id == Availability.id)
+        .filter(Availability.group_id == group_id)
+    )
+    if isinstance(user_ids, int):
+        return q.filter(UserAvailability.user_id == user_ids).all()
+    return q.filter(UserAvailability.user_id.in_(user_ids)).all()
+
+
+def get_group_categories(group_id):
+    """Categorías activas del grupo."""
+    return Category.query.filter_by(group_id=group_id).all()
+
+
+def get_category_member_counts(category_ids):
+    """Conteo de miembros por categoría. Devuelve {category_id: count}.
+
+    category_ids debe ser ya filtrado por grupo: la query no verifica pertenencia.
+    """
+    if not category_ids:
+        return {}
+    return dict(
+        scheduler_db.session.query(
+            GroupMemberCategory.category_id, func.count(GroupMemberCategory.id)
+        )
+        .filter(GroupMemberCategory.category_id.in_(list(category_ids)))
+        .group_by(GroupMemberCategory.category_id)
+        .all()
+    )
+
+
+def get_group_members_for_export(group_id):
+    """Miembros con user y categoría/category para el CSV export."""
+    return (
+        GroupMember.query.filter_by(group_id=group_id)
+        .options(
+            selectinload(GroupMember.user),
+            selectinload(GroupMember.categories).selectinload(GroupMemberCategory.category),
+        )
+        .order_by(GroupMember.id.asc())
+        .all()
+    )
+
+
+def get_deleted_groups_for_user(user_id, limit=200):
+    """Grupos en papelera del usuario, ordenados por fecha de borrado desc."""
+    return (
+        Group.query.execution_options(**{INCLUDE_DELETED: True})
+        .filter(Group.deleted_at.isnot(None), Group.owner_id == user_id)
+        .order_by(Group.deleted_at.desc(), Group.id.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def get_group_including_deleted(group_id):
+    """Busca un grupo incluyendo los soft-deleted."""
+    return (
+        Group.query.execution_options(**{INCLUDE_DELETED: True})
+        .filter(Group.id == group_id)
+        .first()
+    )
+
+
+def get_group_by_token(token):
+    """Busca un grupo activo por su join_token."""
+    return Group.query.filter_by(join_token=token).first()
+
+
+def get_group_member(group_id, user_id):
+    """Busca la membresía activa de un usuario en un grupo."""
+    return GroupMember.query.filter_by(group_id=group_id, user_id=user_id).first()
+
+
+def get_group_member_by_id(member_id, group_id):
+    """Busca un GroupMember activo por id y group_id."""
+    return GroupMember.query.filter_by(id=member_id, group_id=group_id).first()
+
+
+def get_category(category_id, group_id):
+    """Busca una categoría activa por id y group_id."""
+    return Category.query.filter_by(id=category_id, group_id=group_id).first()
+
+
+def get_group_members_with_users(group_id):
+    """Todos los miembros activos del grupo con su user cargado (sin límite)."""
+    return (
+        GroupMember.query.filter_by(group_id=group_id)
+        .options(selectinload(GroupMember.user))
+        .all()
+    )
+
+
+def get_subgroups_for_show(group_id, scope_user_ids, current_user_id):
+    """Subgrupos y mapas para la vista show del grupo.
+
+    Devuelve (group_subgroups, user_subgroup_map).
+    Con scope_user_ids no None, filtra a los subgrupos que contienen al usuario.
+    """
+    subgroups = (
+        SubGroup.query.filter_by(parent_group_id=group_id)
+        .options(selectinload(SubGroup.members))
+        .order_by(SubGroup.created_at.desc(), SubGroup.id.asc())
+        .all()
+    )
+    group_subgroups = []
+    user_subgroup_map = {}
+    for subgroup in subgroups:
+        member_ids = [
+            m.user_id for m in subgroup.members
+            if scope_user_ids is None or m.user_id in scope_user_ids
+        ]
+        if scope_user_ids is not None and current_user_id not in member_ids:
+            continue
+        group_subgroups.append({
+            "id": subgroup.id,
+            "name": subgroup.name,
+            "member_count": len(member_ids),
+        })
+        for user_id in member_ids:
+            user_subgroup_map.setdefault(user_id, []).append(subgroup.id)
+    return group_subgroups, user_subgroup_map

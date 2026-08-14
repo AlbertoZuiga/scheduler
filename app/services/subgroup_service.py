@@ -10,9 +10,11 @@ from sqlalchemy.orm import contains_eager, selectinload
 from app.extensions import scheduler_db
 from app.models.user import User
 from app.models.group_member import GroupMember
+from app.models.subgroup import SubGroup, SubGroupMember, DivisionJob
 from app.models.user_availability import UserAvailability
 from app.models.availability import Availability
 from app.models.group_member_category import GroupMemberCategory
+from app.soft_delete import find_soft_deleted
 
 
 class SubGroupService:
@@ -789,13 +791,209 @@ def user_matches_rule(user_categories: Set[str], rule: Dict) -> bool:
     """
     Función auxiliar standalone para evaluar si un usuario cumple una regla.
     No ejecuta eval(), solo usa lógica de conjuntos.
-    
+
     Args:
         user_categories: Set de categorías del usuario
         rule: Dict con 'conditions' (lista de {categories, operator})
-    
+
     Returns:
         True si el usuario cumple todas las condiciones de la regla
     """
     service = SubGroupService(parent_group_id=None)
     return service.user_matches_rule(user_categories, rule)
+
+
+# ---------------------------------------------------------------------------
+# operaciones de subgrupo (movidas desde subgroup_routes)
+# ---------------------------------------------------------------------------
+
+
+def add_subgroup_member(subgroup_id, user_id):
+    """Agrega a alguien a un subgrupo reutilizando su membresía oculta si la hay.
+
+    Evita duplicar (subgroup_id, user_id) cuando la persona ya había sido
+    quitada de ese subgrupo antes.
+    """
+    hidden = find_soft_deleted(SubGroupMember, subgroup_id=subgroup_id, user_id=user_id)
+    if hidden:
+        hidden.restore()
+        return hidden
+    membership = SubGroupMember(subgroup_id=subgroup_id, user_id=user_id)
+    scheduler_db.session.add(membership)
+    return membership
+
+
+RETAINED_JOBS_PER_GROUP = 10
+
+
+def prune_division_jobs(group_id, retained=RETAINED_JOBS_PER_GROUP):
+    """Oculta los jobs viejos del grupo, conservando el último confirmado.
+
+    El confirmado más reciente se preserva siempre: es el que `undo` necesita
+    para revertir la división vigente.
+    """
+    jobs = (
+        DivisionJob.query.filter_by(parent_group_id=group_id)
+        .order_by(DivisionJob.timestamp.desc(), DivisionJob.id.desc())
+        .all()
+    )
+    keep = {job.id for job in jobs[:retained]}
+    last_confirmed = next((job for job in jobs if job.status == 'confirmed'), None)
+    if last_confirmed is not None:
+        keep.add(last_confirmed.id)
+    for job in jobs:
+        if job.id not in keep:
+            job.soft_delete()
+
+
+def save_division_job(group_id, user_id, config, preview):
+    """Persiste un DivisionJob con estado 'pending' y poda los jobs viejos.
+
+    Hace flush para obtener el id antes de la poda. No commitea.
+    """
+    job = DivisionJob(
+        parent_group_id=group_id,
+        created_by=user_id,
+        config_json=config,
+        result_json=preview,
+        status='pending',
+    )
+    scheduler_db.session.add(job)
+    scheduler_db.session.flush()
+    prune_division_jobs(group_id)
+    return job
+
+
+def confirm_division(job):
+    """Crea los SubGroup y SubGroupMember del job y lo marca como 'confirmed'.
+
+    Devuelve la lista de dicts de los subgrupos creados. No commitea.
+    """
+    preview = job.result_json
+    created_subgroups = []
+    for group_data in preview['groups']:
+        subgroup = SubGroup(
+            parent_group_id=job.parent_group_id,
+            name=group_data['name'],
+            auto_generated=True,
+            meta={
+                'compatibility_avg': group_data['compatibility_avg'],
+                'rules_status': group_data['rules_status'],
+            },
+        )
+        scheduler_db.session.add(subgroup)
+        scheduler_db.session.flush()
+        for member_data in group_data['members']:
+            add_subgroup_member(subgroup.id, member_data['id'])
+        created_subgroups.append(subgroup.to_dict())
+
+    job.status = 'confirmed'
+    job.result_json = {
+        **preview,
+        'created_subgroup_ids': [sg['id'] for sg in created_subgroups],
+    }
+    return created_subgroups
+
+
+def undo_last_division(group_id):
+    """Revierte la última división confirmada del grupo.
+
+    Elimina los subgrupos creados por ese job y lo marca como 'undone'.
+    Devuelve (job, subgroups) o (None, []) si no hay job confirmado.
+    No commitea.
+    """
+    last_job = (
+        DivisionJob.query.filter_by(parent_group_id=group_id, status='confirmed')
+        .order_by(DivisionJob.timestamp.desc())
+        .first()
+    )
+    if not last_job:
+        return None, []
+
+    result_json = last_job.result_json or {}
+    if 'created_subgroup_ids' in result_json:
+        created_ids = result_json.get('created_subgroup_ids') or []
+        subgroups = SubGroup.query.filter(
+            SubGroup.parent_group_id == group_id,
+            SubGroup.id.in_(created_ids),
+        ).all()
+    else:
+        subgroups = SubGroup.query.filter_by(
+            parent_group_id=group_id,
+            auto_generated=True,
+        ).all()
+
+    for subgroup in subgroups:
+        subgroup.soft_delete()
+
+    last_job.status = 'undone'
+    return last_job, subgroups
+
+
+def create_manual_subgroup(group_id, name):
+    """Crea un SubGroup manual vacío. No commitea."""
+    subgroup = SubGroup(
+        parent_group_id=group_id,
+        name=name,
+        auto_generated=False,
+        meta={},
+    )
+    scheduler_db.session.add(subgroup)
+    return subgroup
+
+
+def get_subgroup_member(subgroup_id, user_id):
+    """Busca la membresía activa de un usuario en un subgrupo."""
+    return SubGroupMember.query.filter_by(subgroup_id=subgroup_id, user_id=user_id).first()
+
+
+def remove_subgroup_member(subgroup, user_id):
+    """Quita a un usuario de un subgrupo.
+
+    Devuelve la membresía si existía, o None. No commitea.
+    """
+    membership = get_subgroup_member(subgroup.id, user_id)
+    if membership:
+        membership.soft_delete()
+    return membership
+
+
+def move_subgroup_member(source_subgroup, target_subgroup, user_id):
+    """Mueve a un usuario de un subgrupo a otro.
+
+    Devuelve (source_membership, target_membership_created).
+    source_membership es None si el usuario no estaba en el origen.
+    No commitea.
+    """
+    source_membership = get_subgroup_member(source_subgroup.id, user_id)
+    if not source_membership:
+        return None, None
+
+    target_membership = get_subgroup_member(target_subgroup.id, user_id)
+    if not target_membership:
+        target_membership = add_subgroup_member(target_subgroup.id, user_id)
+
+    source_membership.soft_delete()
+    return source_membership, target_membership
+
+
+def get_group_member_count(group_id):
+    """Cantidad de miembros activos del grupo."""
+    return GroupMember.query.filter_by(group_id=group_id).count()
+
+
+def get_group_members_sorted(group_id):
+    """Miembros del grupo ordenados por nombre, email, id."""
+    members = (
+        GroupMember.query.options(selectinload(GroupMember.user))
+        .filter_by(group_id=group_id)
+        .all()
+    )
+    return sorted(
+        members,
+        key=lambda member: (
+            (member.user.name or "").strip().lower(),
+            member.user.email.lower(),
+            member.user.id,
+        ),
+    )
