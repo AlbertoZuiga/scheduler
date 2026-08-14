@@ -1,6 +1,6 @@
 const loginLink = document.getElementById('google-login');
 
-function setLoading(loading) {
+const setLoading = (loading) => {
   if (!loginLink) return;
   loginLink.setAttribute('aria-busy', loading ? 'true' : 'false');
   loginLink.classList.toggle('pointer-events-none', loading);

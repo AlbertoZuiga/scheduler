@@ -4,7 +4,7 @@
   globalThis.CAN_VIEW_AVAILABILITY = !!globalThis.__EMBED__.can_view_availability;
   globalThis.__GROUP_MEMBERS__ = globalThis.__EMBED__.members || [];
 
-  function setupScheduleFiltering() {
+  const setupScheduleFiltering = () => {
     const chips = Array.from(document.querySelectorAll('.availability-user-chip'));
     const missingUserItems = Array.from(document.querySelectorAll('.availability-missing-user'));
     const filterButtons = Array.from(document.querySelectorAll('.schedule-filter-chip'));
@@ -414,12 +414,12 @@
     applyFilters();
   }
 
-  function memberNameByGmId(gmId) {
+  const memberNameByGmId = (gmId) => {
     const m = (globalThis.__GROUP_MEMBERS__ || []).find(x => Number.parseInt(x.group_member_id) === Number.parseInt(gmId));
     return m ? (m.name || m.email) : `Miembro ${gmId}`;
   }
 
-  async function loadCategories() {
+  const loadCategories = async () => {
   const list = document.getElementById('categoriesList');
   list.innerHTML = '<div class="text-light-text-secondary dark:text-dark-text-secondary">Cargando categorías…</div>';
     try {
@@ -481,7 +481,7 @@
     deleteCategory(btn.dataset.categoryId, btn.dataset.categoryName);
   });
 
-  async function deleteCategory(catId, catName) {
+  const deleteCategory = async (catId, catName) => {
     const confirmed = await showConfirmDialog(`¿Eliminar la categoría "${catName}"? Se desasociarán todos los miembros.`);
     if (!confirmed) return;
     try {
@@ -509,7 +509,7 @@
   }
 
   let checkTimer = null;
-  function setupCategoryCreate() {
+  const setupCategoryCreate = () => {
     if (!globalThis.CAN_MANAGE) return;
     const input = document.getElementById('newCategoryName');
     const feedback = document.getElementById('nameFeedback');
