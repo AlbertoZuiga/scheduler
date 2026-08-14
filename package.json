@@ -3,8 +3,13 @@
     "@tailwindcss/cli": "^4.3.3",
     "tailwindcss": "^4.3.3"
   },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "globals": "^16.0.0"
+  },
   "scripts": {
     "build:css": "npx tailwindcss -i ./app/static/css/tailwind.css -o ./app/static/css/main.css --minify",
-    "watch:css": "npx tailwindcss -i ./app/static/css/tailwind.css -o ./app/static/css/main.css --watch"
+    "watch:css": "npx tailwindcss -i ./app/static/css/tailwind.css -o ./app/static/css/main.css --watch",
+    "lint:js": "eslint app/static/js/"
   }
 }
