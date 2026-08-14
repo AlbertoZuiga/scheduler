@@ -18,6 +18,8 @@ from app.models import (
     Category,
     Group,
     GroupMember,
+    SubGroup,
+    SubGroupMember,
     GroupMemberCategory,
     GroupPermissionGrant,
     RoleEnum,
@@ -157,4 +159,34 @@ def test_vista_no_escala_en_queries_con_los_miembros(app, db_session, path_templ
     assert grande == chico, (
         f"{path_template}: {chico} queries con 3 miembros y {grande} con 30 "
         "→ hay un N+1"
+    )
+
+
+def _seed_group_con_subgrupos(db_session, n_members, token):
+    group_id, owner_id = _seed_group(db_session, n_members, token)
+    memberships = GroupMember.query.filter_by(group_id=group_id).all()
+    subgroup = SubGroup(parent_group_id=group_id, name=f"Sub {token}")
+    db_session.add(subgroup)
+    db_session.flush()
+    for m in memberships:
+        db_session.add(SubGroupMember(subgroup_id=subgroup.id, user_id=m.user_id))
+    db_session.commit()
+    return group_id, owner_id
+
+
+def test_export_csv_subgrupos_no_escala_en_queries(app, db_session):
+    """PERF-011: get_confirmed_subgroups usa eager loading — sin N+1 al escalar miembros."""
+    grupo_chico, owner_chico = _seed_group_con_subgrupos(db_session, 3, "perf-export-chico")
+    grupo_grande, owner_grande = _seed_group_con_subgrupos(db_session, 30, "perf-export-grande")
+
+    chico = _count_queries(
+        app.test_client(), owner_chico, f"/groups/{grupo_chico}/subgroups/export"
+    )
+    grande = _count_queries(
+        app.test_client(), owner_grande, f"/groups/{grupo_grande}/subgroups/export"
+    )
+
+    assert grande == chico, (
+        f"/subgroups/export: {chico} queries con 3 miembros y {grande} con 30 "
+        "→ N+1 en get_confirmed_subgroups"
     )
