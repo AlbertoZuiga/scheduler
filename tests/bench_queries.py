@@ -30,7 +30,7 @@ os.environ["GOOGLE_CLIENT_SECRET"] = "bench"
 # pylint: disable=wrong-import-position
 from sqlalchemy import event  # noqa: E402
 
-from app import scheduler_app  # noqa: E402
+from app import scheduler_app  # noqa: E402  # pylint: disable=no-name-in-module
 from app.extensions import scheduler_db  # noqa: E402
 from app.models import (  # noqa: E402
     Availability,

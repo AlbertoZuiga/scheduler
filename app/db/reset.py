@@ -1,6 +1,8 @@
 from sqlalchemy import text
 
-from app import scheduler_app
+# `scheduler_app` lo fabrica el __getattr__ (PEP 562) de app/__init__.py, que
+# pylint no puede inferir estaticamente.
+from app import scheduler_app  # pylint: disable=no-name-in-module
 from app.db.migrate import migrate_database
 from app.extensions import scheduler_db
 

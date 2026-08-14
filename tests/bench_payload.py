@@ -17,9 +17,11 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # pylint: disable=wrong-import-position
-import bench_queries as bench  # noqa: E402  (setea el entorno y la BD temporal)
+# El import va despues de setear el entorno a proposito (de ahi el E402).
+# pylint no resuelve el modulo hermano porque bench_* no se importa como tests.bench_*.
+import bench_queries as bench  # noqa: E402  # pylint: disable=import-error
 
-from app import scheduler_app  # noqa: E402
+from app import scheduler_app  # noqa: E402  # pylint: disable=no-name-in-module
 from app.extensions import scheduler_db  # noqa: E402
 
 EMBED_RE = re.compile(

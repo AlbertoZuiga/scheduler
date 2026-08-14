@@ -1,6 +1,8 @@
 import os
 
-from app import scheduler_app
+# `scheduler_app` lo fabrica el __getattr__ (PEP 562) de app/__init__.py, que
+# pylint no puede inferir estaticamente.
+from app import scheduler_app  # pylint: disable=no-name-in-module
 
 # El esquema NO se crea acá. Antes este módulo hacía `create_all()` al importar,
 # así que cada worker de gunicorn emitía DDL al arrancar. Ahora las migraciones

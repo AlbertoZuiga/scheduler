@@ -1,6 +1,8 @@
 import random
 
-from app import scheduler_app, scheduler_db
+# `scheduler_app` lo fabrica el __getattr__ (PEP 562) de app/__init__.py, que
+# pylint no puede inferir estaticamente.
+from app import scheduler_app, scheduler_db  # pylint: disable=no-name-in-module
 from app.soft_delete import including_deleted
 
 from ..models import (

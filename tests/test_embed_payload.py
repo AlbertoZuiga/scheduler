@@ -12,7 +12,8 @@ import pathlib
 import re
 
 import flask
-from test_query_counts import _seed_group  # noqa: F401
+
+from tests.test_query_counts import _seed_group  # noqa: F401
 
 _GROUP_SHOW_JS = (
     pathlib.Path(__file__).parent.parent / "app" / "static" / "js" / "group_show.js"
