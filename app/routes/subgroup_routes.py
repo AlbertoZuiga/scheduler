@@ -23,7 +23,6 @@ from app.services.subgroup_service import (
     add_subgroup_member,
     confirm_division,
     create_manual_subgroup,
-    get_confirmed_subgroups,
     get_division_job,
     get_group_member_count,
     get_group_members_sorted,
@@ -331,7 +330,7 @@ def export(group_id):
                     ])
         else:
             # Exportar subgrupos confirmados actuales
-            subgroups = get_confirmed_subgroups(group_id)
+            subgroups = get_subgroups_with_members(group_id)
             
             if not subgroups:
                 flash('No hay subgrupos para exportar.', 'warning')

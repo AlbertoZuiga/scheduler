@@ -1008,10 +1008,6 @@ def get_subgroups_with_members(group_id):
     )
 
 
-def get_confirmed_subgroups(group_id):
-    """SubGroups activos del grupo. Sin eager loading: usado en el export CSV."""
-    return SubGroup.query.filter_by(parent_group_id=group_id).all()
-
 
 def get_group_members_sorted(group_id):
     """Miembros del grupo ordenados por nombre, email, id."""
