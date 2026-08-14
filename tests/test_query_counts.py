@@ -1,4 +1,4 @@
-"""PERF-001: las vistas calientes no hacen más consultas por tener más miembros.
+"""Las vistas calientes no hacen más consultas por tener más miembros.
 
 No se afirma un número exacto de queries (cambiaría con cualquier refactor
 legítimo): se compara la misma vista con dos tamaños de grupo. Si el conteo

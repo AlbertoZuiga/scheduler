@@ -1,4 +1,4 @@
-"""Medición de queries por vista (PERF-001).
+"""Medición de queries por vista.
 
 No es un test: es un script reproducible para contar cuántas consultas SQL
 dispara cada vista caliente con datos de prueba realistas. Se corre a mano

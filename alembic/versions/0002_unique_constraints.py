@@ -1,4 +1,4 @@
-"""DATA-001: deduplicar y aplicar los unique faltantes
+"""Deduplicar y aplicar los unique parciales (WHERE deleted_at IS NULL) faltantes
 
 Revision ID: 0002_unique_constraints
 Revises: 0001_baseline

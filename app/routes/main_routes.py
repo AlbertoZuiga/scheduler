@@ -14,7 +14,7 @@ def index():
 
 @main_bp.route("/health")
 def health():
-    """Liveness + readiness: 503 si la BD no responde (OBS-002).
+    """Liveness + readiness: 503 si la BD no responde.
 
     El health check de docker-compose pegaba a `/`, que solo renderiza una
     plantilla estática: el contenedor se reportaba sano con Postgres caído.

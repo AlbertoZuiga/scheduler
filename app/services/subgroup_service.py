@@ -811,8 +811,9 @@ def user_matches_rule(user_categories: Set[str], rule: Dict) -> bool:
 def add_subgroup_member(subgroup_id, user_id):
     """Agrega a alguien a un subgrupo reutilizando su membresía oculta si la hay.
 
-    Evita duplicar (subgroup_id, user_id) cuando la persona ya había sido
-    quitada de ese subgrupo antes.
+    Insertar directo duplicaría (subgroup_id, user_id) si la persona ya estuvo en
+    ese subgrupo; además hoy violaría el unique parcial `uq_subgroup_member_active`
+    (WHERE deleted_at IS NULL).
     """
     hidden = find_soft_deleted(SubGroupMember, subgroup_id=subgroup_id, user_id=user_id)
     if hidden:
@@ -1010,7 +1011,10 @@ def get_subgroups_with_members(group_id):
 
 
 def get_group_members_sorted(group_id):
-    """Miembros del grupo ordenados por nombre, email, id."""
+    """Miembros del grupo ordenados por nombre, email, id.
+
+    El selectinload de user es necesario: sin él el sort dispara un SELECT por miembro.
+    """
     members = (
         GroupMember.query.options(selectinload(GroupMember.user))
         .filter_by(group_id=group_id)

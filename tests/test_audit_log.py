@@ -1,4 +1,4 @@
-"""DATA-008: fechas en el dominio y bitácora de las acciones sensibles."""
+"""Fechas en el dominio y bitácora de las acciones sensibles."""
 # pylint: disable=redefined-outer-name
 import pytest
 

@@ -1,4 +1,4 @@
-"""DATA-001: los unique parciales rechazan duplicados activos.
+"""Los unique parciales rechazan duplicados activos.
 
 Cada caso verifica las dos mitades de la garantía:
 

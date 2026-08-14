@@ -1,4 +1,4 @@
-"""DATA-007: CHECK que obliga a una concesión de permiso a tener un solo sujeto
+"""CHECK que obliga a una concesión de permiso a tener un solo sujeto
 
 Revision ID: 0006_perm_grant_subject_xor
 Revises: 0005_fk_ondelete

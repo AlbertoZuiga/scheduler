@@ -1,6 +1,6 @@
 """Motor de disponibilidad: la grilla horaria del grupo y las marcas sobre ella.
 
-Extraído de `group_routes.py` (BE-005). Acá vive todo lo que traduce entre las
+Extraído de `group_routes.py` para separar el motor de disponibilidad del transporte HTTP. Acá vive todo lo que traduce entre las
 dos representaciones que conviven en el dominio:
 
 - **minutos desde medianoche**: la unidad canónica (`Group.start_minutes`,

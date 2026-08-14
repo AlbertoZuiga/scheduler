@@ -1,6 +1,6 @@
 """Operaciones de dominio de grupo.
 
-Extraído de `group_routes.py` (BE-007). Ninguna función commitea:
+Extraído de `group_routes.py` para separar lógica de dominio del transporte HTTP. Ninguna función commitea:
 la transacción la maneja la ruta que llama.
 """
 
@@ -57,8 +57,10 @@ def rotate_join_token(group):
 def join_group(group, user_id):
     """Une al usuario al grupo.
 
-    Si fue removido previamente, restaura la membresía y la degrada a MEMBER.
-    Si es la primera vez, crea una nueva. No commitea.
+    Si fue removido previamente, restaura la membresía y la degrada a MEMBER: insertar
+    una fila nueva dejaría al mismo usuario activo y removido a la vez, contado dos
+    veces. Reingresar por el enlace público no devuelve privilegios de admin.
+    Si es la primera vez, crea una membresía nueva. No commitea.
     """
     removed = find_soft_deleted(GroupMember, group_id=group.id, user_id=user_id)
     if removed:
@@ -315,6 +317,8 @@ def get_group_categories(group_id):
 def get_category_member_counts(category_ids):
     """Conteo de miembros por categoría. Devuelve {category_id: count}.
 
+    Un GROUP BY sobre todas las categorías en vez de un COUNT por fila: antes era
+    O(categorías) consultas dentro del bucle de permisos.
     category_ids debe ser ya filtrado por grupo: la query no verifica pertenencia.
     """
     if not category_ids:
@@ -415,6 +419,8 @@ def get_subgroups_for_show(group_id, scope_user_ids, current_user_id):
             m.user_id for m in subgroup.members
             if scope_user_ids is None or m.user_id in scope_user_ids
         ]
+        # Con scope_user_ids no None, los chips de filtro solo muestran los subgrupos
+        # que la persona ve, y los cuentan sobre su misma gente (no la del grupo completo).
         if scope_user_ids is not None and current_user_id not in member_ids:
             continue
         group_subgroups.append({

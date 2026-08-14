@@ -209,7 +209,7 @@ def create_app():
 
     @app.errorhandler(429)
     def too_many_requests_error(error):
-        """SEC-009: el rate limit del join corta acá, con una página usable."""
+        """El rate limit del join_token corta acá, con una página usable."""
         retry_after = str(getattr(g, "rate_limit_retry_after", 300))
         if _wants_json():
             resp = jsonify({"error": "Demasiados intentos. Espera unos minutos."})
@@ -256,7 +256,7 @@ def get_app():
 def __getattr__(name):
     """PEP 562: `from app import scheduler_app` recién acá construye la app.
 
-    Antes el factory corría en el cuerpo del módulo (ARCH-002), así que importar
+    Antes el factory corría en el cuerpo del módulo, así que importar
     cualquier submódulo (`app.models.user`, un test, `alembic/env.py`) levantaba
     la app entera con sus blueprints como efecto de import. Ahora ese costo lo
     paga solo quien pide `scheduler_app`, y el esquema es responsabilidad

@@ -1,4 +1,4 @@
-"""DATA-003: cascada y retención de DivisionJob."""
+"""Cascada y retención de DivisionJob."""
 # pylint: disable=redefined-outer-name
 from datetime import datetime, timedelta, timezone
 

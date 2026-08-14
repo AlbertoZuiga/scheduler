@@ -1,4 +1,4 @@
-"""SEC-002: la protección CSRF rechaza mutaciones sin token.
+"""La protección CSRF rechaza mutaciones sin token.
 
 El resto de la suite corre con `WTF_CSRF_ENABLED=False` (ver conftest) para no
 tener que firmar cada POST; acá se enciende a propósito para verificar que la
@@ -61,7 +61,7 @@ def test_restore_ya_no_muta_por_get(csrf_client, path):
 
 
 def test_join_anonimo_ve_el_grupo_y_el_login(csrf_client, db_session):
-    """UX-003: el invitado anónimo ve a qué grupo lo invitaron antes de loguearse."""
+    """El invitado anónimo ve a qué grupo lo invitaron antes de loguearse."""
     duenio = User(name="Dueño anónimo", email="duenio-anon@example.com")
     db_session.add(duenio)
     db_session.commit()

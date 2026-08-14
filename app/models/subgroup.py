@@ -93,7 +93,7 @@ class DivisionJob(SoftDeleteMixin, scheduler_db.Model):
     Historial de trabajos de división automática.
     Permite hacer undo y tracking de configuraciones previas.
 
-    Lleva borrado lógico (DATA-003): `result_json` guarda nombres y correos de
+    Lleva borrado lógico: `result_json` guarda nombres y correos de
     todo el grupo, así que un job tiene que dejar de ser alcanzable cuando su
     grupo se borra (cascada desde `Group`) o cuando la retención lo jubila.
     """

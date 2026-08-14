@@ -13,7 +13,7 @@ login_manager = LoginManager()
 def _enable_sqlite_foreign_keys(dbapi_connection, _connection_record):
     """SQLite ignora las foreign keys salvo que se pidan por conexión.
 
-    Sin esto el `ondelete` del esquema (DATA-006) sería letra muerta en dev y en
+    Sin esto el `ondelete` explícito de las FKs sería letra muerta en dev y en
     los tests, y solo Postgres —el motor de producción— aplicaría las cascadas.
     """
     if isinstance(dbapi_connection, sqlite3.Connection):

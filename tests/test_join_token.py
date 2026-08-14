@@ -1,4 +1,4 @@
-"""SEC-009: entropía, rotación y rate limit del `join_token`."""
+"""Entropía, rotación y rate limit del `join_token`."""
 
 # pylint: disable=redefined-outer-name
 import pytest

@@ -1,4 +1,4 @@
-"""OBS-002: el health check toca la base de datos."""
+"""El health check toca la base de datos."""
 
 from sqlalchemy.exc import OperationalError
 

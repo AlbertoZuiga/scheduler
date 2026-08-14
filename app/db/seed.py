@@ -16,7 +16,7 @@ _SEED_TOKENS = {"alphatoken", "mathstoken", "sporttoken"}
 def _clear_seed_data():
     """Borra físicamente los datos del seed anterior para poder recrearlos.
 
-    Con el `ondelete` explícito de las FKs (DATA-006) basta borrar las raíces:
+    Con el `ondelete` explícito de las FKs basta borrar las raíces:
     la BD se lleva membresías, categorías, asignaciones, concesiones, bloques,
     marcas y jobs. Antes había que ordenar esos borrados a mano.
 

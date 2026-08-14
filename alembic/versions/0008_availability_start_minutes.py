@@ -1,4 +1,4 @@
-"""DATA-005: `availability.hour` (float de horas) pasa a `start_minutes` (entero)
+"""`availability.hour` (float de horas) pasa a `start_minutes` (entero)
 
 Revision ID: 0008_availability_start_minutes
 Revises: 0007_timestamps_and_audit_log

@@ -23,8 +23,8 @@ target_metadata = scheduler_db.metadata
 
 def _configure_and_run(connection):
     if connection.dialect.name == "sqlite":
-        # Batch mode recrea la tabla (DROP + CREATE + copia). Desde DATA-006 la
-        # app enciende `PRAGMA foreign_keys` en cada conexión, así que ese DROP
+        # Batch mode recrea la tabla (DROP + CREATE + copia). La app enciende
+        # `PRAGMA foreign_keys` en cada conexión, así que ese DROP
         # lo rechazan las FKs que apuntan a la tabla. Se apagan durante la
         # migración y se vuelven a encender al terminar para no contaminar el pool.
         connection.exec_driver_sql("PRAGMA foreign_keys=OFF")

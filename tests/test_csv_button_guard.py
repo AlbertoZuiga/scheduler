@@ -1,4 +1,4 @@
-"""UI-005: botón "Descargar CSV" visible solo para admin/owner en members.html."""
+"""Botón "Descargar CSV" visible solo para admin/owner en members.html."""
 
 # pylint: disable=redefined-outer-name
 from app.extensions import scheduler_db

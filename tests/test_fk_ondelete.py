@@ -1,4 +1,4 @@
-"""DATA-006: el borrado real de un padre arrastra a sus hijos por FK.
+"""El borrado real de un padre arrastra a sus hijos por FK.
 
 No se prueba el ORM sino la BD: cada caso emite el DELETE por SQL (`query.
 delete()`, sin cascada de sesión) y comprueba que las filas dependientes se

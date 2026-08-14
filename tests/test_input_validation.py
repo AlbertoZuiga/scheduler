@@ -1,4 +1,4 @@
-"""BE-004: el largo de los strings de usuario se valida en el server.
+"""El largo de los strings de usuario se valida en el server.
 
 Sin esto, un nombre más largo que la columna llega al INSERT y Postgres tira
 `DataError` → 500 crudo. En SQLite (el motor de la suite) el largo no se
