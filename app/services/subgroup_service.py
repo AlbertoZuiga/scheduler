@@ -823,6 +823,9 @@ def add_subgroup_member(subgroup_id, user_id):
     return membership
 
 
+# Cada click en "Generar" escribe un DivisionJob con el preview completo (una
+# fila JSON gorda con nombres y correos). Se conservan los más recientes; el
+# resto se oculta.
 RETAINED_JOBS_PER_GROUP = 10
 
 
