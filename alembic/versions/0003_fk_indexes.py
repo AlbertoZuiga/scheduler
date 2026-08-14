@@ -1,4 +1,4 @@
-"""DATA-002: índices compuestos (fk, deleted_at)
+"""Índices compuestos (fk, deleted_at)
 
 Revision ID: 0003_fk_indexes
 Revises: 0002_unique_constraints

@@ -1,4 +1,4 @@
-"""DATA-005: el inicio del bloque se guarda en minutos enteros.
+"""El inicio del bloque se guarda en minutos enteros.
 
 El caso que rompía con el Float de horas es una grilla cuyo bloque no divide a
 60: un bloque que arranca a los 500 minutos se guardaba como 8.3333… y al

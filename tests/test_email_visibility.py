@@ -1,4 +1,4 @@
-"""SEC-011: el email ajeno solo lo ve owner/admin.
+"""El email ajeno solo lo ve owner/admin.
 
 Los permisos de subgrupos (incluso los de edición) no abren emails, y el
 fallback de nombre no puede filtrar el email de quien no tiene nombre.

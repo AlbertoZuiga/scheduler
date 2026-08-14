@@ -1,4 +1,4 @@
-"""DATA-007: una concesión de permiso tiene exactamente un sujeto.
+"""Una concesión de permiso tiene exactamente un sujeto.
 
 La regla vivía solo en la ruta que concede; ahora la impone el CHECK
 `ck_perm_grant_subject_xor`, así que se prueba contra la BD.

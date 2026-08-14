@@ -46,7 +46,7 @@ def _commit_or_duplicate(message, redirect_to, log_message, *log_args):
     """Commitea; devuelve una respuesta 409 si un unique de BD rechaza la fila.
 
     El chequeo previo en Python no cubre dos requests simultáneos: ahí el que
-    pierde la carrera choca contra el unique parcial (DATA-001) y sin esto vería
+    pierde la carrera choca contra el unique parcial de categorías activas y sin esto vería
     un 500 crudo en vez del mismo mensaje de duplicado.
     """
     try:

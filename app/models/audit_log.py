@@ -4,7 +4,7 @@ from app.extensions import scheduler_db
 from app.models.mixins import _utcnow
 
 # Acciones registradas. Son las que cambian quién puede hacer qué dentro de un
-# grupo: hasta DATA-008 no dejaban rastro de quién las ejecutó.
+# grupo: hasta que se agregó la bitácora no dejaban rastro de quién las ejecutó.
 ACTION_ROLE_CHANGED = "member.role_changed"
 ACTION_PERMISSION_GRANTED = "permission.granted"
 ACTION_PERMISSION_REVOKED = "permission.revoked"

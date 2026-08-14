@@ -1,4 +1,4 @@
-"""DATA-006: ondelete explícito en las foreign keys que no lo tenían
+"""Ondelete explícito en las foreign keys que no lo tenían
 
 Revision ID: 0005_fk_ondelete
 Revises: 0004_division_jobs_soft_delete

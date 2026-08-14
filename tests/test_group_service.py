@@ -1,4 +1,4 @@
-"""BE-007: operaciones de dominio de grupo, ejercitadas sin pasar por las rutas."""
+"""Operaciones de dominio de grupo, ejercitadas sin pasar por las rutas."""
 
 # pylint: disable=redefined-outer-name
 import pytest

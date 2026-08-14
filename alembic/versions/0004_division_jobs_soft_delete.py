@@ -1,4 +1,4 @@
-"""DATA-003: borrado lógico, cascada y retención de division_jobs
+"""Borrado lógico, cascada y retención de division_jobs
 
 Revision ID: 0004_division_jobs_soft_delete
 Revises: 0003_fk_indexes

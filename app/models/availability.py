@@ -10,7 +10,7 @@ class Availability(TimestampMixin, scheduler_db.Model):    # pylint: disable=too
         nullable=False,
     )
     weekday = scheduler_db.Column(scheduler_db.Integer, nullable=False)
-    # Minutos desde medianoche, igual que `Group.start_minutes` (DATA-005).
+    # Minutos desde medianoche, igual que `Group.start_minutes`.
     # Era un Float de horas y todo el código lo devolvía a minutos con
     # `int(round(hour * 60))` para poder comparar por igualdad: un bloque de 20
     # minutos no tiene representación exacta en binario y 8.333… no calzaba con

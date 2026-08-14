@@ -1,4 +1,4 @@
-"""Medición del peso del HTML de las vistas calientes (PERF-003).
+"""Medición del peso del HTML de las vistas calientes.
 
 No es un test: mide cuántos bytes pesa el HTML servido y cuánto de eso es el
 JSON inline embebido, con el mismo dataset que `bench_queries.py`. Se corre a

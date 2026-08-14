@@ -1,4 +1,4 @@
-"""Rate limit por IP en memoria del proceso (SEC-009).
+"""Rate limit por IP del join_token, en memoria del proceso.
 
 Alcanza para lo que protege: gunicorn corre con `--workers 1` (`Dockerfile`,
 `render.yaml`), así que hay un solo proceso por instancia y este diccionario es

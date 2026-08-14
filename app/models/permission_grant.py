@@ -8,7 +8,7 @@ class GroupPermissionGrant(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):
     Otorgada por el owner del grupo a un miembro específico o a una categoría
     (todos los miembros que la tengan asignada, dinámicamente). Exactamente
     uno de `group_member_id` / `category_id` debe estar seteado, y desde
-    DATA-007 lo impone la BD con un CHECK, no solo la ruta que concede.
+    La BD lo impone con un CHECK, no solo la ruta que concede.
     """
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     group_id = scheduler_db.Column(
@@ -49,7 +49,7 @@ class GroupPermissionGrant(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):
         scheduler_db.UniqueConstraint(
             "group_id", "permission", "subject_key", name="uq_perm_grant_subject"
         ),
-        # Exactamente un sujeto (DATA-007). Sin esto una concesión con los dos
+        # Exactamente un sujeto: el CHECK de BD. Sin esto una concesión con los dos
         # NULL se guardaba con subject_key "cNone": no aplicaba a nadie pero
         # ocupaba la clave única, bloqueando la concesión real por categoría.
         # Se escribe con CASE y no con `!=` sobre IS NULL porque el resultado

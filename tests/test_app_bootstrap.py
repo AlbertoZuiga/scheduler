@@ -1,4 +1,4 @@
-"""ARCH-002: construir la app es un acto explícito, no un efecto de import.
+"""Construir la app es un acto explícito, no un efecto de import.
 
 Se corre en un subproceso limpio porque el resto de la suite ya importó
 `scheduler_app` vía conftest: en este intérprete la app está construida hace

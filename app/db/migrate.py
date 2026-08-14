@@ -19,7 +19,7 @@ _PROJECT_ROOT = os.path.dirname(
 _ALEMBIC_INI = os.path.join(_PROJECT_ROOT, "alembic.ini")
 _SCRIPT_LOCATION = os.path.join(_PROJECT_ROOT, "alembic")
 
-# Los unique parciales de DATA-001 (`WHERE deleted_at IS NULL`) no existen en
+# Los unique parciales (`WHERE deleted_at IS NULL`) no existen en
 # MySQL: el índice quedaría total y rechazaría reingresos a grupos/categorías
 # borrados. Fallar acá es más seguro que dejar la base mal.
 SUPPORTED_DIALECTS = ("postgresql", "sqlite")

@@ -1,4 +1,4 @@
-"""BE-005: el motor de disponibilidad, ejercitado sin pasar por las rutas."""
+"""El motor de disponibilidad, ejercitado sin pasar por las rutas."""
 
 # pylint: disable=redefined-outer-name
 import pytest

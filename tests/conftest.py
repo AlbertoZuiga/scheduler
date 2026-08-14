@@ -1,7 +1,7 @@
 """Fixtures de pytest para la app Flask.
 
 `config.py` lee la configuración desde variables de entorno al importarse, y
-`from app import scheduler_app` construye la app (ARCH-002: el factory ya no
+`from app import scheduler_app` construye la app (el factory ya no
 corre en el cuerpo del módulo, pero sí al pedir ese atributo). Por eso hay que
 setear el entorno ANTES de importar cualquier módulo de la app.
 """

@@ -1,4 +1,4 @@
-"""UX-001: /login es una pantalla real, no un redirect ciego a Google."""
+"""/login es una pantalla real, no un redirect ciego a Google."""
 
 from app.models.user import User
 

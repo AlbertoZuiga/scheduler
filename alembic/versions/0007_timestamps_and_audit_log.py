@@ -1,4 +1,4 @@
-"""DATA-008: created_at/updated_at en el dominio y bitácora de acciones sensibles
+"""created_at/updated_at en el dominio y bitácora de acciones sensibles
 
 Revision ID: 0007_timestamps_and_audit_log
 Revises: 0006_perm_grant_subject_xor
