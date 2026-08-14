@@ -33,6 +33,10 @@ htmlcov/
 .idea/
 .history/
 
+# Config local de Claude Code. .claude/settings.json y .claude/skills/ SI se versionan:
+# son las reglas compartidas del repo.
+.claude/settings.local.json
+
 # Local env variants
 .env.*
 
