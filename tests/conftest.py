@@ -26,7 +26,7 @@ os.environ["GOOGLE_CLIENT_ID"] = "test-client-id"
 os.environ["GOOGLE_CLIENT_SECRET"] = "test-client-secret"
 
 # pylint: disable=wrong-import-position
-from app import scheduler_app  # noqa: E402
+from app import scheduler_app  # noqa: E402  # pylint: disable=no-name-in-module
 from app.extensions import scheduler_db  # noqa: E402
 
 

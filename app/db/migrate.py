@@ -11,7 +11,10 @@ from alembic.config import Config as AlembicConfig
 from alembic.runtime.migration import MigrationContext
 
 from alembic import command
-from app import scheduler_app
+
+# `scheduler_app` lo fabrica el __getattr__ (PEP 562) de app/__init__.py, que
+# pylint no puede inferir estaticamente.
+from app import scheduler_app  # pylint: disable=no-name-in-module
 from app.extensions import scheduler_db
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

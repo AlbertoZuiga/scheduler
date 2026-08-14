@@ -104,10 +104,6 @@ recursive=no
 # source root.
 source-roots=
 
-# When enabled, pylint would attempt to guess common misconfiguration and emit
-# user-friendly hints instead of false-positive error messages.
-suggestion-mode=yes
-
 # Allow loading of arbitrary C extensions. Extensions are imported into the
 # active Python interpreter and may run arbitrary code.
 unsafe-load-any-extension=no
@@ -443,6 +439,11 @@ disable=raw-checker-failed,
         missing-module-docstring,
         missing-class-docstring,
         missing-function-docstring,
+        # E1102: `func.now()` / `func.count()` de SQLAlchemy. `func` es un
+        # _FunctionGenerator que fabrica el atributo en __getattr__, asi que
+        # pylint infiere un objeto no invocable. Es la API documentada de
+        # SQLAlchemy 2.0 y la unica fuente de E1102 en este repo.
+        not-callable,
 
 
 # Enable the message, report, category or checker with the given id(s). You can
