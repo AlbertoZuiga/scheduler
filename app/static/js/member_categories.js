@@ -2,7 +2,7 @@ const __GM__ = JSON.parse(document.getElementById('embed-gm').textContent || '{}
 const CAN_EDIT = !!__GM__.can_edit;
 const API_URL = __GM__.api_url;
 
-async function toggleCategory(catId, checked) {
+const toggleCategory = async (catId, checked) => {
   const opts = checked
     ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ category_id: catId }) }
     : { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ category_id: catId }) };

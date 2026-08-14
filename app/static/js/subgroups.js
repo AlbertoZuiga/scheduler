@@ -577,7 +577,6 @@
     // Renderizar cada subgrupo
     data.groups.forEach((group, idx) => {
       const compatPercent = Math.round(group.compatibility_avg * 100);
-      const compatColor = getCompatibilityColor(group.compatibility_avg);
 
       html += `
         <div class="rounded-lg border-2 mb-3 overflow-hidden shadow-md ${
@@ -675,15 +674,6 @@
 
     // Scroll al preview
     previewPanel.scrollIntoView({ behavior: "smooth" });
-  }
-
-  /**
-   * Obtiene el color según la compatibilidad
-   */
-  function getCompatibilityColor(compat) {
-    if (compat >= 0.7) return "#198754"; // verde
-    if (compat >= 0.4) return "#ffc107"; // amarillo
-    return "#dc3545"; // rojo
   }
 
   /**
