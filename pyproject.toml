@@ -1,0 +1,20 @@
+[tool.ruff]
+# 100 columnas para no contradecir max-line-length del .pylintrc, que sigue
+# corriendo en CI como linter advisory de olores de diseno.
+line-length = 100
+target-version = "py312"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+# E/F: pycodestyle + pyflakes. I: orden de imports. UP: modernizacion a py312.
+# B: bugbear. SIM: simplificaciones. Reemplazan las categorias C y R basicas de
+# pylint, que queda solo para too-many-* y duplicate-code.
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# Barrel de registro de modelos: los imports parecen sin uso pero son los que
+# registran las clases en el metadata de SQLAlchemy. Sin ellos, Alembic no ve
+# las tablas al autogenerar.
+"app/models/__init__.py" = ["F401"]
+# Los tests usan `assert False` deliberado en ramas inalcanzables.
+"tests/*" = ["B011"]
