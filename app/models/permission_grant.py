@@ -10,6 +10,7 @@ class GroupPermissionGrant(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):
     uno de `group_member_id` / `category_id` debe estar seteado, y desde
     La BD lo impone con un CHECK, no solo la ruta que concede.
     """
+
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     group_id = scheduler_db.Column(
         scheduler_db.Integer,

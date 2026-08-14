@@ -15,7 +15,7 @@ def generate_join_token():
     return secrets.token_urlsafe(32)
 
 
-class Group(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-public-methods
+class Group(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):  # pylint: disable=too-few-public-methods
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     name = scheduler_db.Column(scheduler_db.String(150), nullable=False)
     join_token = scheduler_db.Column(scheduler_db.String(64), unique=True, nullable=False)
@@ -28,9 +28,7 @@ class Group(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):    # pylint: d
     )
     owner = scheduler_db.relationship(
         "User",
-        backref=scheduler_db.backref(
-            "groups", cascade="all, delete-orphan", passive_deletes=True
-        ),
+        backref=scheduler_db.backref("groups", cascade="all, delete-orphan", passive_deletes=True),
     )
     # Rango horario y días visibles en la grilla de disponibilidad del grupo.
     # El rango se guarda en minutos desde medianoche para permitir horas con
@@ -56,9 +54,7 @@ class Group(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):    # pylint: d
         passive_deletes=True,
     )
 
-    __table_args__ = (
-        scheduler_db.Index("ix_group_owner_deleted", "owner_id", "deleted_at"),
-    )
+    __table_args__ = (scheduler_db.Index("ix_group_owner_deleted", "owner_id", "deleted_at"),)
 
     def __repr__(self):
         return (

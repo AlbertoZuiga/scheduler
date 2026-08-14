@@ -5,13 +5,22 @@ import secrets
 import sys
 
 from flask import (
-    Flask, flash, g, jsonify, make_response, redirect, render_template, request, session, url_for
+    Flask,
+    flash,
+    g,
+    jsonify,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
 )
 from flask_login import current_user
 from flask_wtf.csrf import CSRFError, CSRFProtect
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from app.extensions import scheduler_db, login_manager
+from app.extensions import login_manager, scheduler_db
 from app.models.user import User
 from app.routes import blueprints
 from app.soft_delete import install_soft_delete_filter
@@ -24,9 +33,7 @@ def _configure_logging(app):
     """Manda los logs a stdout (lo que Render recolecta) con nivel por env."""
     level = getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO)
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(logging.Formatter(
-        "[%(asctime)s] %(levelname)s in %(name)s: %(message)s"
-    ))
+    handler.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s in %(name)s: %(message)s"))
     app.logger.handlers = [handler]
     app.logger.setLevel(level)
     app.logger.propagate = False
@@ -122,7 +129,9 @@ def _register_security_headers(app):
 
     @app.after_request
     def set_security_headers(response):
-        response.headers["Content-Security-Policy"] = _content_security_policy(_csp_nonce(), debug=app.config['DEBUG'])
+        response.headers["Content-Security-Policy"] = _content_security_policy(
+            _csp_nonce(), debug=app.config["DEBUG"]
+        )
         # Sin esto el navegador puede adivinar el tipo de un archivo subido o de
         # una respuesta y ejecutarlo como HTML/JS.
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -134,10 +143,8 @@ def _register_security_headers(app):
         # HSTS solo sobre HTTPS real: mandarlo en dev (http) no hace nada, y
         # mandarlo desde un host que después no sirve TLS deja al usuario sin
         # poder entrar durante un año.
-        if not app.config['DEBUG'] and request.is_secure:
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains"
-            )
+        if not app.config["DEBUG"] and request.is_secure:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         return response
 
 

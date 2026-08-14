@@ -36,4 +36,7 @@ class GroupMemberCategory(TimestampMixin, SoftDeleteMixin, scheduler_db.Model): 
     )
 
     def __repr__(self):
-        return f"<GroupMemberCategory id={self.id} group_member_id={self.group_member_id} category_id={self.category_id}>"
+        return (
+            f"<GroupMemberCategory id={self.id} "
+            f"group_member_id={self.group_member_id} category_id={self.category_id}>"
+        )

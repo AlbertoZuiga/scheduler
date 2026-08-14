@@ -48,8 +48,10 @@ def report(client, label, path):
     print(f"  JSON inline: {kib(embed_bytes):>10}  ({share:.0f}% del HTML)")
     payload = json.loads(embed_raw)
     rows = sorted(
-        ((k, len(json.dumps(v, separators=(",", ":")).encode("utf-8")))
-         for k, v in payload.items()),
+        (
+            (k, len(json.dumps(v, separators=(",", ":")).encode("utf-8")))
+            for k, v in payload.items()
+        ),
         key=lambda item: -item[1],
     )
     for key, size in rows:
@@ -73,9 +75,11 @@ def main():
                 flask_session["_user_id"] = str(owner_id)
                 flask_session["_fresh"] = True
 
-            print(f"\nDataset: {args.members} miembros · {bench.N_CATEGORIES} categorías · "
-                  f"{bench.N_SUBGROUPS} subgrupos · "
-                  f"{args.members * bench.MARKS_PER_MEMBER} marcas")
+            print(
+                f"\nDataset: {args.members} miembros · {bench.N_CATEGORIES} categorías · "
+                f"{bench.N_SUBGROUPS} subgrupos · "
+                f"{args.members * bench.MARKS_PER_MEMBER} marcas"
+            )
             report(client, "groups.show", f"/groups/{group_id}")
             report(client, "groups.availability", f"/groups/{group_id}/availability")
             print()

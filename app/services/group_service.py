@@ -1,7 +1,7 @@
 """Operaciones de dominio de grupo.
 
-Extraído de `group_routes.py` para separar lógica de dominio del transporte HTTP. Ninguna función commitea:
-la transacción la maneja la ruta que llama.
+Extraído de `group_routes.py` para separar lógica de dominio del transporte
+HTTP. Ninguna función commitea: la transacción la maneja la ruta que llama.
 """
 
 from sqlalchemy import func
@@ -18,20 +18,19 @@ from app.models import (
     RoleEnum,
     UserAvailability,
 )
-from app.models.group import generate_join_token
-from app.models.subgroup import SubGroup
 from app.models.audit_log import (
     ACTION_PERMISSION_GRANTED,
     ACTION_PERMISSION_REVOKED,
     ACTION_ROLE_CHANGED,
     record_action,
 )
+from app.models.group import generate_join_token
+from app.models.subgroup import SubGroup
 from app.permissions import (
     LEVEL_PERMISSIONS,
     PERM_VIEW_AVAILABILITY,
 )
 from app.soft_delete import INCLUDE_DELETED, find_soft_deleted, restore_batch
-
 
 # ---------------------------------------------------------------------------
 # group lifecycle
@@ -229,9 +228,7 @@ def get_member_availability_counts(group_id, user_ids):
     export era O(miembros) consultas.
     """
     return dict(
-        scheduler_db.session.query(
-            UserAvailability.user_id, func.count(UserAvailability.id)
-        )
+        scheduler_db.session.query(UserAvailability.user_id, func.count(UserAvailability.id))
         .join(Availability, UserAvailability.availability_id == Availability.id)
         .filter(Availability.group_id == group_id)
         .filter(UserAvailability.user_id.in_(user_ids))
@@ -394,9 +391,7 @@ def get_category(category_id, group_id):
 def get_group_members_with_users(group_id):
     """Todos los miembros activos del grupo con su user cargado (sin límite)."""
     return (
-        GroupMember.query.filter_by(group_id=group_id)
-        .options(selectinload(GroupMember.user))
-        .all()
+        GroupMember.query.filter_by(group_id=group_id).options(selectinload(GroupMember.user)).all()
     )
 
 
@@ -416,18 +411,21 @@ def get_subgroups_for_show(group_id, scope_user_ids, current_user_id):
     user_subgroup_map = {}
     for subgroup in subgroups:
         member_ids = [
-            m.user_id for m in subgroup.members
+            m.user_id
+            for m in subgroup.members
             if scope_user_ids is None or m.user_id in scope_user_ids
         ]
         # Con scope_user_ids no None, los chips de filtro solo muestran los subgrupos
         # que la persona ve, y los cuentan sobre su misma gente (no la del grupo completo).
         if scope_user_ids is not None and current_user_id not in member_ids:
             continue
-        group_subgroups.append({
-            "id": subgroup.id,
-            "name": subgroup.name,
-            "member_count": len(member_ids),
-        })
+        group_subgroups.append(
+            {
+                "id": subgroup.id,
+                "name": subgroup.name,
+                "member_count": len(member_ids),
+            }
+        )
         for user_id in member_ids:
             user_subgroup_map.setdefault(user_id, []).append(subgroup.id)
     return group_subgroups, user_subgroup_map

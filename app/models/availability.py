@@ -2,7 +2,7 @@ from app.extensions import scheduler_db
 from app.models.mixins import TimestampMixin
 
 
-class Availability(TimestampMixin, scheduler_db.Model):    # pylint: disable=too-few-public-methods
+class Availability(TimestampMixin, scheduler_db.Model):  # pylint: disable=too-few-public-methods
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     group_id = scheduler_db.Column(
         scheduler_db.Integer,

@@ -35,9 +35,7 @@ def group(db_session, owner):
     grupo = Group(name="Grupo largo", owner_id=owner.id, join_token="tok-largo")
     db_session.add(grupo)
     db_session.commit()
-    db_session.add(
-        GroupMember(group_id=grupo.id, user_id=owner.id, role=RoleEnum.ADMIN)
-    )
+    db_session.add(GroupMember(group_id=grupo.id, user_id=owner.id, role=RoleEnum.ADMIN))
     db_session.commit()
     return grupo
 
@@ -66,17 +64,13 @@ def test_crear_grupo_con_nombre_en_el_limite_funciona(logged_client, db_session)
 
 
 def test_crear_categoria_con_nombre_muy_largo_no_es_500(logged_client, group, db_session):
-    response = logged_client.post(
-        f"/categories/group/{group.id}", json={"name": "z" * 151}
-    )
+    response = logged_client.post(f"/categories/group/{group.id}", json={"name": "z" * 151})
 
     assert response.status_code == 400
     assert db_session.query(Category).filter_by(group_id=group.id).first() is None
 
 
-def test_crear_subgrupo_manual_con_nombre_muy_largo_no_es_500(
-    logged_client, group, db_session
-):
+def test_crear_subgrupo_manual_con_nombre_muy_largo_no_es_500(logged_client, group, db_session):
     response = logged_client.post(
         f"/groups/{group.id}/subgroups/create_manual", data={"name": "w" * 201}
     )
@@ -85,9 +79,7 @@ def test_crear_subgrupo_manual_con_nombre_muy_largo_no_es_500(
     assert db_session.query(SubGroup).filter_by(parent_group_id=group.id).first() is None
 
 
-def test_renombrar_subgrupo_con_nombre_muy_largo_no_lo_cambia(
-    logged_client, group, db_session
-):
+def test_renombrar_subgrupo_con_nombre_muy_largo_no_lo_cambia(logged_client, group, db_session):
     subgrupo = SubGroup(parent_group_id=group.id, name="Original", auto_generated=False)
     db_session.add(subgrupo)
     db_session.commit()

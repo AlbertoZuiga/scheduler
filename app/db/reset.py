@@ -1,8 +1,9 @@
 from sqlalchemy import text
 
 from app import scheduler_app
-from app.extensions import scheduler_db
 from app.db.migrate import migrate_database
+from app.extensions import scheduler_db
+
 
 def reset_database():
     with scheduler_app.app_context():

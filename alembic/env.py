@@ -5,13 +5,13 @@ importar `app.models`) y la conexión sale de la config de la app, no de
 `alembic.ini`. Con eso, `alembic revision --autogenerate` compara contra los
 mismos modelos que usa Flask y `alembic upgrade` apunta a la misma base.
 """
+
 from logging.config import fileConfig
 
+import app.models  # noqa: F401  pylint: disable=unused-import  (registra los modelos en la metadata)
 from alembic import context
-
 from app import scheduler_app
 from app.extensions import scheduler_db
-import app.models  # noqa: F401  pylint: disable=unused-import  (registra los modelos en la metadata)
 
 config = context.config
 
@@ -67,9 +67,8 @@ def run_migrations_online():
         _configure_and_run(connection)
         return
 
-    with scheduler_app.app_context():
-        with scheduler_db.engine.connect() as conn:
-            _configure_and_run(conn)
+    with scheduler_app.app_context(), scheduler_db.engine.connect() as conn:
+        _configure_and_run(conn)
 
 
 if context.is_offline_mode():

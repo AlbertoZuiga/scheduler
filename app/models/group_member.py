@@ -9,7 +9,7 @@ class RoleEnum(enum.IntEnum):
     ADMIN = 1
 
 
-class GroupMember(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-public-methods
+class GroupMember(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):  # pylint: disable=too-few-public-methods
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     group_id = scheduler_db.Column(
         scheduler_db.Integer,
@@ -63,11 +63,13 @@ class GroupMember(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):    # pyl
         # SubGroupMember no tiene group_id: sus filas se acotan a este grupo
         # cruzando por el subgrupo padre, para no sacarlo de subgrupos de otros
         # grupos donde sigue siendo miembro.
-        from app.models.subgroup import SubGroup, SubGroupMember  # pylint: disable=import-outside-toplevel
+        from app.models.subgroup import (  # pylint: disable=import-outside-toplevel
+            SubGroup,
+            SubGroupMember,
+        )
 
         subgroup_memberships = (
-            SubGroupMember.query
-            .join(SubGroup, SubGroupMember.subgroup_id == SubGroup.id)
+            SubGroupMember.query.join(SubGroup, SubGroupMember.subgroup_id == SubGroup.id)
             .filter(
                 SubGroup.parent_group_id == self.group_id,
                 SubGroupMember.user_id == self.user_id,

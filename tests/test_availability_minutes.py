@@ -5,6 +5,7 @@ El caso que rompía con el Float de horas es una grilla cuyo bloque no divide a
 volver a leerlo no calzaba con ningún inicio de la grilla, así que la marca
 desaparecía de la vista.
 """
+
 # pylint: disable=redefined-outer-name
 import re
 
@@ -101,7 +102,7 @@ def test_el_resumen_muestra_la_hora_correcta(como_usuario, grupo_20min):
 
     assert pagina.status_code == 200
     assert b'data-start-minutes="500"' in pagina.data
-    assert "08:20".encode() in pagina.data
+    assert b"08:20" in pagina.data
 
 
 def test_el_csv_cuenta_los_bloques_marcados(como_usuario, grupo_20min):

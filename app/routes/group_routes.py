@@ -2,33 +2,38 @@ import csv
 import io
 
 from flask import (
-    Blueprint, flash, redirect, render_template, request, session, url_for, abort, make_response,
+    Blueprint,
+    abort,
     current_app,
+    flash,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
 )
-from markupsafe import Markup, escape
 from flask_login import current_user, login_required
 from flask_wtf.csrf import generate_csrf
+from markupsafe import Markup, escape
 from sqlalchemy.exc import IntegrityError
 
-from app.extensions import scheduler_db
-from app.models import (
-    Category,
-    Group,
-    GroupMember,
-    RoleEnum,
-)
-from app.ratelimit import rate_limit
 from app.authz import (
     can_see_member_emails,
     display_name,
-    require_group_member,
     require_group_admin_or_owner,
+    require_group_member,
     require_group_owner,
     safe_remove_member,
 )
+from app.extensions import scheduler_db
+from app.models import (
+    Category,
+    GroupMember,
+    RoleEnum,
+)
 from app.permissions import (
     LEVEL_LABELS,
-    LEVEL_NONE,
     LEVEL_ORDER,
     LEVEL_PERMISSIONS,
     PERM_VIEW_ALL,
@@ -38,6 +43,7 @@ from app.permissions import (
     has_availability_of,
     level_of,
 )
+from app.ratelimit import rate_limit
 from app.services.availability_service import (
     active_member_user_ids,
     block_index_for,
@@ -78,8 +84,10 @@ from app.services.group_service import (
     join_group,
     leave_group,
     revoke_all_permissions,
-    rotate_join_token as svc_rotate_join_token,
     update_member_role,
+)
+from app.services.group_service import (
+    rotate_join_token as svc_rotate_join_token,
 )
 from app.soft_delete import (
     active_or_404,
@@ -132,9 +140,10 @@ COLORS = [
     "bg-pink",
     "bg-teal",
 ]
+
+
 def assign_colors_to_members(group_members):
     return {member.user.id: COLORS[i % len(COLORS)] for i, member in enumerate(group_members)}
-
 
 
 @group_bp.route("/", methods=["GET"])
@@ -175,11 +184,10 @@ def show(group_id):
         member.user.id: {
             "name": display_name(member.user, with_email=can_see_emails),
             "email": (
-                member.user.email
-                if can_see_emails or member.user.id == current_user.id
-                else ""
+                member.user.email if can_see_emails or member.user.id == current_user.id else ""
             ),
-        } for member in group_members
+        }
+        for member in group_members
     }
     can_view_group_availability = PERM_VIEW_AVAILABILITY in perms
     # Alcance del agregado: None = todo el grupo (owner, admin, subgroups.view_all).
@@ -229,12 +237,10 @@ def show(group_id):
 
     group_categories = get_group_categories(group.id)
     scoped_members = [
-        gm for gm in group_members
-        if scope_user_ids is None or gm.user_id in scope_user_ids
+        gm for gm in group_members if scope_user_ids is None or gm.user_id in scope_user_ids
     ]
     member_category_map = {
-        gm.id: [assoc.category_id for assoc in gm.categories]
-        for gm in scoped_members
+        gm.id: [assoc.category_id for assoc in gm.categories] for gm in scoped_members
     }
     user_gm_map = {gm.user_id: gm.id for gm in scoped_members}
     # El roster de cada categoría se arma acá, no en la plantilla: allá era un
@@ -341,9 +347,7 @@ def rotate_join_token(group_id):
         flash("❌ No se pudo regenerar el link de invitación. Inténtalo de nuevo.", "danger")
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
-    current_app.logger.info(
-        "join_token rotado (group_id=%s user_id=%s)", group_id, current_user.id
-    )
+    current_app.logger.info("join_token rotado (group_id=%s user_id=%s)", group_id, current_user.id)
     flash("🔄 Link de invitación regenerado. El anterior dejó de funcionar.", "success")
     return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
@@ -356,7 +360,9 @@ def join(token):
     group = get_group_by_token(token)
 
     if not group:
-        flash("❌ Grupo no encontrado. Verifica que el enlace de invitación sea correcto.", "danger")
+        flash(
+            "❌ Grupo no encontrado. Verifica que el enlace de invitación sea correcto.", "danger"
+        )
         # Un anónimo con un link roto no puede ir a "Mis Grupos": rebotaría al login.
         target = GROUP_INDEX_URL if current_user.is_authenticated else "main.index"
         return redirect(url_for(target))
@@ -388,7 +394,9 @@ def join(token):
     join_group(group, user_id)
     if not _commit_or_flash_conflict(
         f"ℹ️ Ya eres miembro del grupo '{group.name}'.",
-        "join duplicado (group_id=%s user_id=%s)", group.id, user_id,
+        "join duplicado (group_id=%s user_id=%s)",
+        group.id,
+        user_id,
     ):
         return redirect(url_for(GROUP_SHOW_URL, group_id=group.id))
 
@@ -451,12 +459,14 @@ def export_members_csv(group_id):
             if assoc.category and assoc.category.name
         )
         availability_count = availability_counts.get(member.user_id, 0)
-        writer.writerow([
-            member.user.name if member.user else "",
-            member.user.email if member.user else "",
-            ", ".join(category_names),
-            availability_count,
-        ])
+        writer.writerow(
+            [
+                member.user.name if member.user else "",
+                member.user.email if member.user else "",
+                ", ".join(category_names),
+                availability_count,
+            ]
+        )
 
     output.seek(0)
     response = make_response(output.getvalue())
@@ -498,7 +508,11 @@ def availability(group_id):
             )
             return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
-        flash(f"✅ Disponibilidad actualizada exitosamente ({saved_count} bloques horarios guardados).", "success")
+        flash(
+            "✅ Disponibilidad actualizada exitosamente "
+            f"({saved_count} bloques horarios guardados).",
+            "success",
+        )
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
     user_availability = get_user_availability_data(group_id, current_user.id)
@@ -599,9 +613,7 @@ def availability_settings(group_id):
         or block_minutes != group.block_minutes
     )
 
-    hidden_blocks = count_out_of_range_marks(
-        group_id, start_minutes, end_minutes, weekday_ints
-    )
+    hidden_blocks = count_out_of_range_marks(group_id, start_minutes, end_minutes, weekday_ints)
 
     # La grilla nueva y el remapeo de las marcas viajan juntos: commitear la
     # grilla sola dejaría las marcas viejas colgando de bloques inexistentes.
@@ -685,9 +697,9 @@ def restore(group_id):
 
     restore_batch(group)
     if not _commit_or_flash_conflict(
-        "⚠️ No se pudo restaurar el grupo: hay datos activos que chocan con los "
-        "de la papelera.",
-        "restore de grupo con conflicto de unique (group_id=%s)", group_id,
+        "⚠️ No se pudo restaurar el grupo: hay datos activos que chocan con los de la papelera.",
+        "restore de grupo con conflicto de unique (group_id=%s)",
+        group_id,
     ):
         return redirect(url_for("groups.trash"))
 
@@ -752,7 +764,8 @@ def restore_member(group_id, user_id):
     if not _commit_or_flash_conflict(
         "ℹ️ Esa persona ya volvió a ser miembro del grupo.",
         "restore_member con conflicto de unique (group_id=%s user_id=%s)",
-        group_id, user_id,
+        group_id,
+        user_id,
     ):
         return redirect(url_for(GROUP_SHOW_URL, group_id=group_id))
 
@@ -806,12 +819,14 @@ def permissions(group_id):
         cat = categories_by_id.get(cat_id)
         if cat is None:
             continue
-        category_rows.append({
-            "category": cat,
-            "level": level_of(direct),
-            "has_availability": has_availability_of(direct),
-            "member_count": category_member_counts.get(cat_id, 0),
-        })
+        category_rows.append(
+            {
+                "category": cat,
+                "level": level_of(direct),
+                "has_availability": has_availability_of(direct),
+                "member_count": category_member_counts.get(cat_id, 0),
+            }
+        )
     category_rows.sort(key=lambda row: row["category"].name)
 
     member_rows = []
@@ -819,18 +834,21 @@ def permissions(group_id):
         member = members_by_id.get(member_id)
         if member is None or member.user_id == group.owner_id:
             continue
-        member_rows.append({
-            "member": member,
-            "level": level_of(direct),
-            "has_availability": has_availability_of(direct),
-        })
+        member_rows.append(
+            {
+                "member": member,
+                "level": level_of(direct),
+                "has_availability": has_availability_of(direct),
+            }
+        )
     member_rows.sort(key=lambda row: row["member"].user.name or row["member"].user.email)
 
     granted_category_ids = set(sources["categories"].keys())
     granted_member_ids = set(sources["members"].keys())
     available_categories = [cat for cat in categories if cat.id not in granted_category_ids]
     available_members = [
-        member for member in group_members
+        member
+        for member in group_members
         if member.id not in granted_member_ids
         and member.user_id != group.owner_id
         and member.role != RoleEnum.ADMIN
@@ -879,7 +897,9 @@ def set_permission_level(group_id):
             return redirect(url_for("groups.permissions", group_id=group_id))
 
     availability_checked = request.form.get("availability") == "on"
-    apply_permission_level(group, subject_type, subject_id, level, availability_checked, current_user)
+    apply_permission_level(
+        group, subject_type, subject_id, level, availability_checked, current_user
+    )
     scheduler_db.session.commit()
     flash("Permisos actualizados.", "success")
     return redirect(url_for("groups.permissions", group_id=group_id))

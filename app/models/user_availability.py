@@ -2,7 +2,7 @@ from app.extensions import scheduler_db
 from app.models.mixins import ACTIVE_ROWS, SoftDeleteMixin, TimestampMixin
 
 
-class UserAvailability(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):    # pylint: disable=too-few-public-methods
+class UserAvailability(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):  # pylint: disable=too-few-public-methods
     __tablename__ = "user_availability"
     id = scheduler_db.Column(scheduler_db.Integer, primary_key=True)
     user_id = scheduler_db.Column(
@@ -28,9 +28,7 @@ class UserAvailability(TimestampMixin, SoftDeleteMixin, scheduler_db.Model):    
     )
     availability = scheduler_db.relationship(
         "Availability",
-        backref=scheduler_db.backref(
-            "users", cascade="all, delete-orphan", passive_deletes=True
-        ),
+        backref=scheduler_db.backref("users", cascade="all, delete-orphan", passive_deletes=True),
     )
 
     __table_args__ = (

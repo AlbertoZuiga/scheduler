@@ -4,12 +4,18 @@
 import pytest
 
 from app.extensions import scheduler_db
-from app.models import Availability, Group, GroupMember, GroupPermissionGrant, RoleEnum, UserAvailability
+from app.models import (
+    Availability,
+    Group,
+    GroupMember,
+    GroupPermissionGrant,
+    RoleEnum,
+    UserAvailability,
+)
 from app.models.user import User
-from app.permissions import LEVEL_NONE, PERM_VIEW_OWN, PERM_VIEW_AVAILABILITY
+from app.permissions import LEVEL_NONE, PERM_VIEW_AVAILABILITY, PERM_VIEW_OWN
 from app.services import group_service as svc
 from app.services.availability_service import active_member_user_ids
-
 
 # ---------------------------------------------------------------------------
 # fixtures
@@ -259,10 +265,12 @@ def test_counts_by_model_retorna_conteo_por_grupo(db_session, owner):
     g2 = Group(name="g2", owner_id=owner.id, join_token="t2")
     db_session.add_all([g1, g2])
     db_session.commit()
-    db_session.add_all([
-        GroupMember(group_id=g1.id, user_id=owner.id, role=RoleEnum.ADMIN),
-        GroupMember(group_id=g2.id, user_id=owner.id, role=RoleEnum.ADMIN),
-    ])
+    db_session.add_all(
+        [
+            GroupMember(group_id=g1.id, user_id=owner.id, role=RoleEnum.ADMIN),
+            GroupMember(group_id=g2.id, user_id=owner.id, role=RoleEnum.ADMIN),
+        ]
+    )
     db_session.commit()
 
     counts = svc.counts_by_model(GroupMember, [g1.id, g2.id])
@@ -301,7 +309,9 @@ def test_apply_permission_level_crea_permisos_nuevos(db_session, group, owner):
     svc.apply_permission_level(group, "member", member.id, "view_own", False, owner)
     db_session.commit()
 
-    grants = GroupPermissionGrant.query.filter_by(group_id=group.id, group_member_id=member.id).all()
+    grants = GroupPermissionGrant.query.filter_by(
+        group_id=group.id, group_member_id=member.id
+    ).all()
     permissions = {g.permission for g in grants}
     assert PERM_VIEW_OWN in permissions
 
@@ -312,7 +322,9 @@ def test_apply_permission_level_incluye_availability_si_checked(db_session, grou
     svc.apply_permission_level(group, "member", member.id, "view_own", True, owner)
     db_session.commit()
 
-    grants = GroupPermissionGrant.query.filter_by(group_id=group.id, group_member_id=member.id).all()
+    grants = GroupPermissionGrant.query.filter_by(
+        group_id=group.id, group_member_id=member.id
+    ).all()
     permissions = {g.permission for g in grants}
     assert PERM_VIEW_AVAILABILITY in permissions
 
@@ -324,7 +336,9 @@ def test_apply_permission_level_revoca_permisos_no_deseados(db_session, group, o
     svc.apply_permission_level(group, "member", member.id, LEVEL_NONE, False, owner)
     db_session.commit()
 
-    active = GroupPermissionGrant.query.filter_by(group_id=group.id, group_member_id=member.id).all()
+    active = GroupPermissionGrant.query.filter_by(
+        group_id=group.id, group_member_id=member.id
+    ).all()
     assert active == []
 
 
@@ -337,11 +351,15 @@ def test_apply_permission_level_restaura_grant_soft_deleted(db_session, group, o
     svc.apply_permission_level(group, "member", member.id, "view_own", False, owner)
     db_session.commit()
 
-    active = GroupPermissionGrant.query.filter_by(group_id=group.id, group_member_id=member.id).all()
+    active = GroupPermissionGrant.query.filter_by(
+        group_id=group.id, group_member_id=member.id
+    ).all()
     assert any(g.permission == PERM_VIEW_OWN for g in active)
-    total = GroupPermissionGrant.query.execution_options(include_deleted=True).filter_by(
-        group_id=group.id, group_member_id=member.id, permission=PERM_VIEW_OWN
-    ).count()
+    total = (
+        GroupPermissionGrant.query.execution_options(include_deleted=True)
+        .filter_by(group_id=group.id, group_member_id=member.id, permission=PERM_VIEW_OWN)
+        .count()
+    )
     assert total == 1
 
 
@@ -358,7 +376,9 @@ def test_revoke_all_permissions_oculta_todos_los_grants(db_session, group, owner
     db_session.commit()
 
     assert len(revoked) == 1
-    active = GroupPermissionGrant.query.filter_by(group_id=group.id, group_member_id=member.id).all()
+    active = GroupPermissionGrant.query.filter_by(
+        group_id=group.id, group_member_id=member.id
+    ).all()
     assert active == []
 
 

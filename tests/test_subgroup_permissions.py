@@ -8,9 +8,7 @@ Cubre:
 """
 
 import flask
-import pytest
 
-from app.extensions import scheduler_db
 from app.models import (
     Group,
     GroupMember,
@@ -48,10 +46,12 @@ def _seed(db_session, token):
     db_session.add(sg)
     db_session.flush()
 
-    db_session.add_all([
-        SubGroupMember(subgroup_id=sg.id, user_id=member_a.id),
-        SubGroupMember(subgroup_id=sg.id, user_id=member_b.id),
-    ])
+    db_session.add_all(
+        [
+            SubGroupMember(subgroup_id=sg.id, user_id=member_a.id),
+            SubGroupMember(subgroup_id=sg.id, user_id=member_b.id),
+        ]
+    )
     db_session.commit()
 
     return group, owner, member_a, member_b, gm_a, gm_b, sg
@@ -77,12 +77,17 @@ def _get_subgroups(app, user_id, group_id):
 # view_own: GET no expone controles de escritura
 # ---------------------------------------------------------------------------
 
+
 def test_view_own_no_muestra_add_member(app, db_session):
     group, _, member_a, member_b, gm_a, gm_b, sg = _seed(db_session, "sp-view-add")
 
-    db_session.add(GroupPermissionGrant(
-        group_id=group.id, group_member_id=gm_b.id, permission=PERM_VIEW_OWN,
-    ))
+    db_session.add(
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_VIEW_OWN,
+        )
+    )
     db_session.commit()
 
     body = _get_subgroups(app, member_b.id, group.id)
@@ -93,9 +98,13 @@ def test_view_own_no_muestra_add_member(app, db_session):
 def test_view_own_no_muestra_remove_member(app, db_session):
     group, _, member_a, member_b, gm_a, gm_b, sg = _seed(db_session, "sp-view-rm")
 
-    db_session.add(GroupPermissionGrant(
-        group_id=group.id, group_member_id=gm_b.id, permission=PERM_VIEW_OWN,
-    ))
+    db_session.add(
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_VIEW_OWN,
+        )
+    )
     db_session.commit()
 
     body = _get_subgroups(app, member_b.id, group.id)
@@ -107,12 +116,17 @@ def test_view_own_no_muestra_remove_member(app, db_session):
 # view_availability (implica view_own): idem
 # ---------------------------------------------------------------------------
 
+
 def test_view_availability_no_muestra_add_member(app, db_session):
     group, _, member_a, member_b, gm_a, gm_b, sg = _seed(db_session, "sp-avail-add")
 
-    db_session.add(GroupPermissionGrant(
-        group_id=group.id, group_member_id=gm_b.id, permission=PERM_VIEW_AVAILABILITY,
-    ))
+    db_session.add(
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_VIEW_AVAILABILITY,
+        )
+    )
     db_session.commit()
 
     body = _get_subgroups(app, member_b.id, group.id)
@@ -123,9 +137,13 @@ def test_view_availability_no_muestra_add_member(app, db_session):
 def test_view_availability_no_muestra_remove_member(app, db_session):
     group, _, member_a, member_b, gm_a, gm_b, sg = _seed(db_session, "sp-avail-rm")
 
-    db_session.add(GroupPermissionGrant(
-        group_id=group.id, group_member_id=gm_b.id, permission=PERM_VIEW_AVAILABILITY,
-    ))
+    db_session.add(
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_VIEW_AVAILABILITY,
+        )
+    )
     db_session.commit()
 
     body = _get_subgroups(app, member_b.id, group.id)
@@ -137,12 +155,17 @@ def test_view_availability_no_muestra_remove_member(app, db_session):
 # edit_own + pertenencia: sí expone las acciones (no-regresión)
 # ---------------------------------------------------------------------------
 
+
 def test_edit_own_miembro_ve_add_member(app, db_session):
     group, _, member_a, member_b, gm_a, gm_b, sg = _seed(db_session, "sp-edit-add")
 
-    db_session.add(GroupPermissionGrant(
-        group_id=group.id, group_member_id=gm_b.id, permission=PERM_EDIT_OWN,
-    ))
+    db_session.add(
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_EDIT_OWN,
+        )
+    )
     db_session.commit()
 
     body = _get_subgroups(app, member_b.id, group.id)
@@ -153,9 +176,13 @@ def test_edit_own_miembro_ve_add_member(app, db_session):
 def test_edit_own_miembro_ve_remove_member(app, db_session):
     group, _, member_a, member_b, gm_a, gm_b, sg = _seed(db_session, "sp-edit-rm")
 
-    db_session.add(GroupPermissionGrant(
-        group_id=group.id, group_member_id=gm_b.id, permission=PERM_EDIT_OWN,
-    ))
+    db_session.add(
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_EDIT_OWN,
+        )
+    )
     db_session.commit()
 
     body = _get_subgroups(app, member_b.id, group.id)
@@ -174,9 +201,13 @@ def test_edit_own_no_miembro_no_ve_controles(app, db_session):
     db_session.add(gm_out)
     db_session.flush()
 
-    db_session.add(GroupPermissionGrant(
-        group_id=group.id, group_member_id=gm_out.id, permission=PERM_EDIT_OWN,
-    ))
+    db_session.add(
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_out.id,
+            permission=PERM_EDIT_OWN,
+        )
+    )
     db_session.commit()
 
     body = _get_subgroups(app, outsider.id, group.id)
@@ -189,12 +220,17 @@ def test_edit_own_no_miembro_no_ve_controles(app, db_session):
 # POST con view_own -> 403
 # ---------------------------------------------------------------------------
 
+
 def test_post_add_member_con_view_own_retorna_403(app, db_session):
     group, _, member_a, member_b, gm_a, gm_b, sg = _seed(db_session, "sp-post-add")
 
-    db_session.add(GroupPermissionGrant(
-        group_id=group.id, group_member_id=gm_b.id, permission=PERM_VIEW_OWN,
-    ))
+    db_session.add(
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_VIEW_OWN,
+        )
+    )
     db_session.commit()
 
     client = _client_for(app, member_b.id)
@@ -208,9 +244,13 @@ def test_post_add_member_con_view_own_retorna_403(app, db_session):
 def test_post_remove_member_con_view_own_retorna_403(app, db_session):
     group, _, member_a, member_b, gm_a, gm_b, sg = _seed(db_session, "sp-post-rm")
 
-    db_session.add(GroupPermissionGrant(
-        group_id=group.id, group_member_id=gm_b.id, permission=PERM_VIEW_OWN,
-    ))
+    db_session.add(
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_VIEW_OWN,
+        )
+    )
     db_session.commit()
 
     client = _client_for(app, member_b.id)
@@ -223,9 +263,13 @@ def test_post_remove_member_con_view_own_retorna_403(app, db_session):
 def test_post_rename_con_view_own_retorna_403(app, db_session):
     group, _, member_a, member_b, gm_a, gm_b, sg = _seed(db_session, "sp-post-rename")
 
-    db_session.add(GroupPermissionGrant(
-        group_id=group.id, group_member_id=gm_b.id, permission=PERM_VIEW_OWN,
-    ))
+    db_session.add(
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_VIEW_OWN,
+        )
+    )
     db_session.commit()
 
     client = _client_for(app, member_b.id)

@@ -1,4 +1,5 @@
 """Fechas en el dominio y bitácora de las acciones sensibles."""
+
 # pylint: disable=redefined-outer-name
 import pytest
 
@@ -113,9 +114,7 @@ def test_la_bitacora_sobrevive_al_borrado_del_actor(db_session, como_duenio, gru
     entrada.actor_id = tercero.id
     db_session.commit()
 
-    db_session.query(User).filter(User.id == tercero.id).delete(
-        synchronize_session=False
-    )
+    db_session.query(User).filter(User.id == tercero.id).delete(synchronize_session=False)
     db_session.commit()
     db_session.expire_all()
 

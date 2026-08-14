@@ -4,18 +4,17 @@ Qué hace:
 - Bases nuevas: `create_all()` + stamp en `head` (sin recorrer el historial).
 - Bases existentes ya versionadas: `upgrade("head")` aplica las revisiones pendientes.
 """
+
 import os
 
-from alembic import command
 from alembic.config import Config as AlembicConfig
 from alembic.runtime.migration import MigrationContext
 
+from alembic import command
 from app import scheduler_app
 from app.extensions import scheduler_db
 
-_PROJECT_ROOT = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _ALEMBIC_INI = os.path.join(_PROJECT_ROOT, "alembic.ini")
 _SCRIPT_LOCATION = os.path.join(_PROJECT_ROOT, "alembic")
 
