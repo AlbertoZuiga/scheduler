@@ -59,6 +59,7 @@ from app.services.group_service import (
     get_category,
     get_category_member_counts,
     get_deleted_groups_for_user,
+    get_group_by_id,
     get_group_by_token,
     get_group_categories,
     get_group_including_deleted,
@@ -696,7 +697,7 @@ def restore(group_id):
 @group_bp.route("/<int:group_id>/leave", methods=["POST"])
 @login_required
 def leave(group_id):
-    group = active_or_404(scheduler_db.session.get(Group, group_id))
+    group = active_or_404(get_group_by_id(group_id))
 
     # La disponibilidad del usuario no se toca: queda fuera de los agregados
     # por dejar de ser miembro, y vuelve tal cual si reingresa.

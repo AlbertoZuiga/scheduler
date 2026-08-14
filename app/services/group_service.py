@@ -362,6 +362,11 @@ def get_group_including_deleted(group_id):
     )
 
 
+def get_group_by_id(group_id):
+    """Busca un grupo por id usando session.get (sin filtros de soft-delete)."""
+    return scheduler_db.session.get(Group, group_id)
+
+
 def get_group_by_token(token):
     """Busca un grupo activo por su join_token."""
     return Group.query.filter_by(join_token=token).first()
