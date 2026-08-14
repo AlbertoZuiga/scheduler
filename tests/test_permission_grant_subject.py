@@ -3,6 +3,7 @@
 La regla vivía solo en la ruta que concede; ahora la impone el CHECK
 `ck_perm_grant_subject_xor`, así que se prueba contra la BD.
 """
+
 # pylint: disable=redefined-outer-name
 import pytest
 from sqlalchemy.exc import IntegrityError
@@ -40,9 +41,7 @@ def test_sin_sujeto_es_rechazada(db_session, contexto):
     """El caso real: se guardaba con subject_key 'cNone' y ocupaba la unicidad."""
     _rechaza(
         db_session,
-        GroupPermissionGrant(
-            group_id=contexto["group"].id, permission="subgroups.view_all"
-        ),
+        GroupPermissionGrant(group_id=contexto["group"].id, permission="subgroups.view_all"),
     )
 
 

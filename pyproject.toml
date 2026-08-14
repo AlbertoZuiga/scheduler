@@ -10,6 +10,10 @@ extend-exclude = ["alembic/versions"]
 # B: bugbear. SIM: simplificaciones. Reemplazan las categorias C y R basicas de
 # pylint, que queda solo para too-many-* y duplicate-code.
 select = ["E", "F", "I", "UP", "B", "SIM"]
+# SIM102/SIM108 colapsan ramas que en este repo llevan un comentario propio
+# explicando el caso; el ternario o el `and` encadenado se comen ese comentario
+# y alargan la condicion. Se pierde mas de lo que se gana.
+ignore = ["SIM102", "SIM108"]
 
 [tool.ruff.lint.per-file-ignores]
 # Barrel de registro de modelos: los imports parecen sin uso pero son los que

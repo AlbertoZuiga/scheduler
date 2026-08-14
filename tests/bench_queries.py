@@ -51,7 +51,7 @@ from app.permissions import PERM_VIEW_ALL  # noqa: E402
 N_MEMBERS = 60
 N_CATEGORIES = 10
 N_SUBGROUPS = 6
-N_OTHER_GROUPS = 11        # el usuario ve 12 grupos en groups.index
+N_OTHER_GROUPS = 11  # el usuario ve 12 grupos en groups.index
 WEEKDAYS = 5
 BLOCKS_PER_DAY = 12
 MARKS_PER_MEMBER = 30
@@ -142,9 +142,7 @@ def seed():
             GroupMember(group_id=other.id, user_id=user.id, role=RoleEnum.MEMBER)
             for user in users[: 5 + i]
         )
-        scheduler_db.session.add_all(
-            Category(group_id=other.id, name=f"Cat {j}") for j in range(3)
-        )
+        scheduler_db.session.add_all(Category(group_id=other.id, name=f"Cat {j}") for j in range(3))
 
     scheduler_db.session.commit()
     return owner.id, group.id
@@ -191,9 +189,12 @@ def main():
     global N_MEMBERS  # pylint: disable=global-statement
     parser = argparse.ArgumentParser()
     parser.add_argument("--echo", action="store_true", help="volcar el SQL a stderr")
-    parser.add_argument("--members", type=int, default=N_MEMBERS,
-                        help="miembros del grupo grande (para verificar que el "
-                             "conteo de queries no crece con N)")
+    parser.add_argument(
+        "--members",
+        type=int,
+        default=N_MEMBERS,
+        help="miembros del grupo grande (para verificar que el conteo de queries no crece con N)",
+    )
     args = parser.parse_args()
     N_MEMBERS = args.members
 
@@ -224,9 +225,11 @@ def main():
 
         results = [measure(client, label, path, args.echo) for label, path in views]
 
-    print(f"\nDataset: {N_MEMBERS} miembros · {N_CATEGORIES} categorías · "
-          f"{N_SUBGROUPS} subgrupos · {N_MEMBERS * MARKS_PER_MEMBER} marcas · "
-          f"{N_OTHER_GROUPS + 1} grupos en index\n")
+    print(
+        f"\nDataset: {N_MEMBERS} miembros · {N_CATEGORIES} categorías · "
+        f"{N_SUBGROUPS} subgrupos · {N_MEMBERS * MARKS_PER_MEMBER} marcas · "
+        f"{N_OTHER_GROUPS + 1} grupos en index\n"
+    )
     print(f"{'Vista':<32}{'Ruta':<34}{'Queries':>8}")
     print("-" * 74)
     for label, path, count, status in results:

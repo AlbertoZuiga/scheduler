@@ -1,7 +1,8 @@
 """Motor de disponibilidad: la grilla horaria del grupo y las marcas sobre ella.
 
-Extraído de `group_routes.py` para separar el motor de disponibilidad del transporte HTTP. Acá vive todo lo que traduce entre las
-dos representaciones que conviven en el dominio:
+Extraído de `group_routes.py` para separar el motor de disponibilidad del
+transporte HTTP. Acá vive todo lo que traduce entre las dos representaciones
+que conviven en el dominio:
 
 - **minutos desde medianoche**: la unidad canónica (`Group.start_minutes`,
   `Group.block_minutes`, `Availability.start_minutes`).
@@ -96,7 +97,9 @@ def clear_existing_availability(group, user_id, active_weekdays):
     visible_starts = set(group.block_starts())
     visible_weekdays = set(active_weekdays)
     rows = (
-        scheduler_db.session.query(UserAvailability, Availability.weekday, Availability.start_minutes)
+        scheduler_db.session.query(
+            UserAvailability, Availability.weekday, Availability.start_minutes
+        )
         .join(Availability, UserAvailability.availability_id == Availability.id)
         .filter(UserAvailability.user_id == user_id, Availability.group_id == group.id)
         .all()
@@ -116,15 +119,11 @@ def mark_user_available(user_id, availability_id):
 
     # Reutiliza la fila oculta si existe: evita duplicar
     # (user_id, availability_id) en cada guardado.
-    hidden = find_soft_deleted(
-        UserAvailability, user_id=user_id, availability_id=availability_id
-    )
+    hidden = find_soft_deleted(UserAvailability, user_id=user_id, availability_id=availability_id)
     if hidden:
         hidden.restore()
     else:
-        scheduler_db.session.add(
-            UserAvailability(user_id=user_id, availability_id=availability_id)
-        )
+        scheduler_db.session.add(UserAvailability(user_id=user_id, availability_id=availability_id))
     return True
 
 
@@ -132,7 +131,7 @@ def process_posted_availability(group_id, form_data, group, user_id, active_week
     block_starts = group.block_starts()
     known = _availability_by_minutes(group_id)
     count = 0
-    for weekday in (active_weekdays if active_weekdays is not None else range(7)):
+    for weekday in active_weekdays if active_weekdays is not None else range(7):
         for block_index, start_minutes in enumerate(block_starts):
             key = f"day_{weekday}_hour_{block_index}"
             if key not in form_data:
@@ -201,8 +200,7 @@ def count_out_of_range_marks(group_id, start_minutes, end_minutes, weekdays):
     return sum(
         1
         for weekday, avail_start in rows
-        if weekday not in weekdays
-        or not start_minutes <= avail_start < end_minutes
+        if weekday not in weekdays or not start_minutes <= avail_start < end_minutes
     )
 
 
@@ -328,9 +326,7 @@ def get_availability_data(group_id, limit=AVAILABILITY_SUMMARY_LIMIT, user_ids=N
     }
 
     rows = (
-        scheduler_db.session.query(
-            UserAvailability.availability_id, UserAvailability.user_id
-        )
+        scheduler_db.session.query(UserAvailability.availability_id, UserAvailability.user_id)
         .filter(UserAvailability.availability_id.in_(data.keys()))
         .filter(UserAvailability.user_id.in_(member_ids))
         .all()

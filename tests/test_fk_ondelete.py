@@ -7,6 +7,7 @@ fueron igual. Es lo que permitió sacar el andamiaje manual de `app/db/seed.py`.
 Los tests corren sobre SQLite, así que dependen de `PRAGMA foreign_keys=ON`
 (app/extensions.py): sin eso pasarían por vacuidad, con las FKs sin aplicar.
 """
+
 # pylint: disable=redefined-outer-name
 import pytest
 
@@ -51,9 +52,7 @@ def arbol(db_session):
             ),
             UserAvailability(user_id=duenio.id, availability_id=slot.id),
             SubGroupMember(subgroup_id=subgroup.id, user_id=duenio.id),
-            DivisionJob(
-                parent_group_id=group.id, created_by=duenio.id, config_json={}
-            ),
+            DivisionJob(parent_group_id=group.id, created_by=duenio.id, config_json={}),
         ]
     )
     db_session.flush()
@@ -82,9 +81,7 @@ def test_borrar_el_grupo_arrastra_todo_lo_suyo(db_session, arbol):
     for model in DEPENDIENTES:
         assert _cuantas(db_session, model) == 1
 
-    db_session.query(Group).filter(Group.id == arbol["group"].id).delete(
-        synchronize_session=False
-    )
+    db_session.query(Group).filter(Group.id == arbol["group"].id).delete(synchronize_session=False)
     db_session.flush()
 
     for model in DEPENDIENTES:
@@ -93,9 +90,7 @@ def test_borrar_el_grupo_arrastra_todo_lo_suyo(db_session, arbol):
 
 def test_borrar_al_duenio_arrastra_su_grupo(db_session, arbol):
     """`group.owner_id` es NOT NULL: el grupo no puede quedar huérfano."""
-    db_session.query(User).filter(User.id == arbol["user"].id).delete(
-        synchronize_session=False
-    )
+    db_session.query(User).filter(User.id == arbol["user"].id).delete(synchronize_session=False)
     db_session.flush()
 
     assert _cuantas(db_session, Group) == 0
@@ -108,15 +103,11 @@ def test_el_job_sobrevive_a_su_creador(db_session, arbol):
     otro = User(email="otro-cascada@example.com", name="Otro")
     db_session.add(otro)
     db_session.flush()
-    job = DivisionJob(
-        parent_group_id=arbol["group"].id, created_by=otro.id, config_json={}
-    )
+    job = DivisionJob(parent_group_id=arbol["group"].id, created_by=otro.id, config_json={})
     db_session.add(job)
     db_session.flush()
 
-    db_session.query(User).filter(User.id == otro.id).delete(
-        synchronize_session=False
-    )
+    db_session.query(User).filter(User.id == otro.id).delete(synchronize_session=False)
     db_session.flush()
     db_session.expire_all()
 

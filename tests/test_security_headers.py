@@ -21,9 +21,7 @@ SCRIPT_TAG = re.compile(rb"<script\b[^>]*>")
 def _directivas(response):
     csp = response.headers["Content-Security-Policy"]
     return {
-        parte.strip().split(" ", 1)[0]: parte.strip()
-        for parte in csp.split(";")
-        if parte.strip()
+        parte.strip().split(" ", 1)[0]: parte.strip() for parte in csp.split(";") if parte.strip()
     }
 
 
@@ -109,9 +107,15 @@ def _assert_scripts_con_nonce(response, path):
 
 @pytest.mark.parametrize(
     "path",
-    ["/", "/groups/", "/groups/{group_id}", "/groups/{group_id}/availability",
-     "/groups/{group_id}/members", "/groups/{group_id}/subgroups",
-     "/groups/{group_id}/subgroups/new"],
+    [
+        "/",
+        "/groups/",
+        "/groups/{group_id}",
+        "/groups/{group_id}/availability",
+        "/groups/{group_id}/members",
+        "/groups/{group_id}/subgroups",
+        "/groups/{group_id}/subgroups/new",
+    ],
 )
 def test_todo_script_inline_lleva_el_nonce_de_la_request(client, grupo_con_owner, path):
     """Un `<script>` sin nonce lo bloquea el navegador sin avisar: acá falla."""
@@ -154,6 +158,4 @@ def test_hsts_se_manda_sobre_https(client):
     """Detrás del proxy de Render (ProxyFix marca is_secure) sí va."""
     response = client.get("/", base_url="https://localhost")
 
-    assert response.headers["Strict-Transport-Security"] == (
-        "max-age=31536000; includeSubDomains"
-    )
+    assert response.headers["Strict-Transport-Security"] == ("max-age=31536000; includeSubDomains")

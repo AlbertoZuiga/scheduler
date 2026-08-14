@@ -3,9 +3,8 @@
 Proveen funciones reutilizables para validar pertenencia/roles
 antes de acceder o modificar recursos sensibles.
 """
-from __future__ import annotations
 
-from typing import Tuple
+from __future__ import annotations
 
 from flask import abort, flash
 from flask_login import current_user
@@ -32,7 +31,7 @@ def get_membership(group_id: int, user_id: int):
     return GroupMember.query.filter_by(group_id=group_id, user_id=user_id).first()
 
 
-def require_group_member(group_id: int) -> Tuple[Group, GroupMember]:
+def require_group_member(group_id: int) -> tuple[Group, GroupMember]:
     """Asegura que el usuario autenticado pertenece al grupo.
 
     Devuelve (group, membership). Aborta con 403 si no es miembro.
@@ -45,7 +44,7 @@ def require_group_member(group_id: int) -> Tuple[Group, GroupMember]:
     return group, membership
 
 
-def require_group_admin_or_owner(group_id: int) -> Tuple[Group, GroupMember]:
+def require_group_admin_or_owner(group_id: int) -> tuple[Group, GroupMember]:
     """Verifica que el usuario sea owner o admin del grupo."""
     group, membership = require_group_member(group_id)
     if not (group.owner_id == current_user.id or membership.role == RoleEnum.ADMIN):
@@ -54,7 +53,7 @@ def require_group_admin_or_owner(group_id: int) -> Tuple[Group, GroupMember]:
     return group, membership
 
 
-def require_group_permission(group_id: int, permission: str) -> Tuple[Group, GroupMember, set]:
+def require_group_permission(group_id: int, permission: str) -> tuple[Group, GroupMember, set]:
     """Verifica que el usuario tenga `permission` (directo, por categoría, o
     por ser owner/admin) sobre los subgrupos del grupo.
 
@@ -96,7 +95,7 @@ def require_subgroup_access(group_id: int, subgroup_id: int, *, edit: bool):
     abort(403)
 
 
-def require_group_owner(group_id: int) -> Tuple[Group, GroupMember]:
+def require_group_owner(group_id: int) -> tuple[Group, GroupMember]:
     group, membership = require_group_member(group_id)
     if group.owner_id != current_user.id:
         flash("Solo el propietario del grupo puede realizar esta acción.", "danger")

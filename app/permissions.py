@@ -5,6 +5,7 @@ grupo: abren la pantalla de subgrupos (verla, editarla) sin dar acceso nunca a
 `/groups/<id>/members` ni a la administración de categorías, que siguen siendo
 exclusivas de `require_group_admin_or_owner` (ver app/authz.py).
 """
+
 from __future__ import annotations
 
 from app.extensions import scheduler_db
@@ -16,7 +17,13 @@ PERM_EDIT_OWN = "subgroups.edit_own"
 PERM_EDIT_ALL = "subgroups.edit_all"
 PERM_VIEW_AVAILABILITY = "availability.view_all"
 
-ALL_PERMISSIONS = {PERM_VIEW_OWN, PERM_VIEW_ALL, PERM_EDIT_OWN, PERM_EDIT_ALL, PERM_VIEW_AVAILABILITY}
+ALL_PERMISSIONS = {
+    PERM_VIEW_OWN,
+    PERM_VIEW_ALL,
+    PERM_EDIT_OWN,
+    PERM_EDIT_ALL,
+    PERM_VIEW_AVAILABILITY,
+}
 
 # Qué otros permisos trae implícitos cada uno, para que la UI y el resolver
 # no tengan que evaluar combinaciones sueltas.

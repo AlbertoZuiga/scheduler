@@ -48,9 +48,7 @@ class AuditLog(scheduler_db.Model):  # pylint: disable=too-few-public-methods
         server_default=func.now(),
     )
 
-    __table_args__ = (
-        scheduler_db.Index("ix_audit_log_group_created", "group_id", "created_at"),
-    )
+    __table_args__ = (scheduler_db.Index("ix_audit_log_group_created", "group_id", "created_at"),)
 
     def __repr__(self):
         return (

@@ -7,8 +7,9 @@ Cada caso verifica las dos mitades de la garantía:
    insertar — que es justo lo que un unique total rompería (reingresar a un
    grupo, recrear una categoría, volver a marcar un bloque).
 """
+
 # pylint: disable=redefined-outer-name
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy.exc import IntegrityError
@@ -42,7 +43,7 @@ def _flush_expecting_conflict(session, row):
 @pytest.fixture()
 def fixture_group(db_session):
     """Un grupo con un miembro, una categoría y un subgrupo, ya persistidos."""
-    user = User(email=f"u{datetime.now(timezone.utc).timestamp()}@x.test", name="U")
+    user = User(email=f"u{datetime.now(UTC).timestamp()}@x.test", name="U")
     db_session.add(user)
     db_session.flush()
 
@@ -68,9 +69,7 @@ def fixture_group(db_session):
 def test_group_member_rechaza_duplicado_y_permite_reingreso(db_session, fixture_group):
     group, user = fixture_group["group"], fixture_group["user"]
 
-    _flush_expecting_conflict(
-        db_session, GroupMember(group_id=group.id, user_id=user.id)
-    )
+    _flush_expecting_conflict(db_session, GroupMember(group_id=group.id, user_id=user.id))
 
     fixture_group["member"].soft_delete()
     db_session.flush()
@@ -103,9 +102,7 @@ def test_group_member_category_rechaza_duplicado(db_session, fixture_group):
 
     assoc.soft_delete()
     db_session.flush()
-    db_session.add(
-        GroupMemberCategory(group_member_id=member.id, category_id=category.id)
-    )
+    db_session.add(GroupMemberCategory(group_member_id=member.id, category_id=category.id))
     db_session.flush()
 
 
@@ -115,9 +112,7 @@ def test_subgroup_member_rechaza_duplicado(db_session, fixture_group):
     db_session.add(membership)
     db_session.flush()
 
-    _flush_expecting_conflict(
-        db_session, SubGroupMember(subgroup_id=subgroup.id, user_id=user.id)
-    )
+    _flush_expecting_conflict(db_session, SubGroupMember(subgroup_id=subgroup.id, user_id=user.id))
 
     membership.soft_delete()
     db_session.flush()

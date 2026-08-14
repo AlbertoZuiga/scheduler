@@ -105,8 +105,7 @@ def test_process_posted_availability_crea_bloques_y_marcas(db_session, group):
 
     assert guardados == 2
     marcas = {
-        (a.weekday, a.start_minutes)
-        for a in Availability.query.filter_by(group_id=group.id).all()
+        (a.weekday, a.start_minutes) for a in Availability.query.filter_by(group_id=group.id).all()
     }
     assert marcas == {(0, 480), (1, 540)}
     assert UserAvailability.query.filter_by(user_id=user.id).count() == 2
@@ -144,15 +143,12 @@ def test_clear_existing_availability_solo_toca_lo_visible(db_session, group):
     user = _add_member(db_session, group, "limpia@example.com")
     visible = _mark(db_session, group, user, 0, 480)
     fuera_de_rango = _mark(db_session, group, user, 0, 660)  # 11:00, fuera de la grilla
-    dia_apagado = _mark(db_session, group, user, 5, 480)     # sábado, no está activo
+    dia_apagado = _mark(db_session, group, user, 5, 480)  # sábado, no está activo
 
     svc.clear_existing_availability(group, user.id, [0, 1])
     db_session.commit()
 
-    activos = {
-        ua.availability_id
-        for ua in UserAvailability.query.filter_by(user_id=user.id).all()
-    }
+    activos = {ua.availability_id for ua in UserAvailability.query.filter_by(user_id=user.id).all()}
     assert visible.id not in activos
     assert fuera_de_rango.id in activos
     assert dia_apagado.id in activos
@@ -163,14 +159,14 @@ def test_marcar_de_nuevo_reusa_la_fila_oculta(db_session, group):
     _mark(db_session, group, user, 0, 480)
 
     svc.clear_existing_availability(group, user.id, [0, 1])
-    svc.process_posted_availability(
-        group.id, {"day_0_hour_0": "on"}, group, user.id, [0, 1]
-    )
+    svc.process_posted_availability(group.id, {"day_0_hour_0": "on"}, group, user.id, [0, 1])
     db_session.commit()
 
-    todas = UserAvailability.query.execution_options(include_deleted=True).filter_by(
-        user_id=user.id
-    ).all()
+    todas = (
+        UserAvailability.query.execution_options(include_deleted=True)
+        .filter_by(user_id=user.id)
+        .all()
+    )
     assert len(todas) == 1
     assert todas[0].deleted_at is None
 
@@ -229,9 +225,7 @@ def test_remap_no_toca_los_dias_apagados(db_session, group):
     db_session.commit()
 
     assert remapeadas == 0
-    marca = UserAvailability.query.filter_by(
-        availability_id=fila.id, user_id=user.id
-    ).first()
+    marca = UserAvailability.query.filter_by(availability_id=fila.id, user_id=user.id).first()
     assert marca is not None and marca.deleted_at is None
 
 
@@ -288,9 +282,7 @@ def test_el_servicio_no_commitea_solo(db_session, group):
     """La transacción la maneja la ruta: un rollback debe deshacer todo."""
     user = _add_member(db_session, group, "tx@example.com")
 
-    svc.process_posted_availability(
-        group.id, {"day_0_hour_0": "on"}, group, user.id, [0, 1]
-    )
+    svc.process_posted_availability(group.id, {"day_0_hour_0": "on"}, group, user.id, [0, 1])
     scheduler_db.session.rollback()
 
     assert Availability.query.filter_by(group_id=group.id).count() == 0

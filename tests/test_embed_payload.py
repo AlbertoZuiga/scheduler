@@ -12,10 +12,11 @@ import pathlib
 import re
 
 import flask
-
 from test_query_counts import _seed_group  # noqa: F401
 
-_GROUP_SHOW_JS = (pathlib.Path(__file__).parent.parent / "app" / "static" / "js" / "group_show.js").read_text()
+_GROUP_SHOW_JS = (
+    pathlib.Path(__file__).parent.parent / "app" / "static" / "js" / "group_show.js"
+).read_text()
 
 EMBED_RE = re.compile(
     r'<script type="application/json" id="embed-data"[^>]*>(.*?)</script>', re.DOTALL
@@ -56,7 +57,7 @@ def test_el_embed_de_show_solo_trae_las_claves_que_usa_el_js(app, db_session):
     # Cada clave del payload tiene que aparecer leída en el script de la vista.
     # Se excluye el bloque embed-data para no confundir valores JSON con lecturas JS.
     # group_show.js es externo: la búsqueda abarca el HTML renderizado y el archivo estático.
-    html_body = body[:match.start()] + body[match.end():]
+    html_body = body[: match.start()] + body[match.end() :]
     js_body = html_body + _GROUP_SHOW_JS
     for clave in payload:
         assert f"__EMBED__.{clave}" in js_body, f"'{clave}' se embebe pero nadie lo lee"

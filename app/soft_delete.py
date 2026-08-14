@@ -5,6 +5,7 @@ seteado. Para incluirlas (papelera, restauración) se usa:
 
     Group.query.execution_options(include_deleted=True)
 """
+
 import contextvars
 from contextlib import contextmanager
 

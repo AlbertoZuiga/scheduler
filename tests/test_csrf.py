@@ -25,8 +25,8 @@ def csrf_client(app):
 @pytest.mark.parametrize(
     "path",
     [
-        "/groups/1/delete",           # borrar grupo
-        "/groups/1/update_role/2",    # cambiar rol
+        "/groups/1/delete",  # borrar grupo
+        "/groups/1/update_role/2",  # cambiar rol
         "/groups/1/restore",
         "/groups/1/restore_member/2",
     ],

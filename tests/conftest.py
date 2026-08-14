@@ -35,7 +35,9 @@ def app():
     # El rate limit va apagado por default (como CSRF): el contador es por
     # proceso y varios tests pegan al mismo endpoint. `test_hardening.py` lo
     # enciende a propósito.
-    scheduler_app.config.update(TESTING=True, DEBUG=False, WTF_CSRF_ENABLED=False, RATELIMIT_ENABLED=False)
+    scheduler_app.config.update(
+        TESTING=True, DEBUG=False, WTF_CSRF_ENABLED=False, RATELIMIT_ENABLED=False
+    )
     with scheduler_app.app_context():
         scheduler_db.create_all()
     yield scheduler_app

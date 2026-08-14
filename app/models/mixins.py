@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import func, text
 
@@ -12,7 +12,7 @@ ACTIVE_ROWS = text("deleted_at IS NULL")
 
 
 def _utcnow():
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class TimestampMixin:

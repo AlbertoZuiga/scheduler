@@ -1,19 +1,25 @@
 from flask import (
-    Blueprint, current_app, request, jsonify, render_template, redirect, url_for, flash
+    Blueprint,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
 )
-from flask_login import login_required, current_user
+from flask_login import current_user, login_required
 from sqlalchemy.exc import IntegrityError
 
-from app.extensions import scheduler_db
-from app.models import Category, GroupMember, GroupMemberCategory, GroupPermissionGrant
 from app.authz import (
     can_see_member_emails,
     display_name,
-    require_group_member,
     require_group_admin_or_owner,
+    require_group_member,
 )
+from app.extensions import scheduler_db
+from app.models import Category, GroupMember, GroupMemberCategory, GroupPermissionGrant
 from app.soft_delete import active_or_404, find_soft_deleted, restore_batch
-
 
 category_bp = Blueprint("categories", __name__, url_prefix="/categories")
 
@@ -71,14 +77,18 @@ def _handle_create_category(group_id: int):
     require_group_admin_or_owner(group_id)
     name = request.form.get("name") or (request.is_json and request.json.get("name"))
     if not name:
-        return _json_or_flash(False, NAME_REQUIRED_MSG, 400, url_for("groups.show", group_id=group_id))
+        return _json_or_flash(
+            False, NAME_REQUIRED_MSG, 400, url_for("groups.show", group_id=group_id)
+        )
     # Se mide el valor tal cual se inserta (sin strip): es lo que ve la columna.
     if len(name) > NAME_MAX_LENGTH:
         return _json_or_flash(
             False, NAME_TOO_LONG_MSG, 400, url_for(GROUP_CATEGORIES_ENDPOINT, group_id=group_id)
         )
     if _category_exists(group_id, name):
-        return _json_or_flash(False, DUPLICATE_MSG, 409, url_for(GROUP_CATEGORIES_ENDPOINT, group_id=group_id))
+        return _json_or_flash(
+            False, DUPLICATE_MSG, 409, url_for(GROUP_CATEGORIES_ENDPOINT, group_id=group_id)
+        )
 
     # Si existe una categoría eliminada con ese nombre, se restaura en vez de
     # crear una nueva: recupera de paso sus asignaciones a miembros.
@@ -97,7 +107,8 @@ def _handle_create_category(group_id: int):
     conflict = _commit_or_duplicate(
         DUPLICATE_MSG,
         url_for(GROUP_CATEGORIES_ENDPOINT, group_id=group_id),
-        "categoría duplicada en carrera (group_id=%s)", group_id,
+        "categoría duplicada en carrera (group_id=%s)",
+        group_id,
     )
     if conflict:
         return conflict
@@ -123,8 +134,13 @@ def group_categories(group_id):
     # Build counts and member ids per category
     cat_info = []
     for c in categories:
-        member_ids = [assoc.group_member_id for assoc in GroupMemberCategory.query.filter_by(category_id=c.id).all()]
-        cat_info.append({"id": c.id, "name": c.name, "member_ids": member_ids, "count": len(member_ids)})
+        member_ids = [
+            assoc.group_member_id
+            for assoc in GroupMemberCategory.query.filter_by(category_id=c.id).all()
+        ]
+        cat_info.append(
+            {"id": c.id, "name": c.name, "member_ids": member_ids, "count": len(member_ids)}
+        )
     return jsonify(cat_info)
 
 
@@ -133,7 +149,7 @@ def group_categories(group_id):
 def delete_category(group_id, category_id):
     """Elimina una categoría y todas sus asociaciones con miembros."""
     require_group_admin_or_owner(group_id)
-    
+
     category = Category.query.filter_by(id=category_id, group_id=group_id).first_or_404()
 
     # Oculta la categoría y sus asignaciones; volver a crearla con el mismo
@@ -158,12 +174,18 @@ def check_category_name(group_id):
         .first()
     )
     if exists:
-        return jsonify({"available": False, "message": "Ya existe una categoría con ese nombre."}), 200
+        return jsonify(
+            {"available": False, "message": "Ya existe una categoría con ese nombre."}
+        ), 200
     return jsonify({"available": True, "message": "Disponible"}), 200
 
 
 def _can_modify_member(group_owner_id, acting_role_name, gm_user_id):
-    return (group_owner_id == current_user.id) or (acting_role_name == "ADMIN") or (gm_user_id == current_user.id)
+    return (
+        (group_owner_id == current_user.id)
+        or (acting_role_name == "ADMIN")
+        or (gm_user_id == current_user.id)
+    )
 
 
 def _is_group_admin_or_owner(group, membership):
@@ -199,7 +221,9 @@ def _check_category_target(group, membership, gm, category_id, *, block_permissi
 
 
 def _handle_member_post(group, membership, gm, group_member_id):
-    category_id = request.form.get("category_id") or (request.is_json and request.json.get("category_id"))
+    category_id = request.form.get("category_id") or (
+        request.is_json and request.json.get("category_id")
+    )
     if not category_id:
         return ("category_id required", 400)
 
@@ -212,12 +236,16 @@ def _handle_member_post(group, membership, gm, group_member_id):
         status = error[1]
         return _json_or_flash(
             False,
-            "Categoría inválida." if status == 404 else "No tienes permisos para asociar esta categoría.",
+            "Categoría inválida."
+            if status == 404
+            else "No tienes permisos para asociar esta categoría.",
             status,
         )
     category_id = category.id
 
-    existing = GroupMemberCategory.query.filter_by(group_member_id=group_member_id, category_id=category_id).first()
+    existing = GroupMemberCategory.query.filter_by(
+        group_member_id=group_member_id, category_id=category_id
+    ).first()
     if existing:
         return ("Already exists", 409)
     assoc = find_soft_deleted(
@@ -232,7 +260,8 @@ def _handle_member_post(group, membership, gm, group_member_id):
         "Esa categoría ya está asociada al miembro.",
         url_for("categories.member_categories", group_member_id=group_member_id),
         "asignación de categoría duplicada (group_member_id=%s category_id=%s)",
-        group_member_id, category_id,
+        group_member_id,
+        category_id,
     )
     if conflict:
         return conflict
@@ -254,7 +283,9 @@ def _handle_member_delete(group, membership, gm, group_member_id):
     if error:
         return error
     category_id = category.id
-    assoc = GroupMemberCategory.query.filter_by(group_member_id=group_member_id, category_id=category_id).first()
+    assoc = GroupMemberCategory.query.filter_by(
+        group_member_id=group_member_id, category_id=category_id
+    ).first()
     if not assoc:
         return ("Not found", 404)
     assoc.soft_delete()
@@ -282,12 +313,20 @@ def _validate_bulk_ids(gid, mids, cids):
     valid_member_ids = [m.id for m in GroupMember.query.filter_by(group_id=gid).all()]
     invalid_members = [mid for mid in mids if mid not in valid_member_ids]
     if invalid_members:
-        return jsonify({"ok": False, "message": "Miembro(s) inválido(s)", "invalid_members": invalid_members}), 400
+        return jsonify(
+            {"ok": False, "message": "Miembro(s) inválido(s)", "invalid_members": invalid_members}
+        ), 400
 
     valid_category_ids = [c.id for c in Category.query.filter_by(group_id=gid).all()]
     invalid_categories = [cid for cid in cids if cid not in valid_category_ids]
     if invalid_categories:
-        return jsonify({"ok": False, "message": "Categoría(s) inválida(s)", "invalid_categories": invalid_categories}), 400
+        return jsonify(
+            {
+                "ok": False,
+                "message": "Categoría(s) inválida(s)",
+                "invalid_categories": invalid_categories,
+            }
+        ), 400
     return None
 
 
@@ -297,7 +336,8 @@ def _bulk_do_assign(gid, mids, cids):
         (gmc.group_member_id, gmc.category_id)
         for gmc in GroupMemberCategory.query.join(
             GroupMember, GroupMember.id == GroupMemberCategory.group_member_id
-        ).filter(GroupMember.group_id == gid)
+        )
+        .filter(GroupMember.group_id == gid)
         .all()
     }
     for mid in mids:
@@ -317,7 +357,8 @@ def _bulk_do_assign(gid, mids, cids):
     conflict = _commit_or_duplicate(
         "Alguna de las asignaciones ya existía. Recarga y vuelve a intentar.",
         None,
-        "bulk_assign con conflicto de unique (group_id=%s)", gid,
+        "bulk_assign con conflicto de unique (group_id=%s)",
+        gid,
     )
     if conflict:
         return conflict
@@ -374,10 +415,12 @@ def member_categories(group_member_id):
             can_edit=can_edit,
         )
 
-    return jsonify({
-        "all": [{"id": c.id, "name": c.name} for c in all_categories],
-        "selected": assoc_ids,
-    })
+    return jsonify(
+        {
+            "all": [{"id": c.id, "name": c.name} for c in all_categories],
+            "selected": assoc_ids,
+        }
+    )
 
 
 @category_bp.route("/bulk_assign", methods=["POST"])

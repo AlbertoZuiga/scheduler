@@ -13,9 +13,7 @@ import json
 import re
 
 import flask
-import pytest
 
-from app.extensions import scheduler_db
 from app.models import (
     Availability,
     Group,
@@ -66,10 +64,12 @@ def _seed(db_session, token, subgroup=True):
         sg = SubGroup(parent_group_id=group.id, name=f"SG-{token}")
         db_session.add(sg)
         db_session.flush()
-        db_session.add_all([
-            SubGroupMember(subgroup_id=sg.id, user_id=member_a.id),
-            SubGroupMember(subgroup_id=sg.id, user_id=member_b.id),
-        ])
+        db_session.add_all(
+            [
+                SubGroupMember(subgroup_id=sg.id, user_id=member_a.id),
+                SubGroupMember(subgroup_id=sg.id, user_id=member_b.id),
+            ]
+        )
         db_session.flush()
 
     slot1 = Availability(group_id=group.id, weekday=0, start_minutes=9 * 60)
@@ -78,11 +78,13 @@ def _seed(db_session, token, subgroup=True):
     db_session.flush()
 
     # owner y member_a marcan el slot1; solo owner marca slot2
-    db_session.add_all([
-        UserAvailability(user_id=owner.id, availability_id=slot1.id),
-        UserAvailability(user_id=member_a.id, availability_id=slot1.id),
-        UserAvailability(user_id=owner.id, availability_id=slot2.id),
-    ])
+    db_session.add_all(
+        [
+            UserAvailability(user_id=owner.id, availability_id=slot1.id),
+            UserAvailability(user_id=member_a.id, availability_id=slot1.id),
+            UserAvailability(user_id=owner.id, availability_id=slot2.id),
+        ]
+    )
     db_session.commit()
 
     return group, owner, member_a, member_b, gm_a, gm_b
@@ -113,6 +115,7 @@ def _embed(body):
 # ---------------------------------------------------------------------------
 # Criterio 1: sin permiso → solo marcas propias
 # ---------------------------------------------------------------------------
+
 
 def test_miembro_sin_permiso_no_ve_chips_de_otros(app, db_session):
     group, owner, member_a, member_b, gm_a, _ = _seed(db_session, "av-sin-perm")
@@ -145,14 +148,17 @@ def test_miembro_sin_permiso_embed_sin_identidades_ajenas(app, db_session):
 # Criterio 2: con availability.view_all → grilla agregada
 # ---------------------------------------------------------------------------
 
+
 def test_miembro_con_permiso_ve_chips_del_grupo(app, db_session):
     group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-con-perm")
 
-    db_session.add(GroupPermissionGrant(
-        group_id=group.id,
-        group_member_id=gm_b.id,
-        permission=PERM_VIEW_AVAILABILITY,
-    ))
+    db_session.add(
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_VIEW_AVAILABILITY,
+        )
+    )
     db_session.commit()
 
     body = _get_show(app, member_b.id, group.id)
@@ -165,11 +171,13 @@ def test_miembro_con_permiso_ve_chips_del_grupo(app, db_session):
 def test_miembro_con_permiso_embed_can_view_availability_true(app, db_session):
     group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-embed-con-perm")
 
-    db_session.add(GroupPermissionGrant(
-        group_id=group.id,
-        group_member_id=gm_b.id,
-        permission=PERM_VIEW_AVAILABILITY,
-    ))
+    db_session.add(
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_VIEW_AVAILABILITY,
+        )
+    )
     db_session.commit()
 
     body = _get_show(app, member_b.id, group.id)
@@ -182,14 +190,17 @@ def test_miembro_con_permiso_embed_can_view_availability_true(app, db_session):
 # Criterio 2b: el alcance del permiso es el subgrupo propio
 # ---------------------------------------------------------------------------
 
+
 def test_alcance_solo_su_subgrupo_en_embed_y_filtros(app, db_session):
     group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-alcance-sg")
 
-    db_session.add(GroupPermissionGrant(
-        group_id=group.id,
-        group_member_id=gm_b.id,
-        permission=PERM_VIEW_AVAILABILITY,
-    ))
+    db_session.add(
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_VIEW_AVAILABILITY,
+        )
+    )
     db_session.commit()
 
     body = _get_show(app, member_b.id, group.id)
@@ -204,15 +215,15 @@ def test_alcance_solo_su_subgrupo_en_embed_y_filtros(app, db_session):
 
 
 def test_permiso_sin_subgrupo_no_abre_la_grilla(app, db_session):
-    group, owner, member_a, member_b, gm_a, gm_b = _seed(
-        db_session, "av-sin-sg", subgroup=False
-    )
+    group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-sin-sg", subgroup=False)
 
-    db_session.add(GroupPermissionGrant(
-        group_id=group.id,
-        group_member_id=gm_b.id,
-        permission=PERM_VIEW_AVAILABILITY,
-    ))
+    db_session.add(
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_VIEW_AVAILABILITY,
+        )
+    )
     db_session.commit()
 
     body = _get_show(app, member_b.id, group.id)
@@ -222,9 +233,7 @@ def test_permiso_sin_subgrupo_no_abre_la_grilla(app, db_session):
     assert f'data-user-id="{member_a.id}"' not in body
     # Cae a la vista de miembro sin permiso, no a una vista vacía: el roster y
     # los contadores del grupo siguen ahí.
-    assert {m["user_id"] for m in payload["members"]} == {
-        owner.id, member_a.id, member_b.id
-    }
+    assert {m["user_id"] for m in payload["members"]} == {owner.id, member_a.id, member_b.id}
     assert "Nadie ha marcado su disponibilidad todavía" not in body
 
 
@@ -232,18 +241,20 @@ def test_permiso_con_subgroups_view_all_ve_todo_el_grupo(app, db_session):
     """availability.view_all + subgroups.view_all → ve la grilla agregada."""
     group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-scope-all")
 
-    db_session.add_all([
-        GroupPermissionGrant(
-            group_id=group.id,
-            group_member_id=gm_b.id,
-            permission=PERM_VIEW_AVAILABILITY,
-        ),
-        GroupPermissionGrant(
-            group_id=group.id,
-            group_member_id=gm_b.id,
-            permission=PERM_VIEW_ALL,
-        ),
-    ])
+    db_session.add_all(
+        [
+            GroupPermissionGrant(
+                group_id=group.id,
+                group_member_id=gm_b.id,
+                permission=PERM_VIEW_AVAILABILITY,
+            ),
+            GroupPermissionGrant(
+                group_id=group.id,
+                group_member_id=gm_b.id,
+                permission=PERM_VIEW_ALL,
+            ),
+        ]
+    )
     db_session.commit()
 
     body = _get_show(app, member_b.id, group.id)
@@ -257,11 +268,13 @@ def test_permiso_con_subgroups_view_all_ve_todo_el_grupo(app, db_session):
 def test_permiso_de_horarios_implica_ver_su_subgrupo(app, db_session):
     group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-implica-viewown")
 
-    db_session.add(GroupPermissionGrant(
-        group_id=group.id,
-        group_member_id=gm_b.id,
-        permission=PERM_VIEW_AVAILABILITY,
-    ))
+    db_session.add(
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_VIEW_AVAILABILITY,
+        )
+    )
     db_session.commit()
 
     client = _client_for(app, member_b.id)
@@ -272,6 +285,7 @@ def test_permiso_de_horarios_implica_ver_su_subgrupo(app, db_session):
 # ---------------------------------------------------------------------------
 # Criterio 3: owner ve la grilla
 # ---------------------------------------------------------------------------
+
 
 def test_owner_ve_grilla_agregada(app, db_session):
     group, owner, member_a, member_b, _, _ = _seed(db_session, "av-owner")
@@ -287,14 +301,17 @@ def test_owner_ve_grilla_agregada(app, db_session):
 # Criterio 4: subgroups.view_all NO implica availability.view_all
 # ---------------------------------------------------------------------------
 
+
 def test_subgroups_view_all_no_concede_ver_disponibilidad(app, db_session):
     group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-sub-noimplica")
 
-    db_session.add(GroupPermissionGrant(
-        group_id=group.id,
-        group_member_id=gm_b.id,
-        permission=PERM_VIEW_ALL,
-    ))
+    db_session.add(
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_VIEW_ALL,
+        )
+    )
     db_session.commit()
 
     body = _get_show(app, member_b.id, group.id)
@@ -310,6 +327,7 @@ def test_subgroups_view_all_no_concede_ver_disponibilidad(app, db_session):
 # (variante con subgroups.view_all, para confirmar que tampoco filtra)
 # ---------------------------------------------------------------------------
 
+
 def test_embed_no_lleva_cell_users_ni_user_info_map(app, db_session):
     group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-embed-no-idents")
 
@@ -323,6 +341,7 @@ def test_embed_no_lleva_cell_users_ni_user_info_map(app, db_session):
 # ---------------------------------------------------------------------------
 # Criterio 6: el permiso se puede conceder y revocar desde el panel del owner
 # ---------------------------------------------------------------------------
+
 
 def test_owner_puede_conceder_availability_view_all_via_ruta(app, db_session):
     group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-grant-ruta")
@@ -347,11 +366,13 @@ def test_owner_puede_conceder_availability_view_all_via_ruta(app, db_session):
 def test_owner_puede_revocar_availability_view_all_via_ruta(app, db_session):
     group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-revoke-ruta")
 
-    db_session.add(GroupPermissionGrant(
-        group_id=group.id,
-        group_member_id=gm_b.id,
-        permission=PERM_VIEW_AVAILABILITY,
-    ))
+    db_session.add(
+        GroupPermissionGrant(
+            group_id=group.id,
+            group_member_id=gm_b.id,
+            permission=PERM_VIEW_AVAILABILITY,
+        )
+    )
     db_session.commit()
 
     client = _client_for(app, owner.id)
@@ -374,6 +395,7 @@ def test_owner_puede_revocar_availability_view_all_via_ruta(app, db_session):
 # ---------------------------------------------------------------------------
 # Unitarios: level_of / has_availability_of con la combinación
 # ---------------------------------------------------------------------------
+
 
 def test_level_of_combo_availability_view_all():
     """level_of debe devolver 'view_all', no 'view_own', para la combinación."""
@@ -399,25 +421,34 @@ def test_level_of_sin_permisos_devuelve_none():
 # Criterio 8: set_permission_level con combo es idempotente
 # ---------------------------------------------------------------------------
 
+
 def test_set_permission_level_combo_idempotente(app, db_session):
     """Guardar el nivel devuelto por level_of + has_availability_of no revoca nada."""
     group, owner, member_a, member_b, gm_a, gm_b = _seed(db_session, "av-idempotente")
 
-    db_session.add_all([
-        GroupPermissionGrant(group_id=group.id, group_member_id=gm_b.id, permission=PERM_VIEW_AVAILABILITY),
-        GroupPermissionGrant(group_id=group.id, group_member_id=gm_b.id, permission=PERM_VIEW_ALL),
-    ])
+    db_session.add_all(
+        [
+            GroupPermissionGrant(
+                group_id=group.id, group_member_id=gm_b.id, permission=PERM_VIEW_AVAILABILITY
+            ),
+            GroupPermissionGrant(
+                group_id=group.id, group_member_id=gm_b.id, permission=PERM_VIEW_ALL
+            ),
+        ]
+    )
     db_session.commit()
 
     direct = {PERM_VIEW_AVAILABILITY, PERM_VIEW_ALL}
-    level = level_of(direct)           # "view_all"
+    level = level_of(direct)  # "view_all"
     has_av = has_availability_of(direct)  # True
 
     client = _client_for(app, owner.id)
     form_data = {"subject_type": "member", "subject_id": str(gm_b.id), "level": level}
     if has_av:
         form_data["availability"] = "on"
-    resp = client.post(f"/groups/{group.id}/permissions/set", data=form_data, follow_redirects=False)
+    resp = client.post(
+        f"/groups/{group.id}/permissions/set", data=form_data, follow_redirects=False
+    )
     assert resp.status_code == 302
 
     active_perms = {

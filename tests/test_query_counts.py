@@ -18,11 +18,11 @@ from app.models import (
     Category,
     Group,
     GroupMember,
-    SubGroup,
-    SubGroupMember,
     GroupMemberCategory,
     GroupPermissionGrant,
     RoleEnum,
+    SubGroup,
+    SubGroupMember,
     UserAvailability,
 )
 from app.models.user import User
@@ -48,9 +48,7 @@ class QueryCounter:
 
 
 def _seed_group(db_session, n_members, token):
-    users = [
-        User(email=f"{token}-{i}@test.local", name=f"Usuario {i}") for i in range(n_members)
-    ]
+    users = [User(email=f"{token}-{i}@test.local", name=f"Usuario {i}") for i in range(n_members)]
     db_session.add_all(users)
     db_session.flush()
 
@@ -73,9 +71,7 @@ def _seed_group(db_session, n_members, token):
     db_session.flush()
     for i, member in enumerate(members):
         db_session.add(
-            GroupMemberCategory(
-                group_member_id=member.id, category_id=categories[i % 3].id
-            )
+            GroupMemberCategory(group_member_id=member.id, category_id=categories[i % 3].id)
         )
     for category in categories:
         db_session.add(
@@ -157,8 +153,7 @@ def test_vista_no_escala_en_queries_con_los_miembros(app, db_session, path_templ
     )
 
     assert grande == chico, (
-        f"{path_template}: {chico} queries con 3 miembros y {grande} con 30 "
-        "→ hay un N+1"
+        f"{path_template}: {chico} queries con 3 miembros y {grande} con 30 → hay un N+1"
     )
 
 

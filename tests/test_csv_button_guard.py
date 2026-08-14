@@ -1,7 +1,6 @@
 """Botón "Descargar CSV" visible solo para admin/owner en members.html."""
 
 # pylint: disable=redefined-outer-name
-from app.extensions import scheduler_db
 from app.models import Group, GroupMember, RoleEnum
 from app.models.user import User
 
