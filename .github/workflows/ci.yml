@@ -74,11 +74,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # No bloqueante en su primera vuelta: las dependencias estan pinneadas y
-      # todavia no sabemos el volumen de CVEs. Se endurece cuando el reporte
-      # este limpio.
-      - name: pip-audit (no bloqueante)
-        continue-on-error: true
+      - name: pip-audit
         uses: pypa/gh-action-pip-audit@v1.1.0
         with:
           inputs: requirements.txt

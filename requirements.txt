@@ -10,7 +10,7 @@ blinker==1.9.0
 cachetools==5.5.2
 certifi==2025.1.31
 charset-normalizer==3.4.1
-click==8.1.8
+click==8.3.3
 dotenv==0.9.9
 google-auth==2.39.0
 google-auth-httplib2==0.2.0
